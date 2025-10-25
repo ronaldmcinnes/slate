@@ -24,8 +24,22 @@ export default function AuthCallback() {
           // Save token
           api.setToken(token);
 
-          // Redirect to app
-          navigate("/app");
+          // Check if user has any notebooks (to determine if first-time user)
+          try {
+            const { owned } = await api.getNotebooks();
+
+            if (owned.length === 0) {
+              // First-time user - redirect to onboarding
+              navigate("/onboarding");
+            } else {
+              // Existing user - redirect to app
+              navigate("/app");
+            }
+          } catch (err) {
+            // If error checking notebooks, still redirect to onboarding to be safe
+            console.error("Error checking notebooks:", err);
+            navigate("/onboarding");
+          }
         } else {
           // No token, redirect to login
           navigate("/login?error=no_token");

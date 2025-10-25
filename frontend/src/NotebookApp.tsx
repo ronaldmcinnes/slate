@@ -15,12 +15,14 @@ import {
 import type { Notebook, Page } from "@/types";
 
 interface NotebookAppProps {
-  onNavigateHome: () => void;
+  onNavigateHome?: () => void;
 }
 
-function NotebookApp({ onNavigateHome }: NotebookAppProps) {
+export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
-  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
+  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(
+    null
+  );
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
@@ -188,5 +190,3 @@ function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     </>
   );
 }
-
-export default NotebookApp;

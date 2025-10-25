@@ -83,7 +83,7 @@ router.post("/logout", (req, res) => {
 router.patch("/settings", authenticate, async (req: AuthRequest, res) => {
   try {
     const user = req.user!;
-    const { theme, defaultNotebook } = req.body;
+    const { theme, defaultNotebook, displayName } = req.body;
 
     if (theme) {
       user.settings.theme = theme;
@@ -91,12 +91,18 @@ router.patch("/settings", authenticate, async (req: AuthRequest, res) => {
     if (defaultNotebook) {
       user.settings.defaultNotebook = defaultNotebook;
     }
+    if (displayName) {
+      user.displayName = displayName;
+    }
 
     await user.save();
 
     res.json({
       success: true,
-      data: user.settings,
+      data: {
+        settings: user.settings,
+        displayName: user.displayName,
+      },
     });
   } catch (error) {
     res.status(500).json({

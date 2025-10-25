@@ -78,6 +78,7 @@ class ApiClient {
   async updateSettings(settings: {
     theme?: "light" | "dark" | "system";
     defaultNotebook?: string;
+    displayName?: string;
   }): Promise<any> {
     const response = await this.request("/api/auth/settings", {
       method: "PATCH",

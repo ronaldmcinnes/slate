@@ -5,8 +5,10 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider } from "@/lib/authContext";
+import HomePage from "@/components/HomePage";
 import LoginPage from "@/components/LoginPage";
 import AuthCallback from "@/components/AuthCallback";
+import OnboardingPage from "@/components/OnboardingPage";
 import NotebookApp from "./NotebookApp";
 
 function App() {
@@ -15,9 +17,12 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<LoginPage />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+
+          {/* Onboarding route */}
+          <Route path="/onboarding" element={<OnboardingPage />} />
 
           {/* Protected app route */}
           <Route path="/app/*" element={<NotebookApp />} />
