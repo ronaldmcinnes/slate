@@ -2,6 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import User, { IUser } from "../models/User";
 
+// Extend Express Request to override the user property
+declare global {
+  namespace Express {
+    interface User extends IUser {}
+  }
+}
+
 export interface AuthRequest extends Request {
   user?: IUser;
 }
@@ -79,7 +86,8 @@ export const optionalAuth = async (
 
 // Generate JWT token
 export const generateToken = (userId: string): string => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  });
+  const secret = process.env.JWT_SECRET!;
+  const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
+  
+  return jwt.sign({ userId }, secret, { expiresIn: expiresIn as any });
 };

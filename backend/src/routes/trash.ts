@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { AuthRequest, authenticate } from "../middleware/auth";
 import Trash from "../models/Trash";
 import Notebook from "../models/Notebook";
@@ -9,7 +10,7 @@ const router = Router();
 // Get all trash items
 router.get("/", authenticate, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
 
     const trashItems = await Trash.find({ userId }).sort({ deletedAt: -1 });
 
@@ -78,7 +79,7 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res) => {
 // Empty trash (delete all)
 router.delete("/empty/all", authenticate, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
 
     const trashItems = await Trash.find({ userId });
 

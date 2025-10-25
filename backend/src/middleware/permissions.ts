@@ -13,7 +13,7 @@ export const checkNotebookAccess = (requiredPermission: "view" | "edit") => {
   ): Promise<void> => {
     try {
       const notebookId = req.params.notebookId || req.params.id;
-      const userId = req.user!._id;
+      const userId = req.user!._id as mongoose.Types.ObjectId;
 
       if (!mongoose.Types.ObjectId.isValid(notebookId)) {
         res.status(400).json({
@@ -83,7 +83,7 @@ export const checkPageAccess = (requiredPermission: "view" | "edit") => {
   ): Promise<void> => {
     try {
       const pageId = req.params.pageId || req.params.id;
-      const userId = req.user!._id;
+      const userId = req.user!._id as mongoose.Types.ObjectId;
 
       if (!mongoose.Types.ObjectId.isValid(pageId)) {
         res.status(400).json({

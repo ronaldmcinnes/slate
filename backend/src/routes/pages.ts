@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { AuthRequest, authenticate } from "../middleware/auth";
 import {
   checkNotebookAccess,
@@ -59,10 +60,10 @@ router.get(
       // Update recent pages for user
       const user = req.user!;
       user.recentPages = user.recentPages.filter(
-        (rp) => rp.pageId.toString() !== page._id.toString()
+        (rp) => rp.pageId.toString() !== (page._id as mongoose.Types.ObjectId).toString()
       );
       user.recentPages.unshift({
-        pageId: page._id,
+        pageId: page._id as mongoose.Types.ObjectId,
         notebookId: page.notebookId,
         accessedAt: new Date(),
       });
@@ -176,7 +177,7 @@ router.patch(
       if (tags !== undefined) page.tags = tags;
       if (order !== undefined) page.order = order;
 
-      page.lastModifiedBy = req.user!._id;
+      page.lastModifiedBy = req.user!._id as mongoose.Types.ObjectId;
       await page.save();
 
       // Update notebook lastModified
@@ -229,7 +230,7 @@ router.delete(
 
       page.isDeleted = true;
       page.deletedAt = new Date();
-      page.deletedBy = req.user!._id;
+      page.deletedBy = req.user!._id as mongoose.Types.ObjectId;
       await page.save();
 
       // Add to trash
@@ -340,7 +341,7 @@ router.get("/recent/list", authenticate, async (req: AuthRequest, res) => {
 
     // Sort by recent access order
     const sortedPages = recentPageIds
-      .map((id) => pages.find((p) => p._id.toString() === id.toString()))
+      .map((id) => pages.find((p) => (p._id as mongoose.Types.ObjectId).toString() === id.toString()))
       .filter((p) => p !== undefined);
 
     res.json({
