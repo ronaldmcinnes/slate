@@ -237,30 +237,23 @@ export default function Canvas({ page, onUpdatePage }) {
             className="canvas-clickable absolute inset-0"
             style={{ minWidth: "200%", minHeight: "200%" }}
           >
-            {isDrawingTool && (
-              <ReactSketchCanvas
-                ref={canvasRef}
-                strokeWidth={strokeWidth}
-                strokeColor={tool === "eraser" ? "#FAFAFA" : strokeColor}
-                eraserWidth={tool === "eraser" ? strokeWidth : 0}
-                canvasColor="#FAFAFA"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                }}
-                svgStyle={{
-                  width: "100%",
-                  height: "100%",
-                }}
-                onChange={handleSaveDrawing}
-              />
-            )}
-            {!isDrawingTool && (
-              <div
-                className="w-full h-full bg-transparent"
-                style={{ backgroundColor: "#FAFAFA" }}
-              />
-            )}
+            <ReactSketchCanvas
+              ref={canvasRef}
+              strokeWidth={strokeWidth}
+              strokeColor={tool === "eraser" ? "#FAFAFA" : strokeColor}
+              eraserWidth={tool === "eraser" ? strokeWidth : 0}
+              canvasColor="#FAFAFA"
+              style={{
+                width: "100%",
+                height: "100%",
+                pointerEvents: isDrawingTool ? "auto" : "none",
+              }}
+              svgStyle={{
+                width: "100%",
+                height: "100%",
+              }}
+              onChange={handleSaveDrawing}
+            />
           </div>
 
           {/* Text Boxes Overlay */}
