@@ -79,6 +79,7 @@ class ApiClient {
     theme?: "light" | "dark" | "system";
     defaultNotebook?: string;
     displayName?: string;
+    tutorialCompleted?: boolean;
   }): Promise<any> {
     const response = await this.request("/api/auth/settings", {
       method: "PATCH",

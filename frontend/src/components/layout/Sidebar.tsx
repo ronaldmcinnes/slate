@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Plus, BookOpen, User, Home } from "lucide-react";
+import { Plus, BookOpen, User, Home, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreateNotebookDialog from "@/components/dialogs/CreateNotebookDialog";
-import type { Notebook } from "@/types";
+import AccountSettings from "@/components/AccountSettings";
+import { useAuth } from "@/lib/authContext";
+import type { Notebook } from "@shared/types";
 
 interface SidebarProps {
   notebooks: Notebook[];
@@ -20,7 +22,9 @@ export default function Sidebar({
   onCreateNotebook,
   onNavigateHome,
 }: SidebarProps) {
+  const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <>
@@ -100,10 +104,11 @@ export default function Sidebar({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm truncate">{notebook.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {notebook.pages.length}{" "}
-                        {notebook.pages.length === 1 ? "page" : "pages"}
-                      </div>
+                      {notebook.tags && notebook.tags.length > 0 && (
+                        <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {notebook.tags.join(", ")}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </button>
@@ -115,13 +120,34 @@ export default function Sidebar({
         {/* User Section */}
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-              <User size={18} className="text-muted-foreground" />
-            </div>
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={user.displayName}
+                className="w-9 h-9 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+                <User size={18} className="text-muted-foreground" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">Educator</div>
-              <div className="text-xs text-muted-foreground">Professor</div>
+              <div className="text-sm font-medium truncate">
+                {user?.displayName || "User"}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {user?.email || ""}
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={() => setSettingsOpen(true)}
+              title="Account Settings"
+            >
+              <Settings size={16} />
+            </Button>
           </div>
         </div>
       </div>
@@ -131,6 +157,10 @@ export default function Sidebar({
         onOpenChange={setCreateDialogOpen}
         onCreate={onCreateNotebook}
       />
+
+      {settingsOpen && (
+        <AccountSettings onClose={() => setSettingsOpen(false)} />
+      )}
     </>
   );
 }

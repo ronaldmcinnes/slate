@@ -9,6 +9,8 @@ import HomePage from "@/components/HomePage";
 import LoginPage from "@/components/LoginPage";
 import AuthCallback from "@/components/AuthCallback";
 import OnboardingPage from "@/components/OnboardingPage";
+import NotFoundPage from "@/components/NotFoundPage";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import NotebookApp from "./NotebookApp";
 
 function App() {
@@ -21,14 +23,28 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Onboarding route */}
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          {/* Onboarding - only accessible if tutorial NOT completed */}
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute requireAuth requireTutorialIncomplete>
+                <OnboardingPage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Protected app route */}
-          <Route path="/app/*" element={<NotebookApp />} />
+          {/* App - requires auth and completed tutorial */}
+          <Route
+            path="/app/*"
+            element={
+              <ProtectedRoute requireAuth requireTutorialComplete>
+                <NotebookApp />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Catch all - redirect to login */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* 404 Not Found */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AuthProvider>
     </Router>

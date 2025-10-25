@@ -22,35 +22,63 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      // Update user name if changed
-      if (formData.displayName !== user?.displayName) {
-        await api.updateSettings({
-          displayName: formData.displayName,
-        });
-      }
+      console.log("Starting onboarding...");
+
+      // Update user name and mark tutorial as completed
+      console.log("Updating settings...");
+      await api.updateSettings({
+        displayName: formData.displayName,
+        tutorialCompleted: true,
+      });
+      console.log("Settings updated successfully");
 
       // Create first notebook
-      await api.createNotebook({
+      console.log("Creating notebook with title:", formData.notebookName);
+      const notebook = await api.createNotebook({
         title: formData.notebookName,
         description: "My first notebook in Slate",
         tags: ["Getting Started"],
       });
+      console.log("Notebook created successfully:", notebook);
 
       // Refresh user data
+      console.log("Refreshing user data...");
       await refreshUser();
+      console.log("User data refreshed");
 
       // Navigate to app
+      console.log("Navigating to app...");
       navigate("/app");
     } catch (err: any) {
-      console.error("Onboarding error:", err);
-      setError(err.message || "Failed to complete setup. Please try again.");
+      console.error("Onboarding error details:", err);
+      console.error("Error message:", err.message);
+      console.error("Error response:", err.response);
+      setError(
+        err.message ||
+          err.error ||
+          "Failed to complete setup. Please check the console for details."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSkip = () => {
-    navigate("/app");
+  const handleSkip = async () => {
+    setLoading(true);
+    try {
+      // Mark tutorial as completed even if skipped
+      await api.updateSettings({
+        tutorialCompleted: true,
+      });
+      await refreshUser();
+      navigate("/app");
+    } catch (err) {
+      console.error("Error skipping onboarding:", err);
+      // Navigate anyway
+      navigate("/app");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
