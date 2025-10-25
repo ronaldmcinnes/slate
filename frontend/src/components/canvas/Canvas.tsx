@@ -475,7 +475,6 @@ export default function Canvas({
                   <Button
                     onMouseDown={handleStartRecording}
                     onMouseUp={handleStopRecording}
-                    onMouseLeave={handleStopRecording}
                     onTouchStart={handleStartRecording}
                     onTouchEnd={handleStopRecording}
                     variant={isRecording ? "destructive" : "ghost"}

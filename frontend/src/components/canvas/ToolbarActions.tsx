@@ -37,7 +37,6 @@ export default function ToolbarActions({
           className={`h-9 w-9 hover:bg-muted ${isRecording ? 'bg-red-100 text-red-600' : ''}`}
           onMouseDown={onStartRecording}
           onMouseUp={onStopRecording}
-          onMouseLeave={onStopRecording}
           onTouchStart={onStartRecording}
           onTouchEnd={onStopRecording}
           title={isRecording ? "Release to stop recording" : "Hold to record audio"}
