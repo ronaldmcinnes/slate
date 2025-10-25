@@ -94,7 +94,7 @@ export class AudioRecordingService {
     return result.text;
   }
 
-  async interpretTranscription(text: string): Promise<any> {
+  async interpretTranscription(text: string, retryCount: number = 0): Promise<any> {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     
     if (!apiKey) {
@@ -103,7 +103,13 @@ export class AudioRecordingService {
     
     const systemPrompt = `You are a mathematical function interpreter. Convert the user's request into a valid JSON object that describes a mathematical function to be graphed.
 
-IMPORTANT: Return ONLY a valid JSON object. Do not wrap it in markdown code blocks or any other formatting. Just return the raw JSON.
+CRITICAL REQUIREMENTS:
+1. Return ONLY a complete, valid JSON object
+2. Do NOT wrap it in markdown code blocks or any other formatting
+3. Ensure all opening braces { have matching closing braces }
+4. Ensure all strings are properly quoted
+5. Do NOT include any text before or after the JSON
+6. The JSON must be complete and parseable
 
 Use this exact structure:
 {
@@ -204,7 +210,60 @@ For domains, use reasonable ranges like [-5, 5] for 2D, [-3, 3] for 3D`;
     // Remove any remaining markdown formatting
     jsonContent = jsonContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
     
-    // Parse the JSON response
-    return JSON.parse(jsonContent);
+    // Parse the JSON response with error handling
+    try {
+      return JSON.parse(jsonContent);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      console.error('Raw content:', content);
+      console.error('Cleaned content:', jsonContent);
+      
+      // Try to fix common JSON issues
+      let fixedJson = jsonContent;
+      
+      // Fix incomplete JSON by adding missing closing braces
+      const openBraces = (fixedJson.match(/\{/g) || []).length;
+      const closeBraces = (fixedJson.match(/\}/g) || []).length;
+      const missingBraces = openBraces - closeBraces;
+      
+      if (missingBraces > 0) {
+        fixedJson += '}'.repeat(missingBraces);
+        console.log('Attempting to fix JSON by adding', missingBraces, 'closing braces');
+      }
+      
+      // Try parsing the fixed JSON
+      try {
+        return JSON.parse(fixedJson);
+      } catch (secondError) {
+        console.error('Failed to fix JSON:', secondError);
+        
+        // If we've already retried, return fallback
+        if (retryCount >= 1) {
+          return {
+            version: "1.0",
+            plot: {
+              kind: "2d_explicit",
+              title: "Error - Please try again",
+              xLabel: "x",
+              yLabel: "y",
+              domain: { x: [-5, 5] },
+              resolution: 200,
+              expressions: { yOfX: "x^2" },
+              style: {
+                lineWidth: 2,
+                showGrid: true,
+                theme: "light",
+                color: "#ef4444"
+              }
+            }
+          };
+        }
+        
+        // Retry with a more explicit prompt
+        console.log('Retrying with more explicit JSON requirements...');
+        const retryPrompt = `RETRY: The previous response was invalid JSON. Please respond with ONLY a complete, valid JSON object. No markdown, no extra text, just the JSON. For the request: "${text}"`;
+        return this.interpretTranscription(retryPrompt, retryCount + 1);
+      }
+    }
   }
 }
