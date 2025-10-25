@@ -19,6 +19,7 @@ export default function Canvas({ page, onUpdatePage }) {
   const [tempTitle, setTempTitle] = useState("");
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   const [toolbarScrollPosition, setToolbarScrollPosition] = useState(0);
+  const [canvasSize, setCanvasSize] = useState({ width: 200, height: 200 }); // in %
   const [visibleTools, setVisibleTools] = useState({
     eraser: true,
     markers: true,
@@ -38,6 +39,46 @@ export default function Canvas({ page, onUpdatePage }) {
       [toolId]: !prev[toolId],
     }));
   };
+
+  // Auto-expand canvas when scrolling near edges (videogame exploration style)
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const {
+        scrollTop,
+        scrollLeft,
+        scrollHeight,
+        scrollWidth,
+        clientHeight,
+        clientWidth,
+      } = container;
+
+      const expandThreshold = 300; // pixels from edge to trigger expansion
+      let needsExpansion = false;
+      let newSize = { ...canvasSize };
+
+      // Check if scrolled near bottom edge
+      if (scrollHeight - (scrollTop + clientHeight) < expandThreshold) {
+        newSize.height = canvasSize.height + 50;
+        needsExpansion = true;
+      }
+
+      // Check if scrolled near right edge
+      if (scrollWidth - (scrollLeft + clientWidth) < expandThreshold) {
+        newSize.width = canvasSize.width + 50;
+        needsExpansion = true;
+      }
+
+      if (needsExpansion) {
+        setCanvasSize(newSize);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [canvasSize]);
 
   const handleUndo = () => {
     canvasRef.current?.undo();
@@ -233,7 +274,7 @@ export default function Canvas({ page, onUpdatePage }) {
         {/* Canvas Area */}
         <div
           ref={canvasContainerRef}
-          className="flex-1 relative bg-muted/30 overflow-auto"
+          className="flex-1 relative bg-muted/30 overflow-auto scrollbar-hide"
           style={{ cursor: getCursorStyle() }}
         >
           {/* Floating Toolbar */}
@@ -569,7 +610,10 @@ export default function Canvas({ page, onUpdatePage }) {
           {/* Drawing Canvas */}
           <div
             className="canvas-clickable absolute inset-0"
-            style={{ minWidth: "200%", minHeight: "200%" }}
+            style={{
+              minWidth: `${canvasSize.width}%`,
+              minHeight: `${canvasSize.height}%`,
+            }}
           >
             <ReactSketchCanvas
               ref={canvasRef}
