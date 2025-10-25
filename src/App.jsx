@@ -123,7 +123,12 @@ function App() {
   return (
     <>
       <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <ResizablePanel defaultWidth={256} minWidth={200} maxWidth={400}>
+        <ResizablePanel
+          defaultWidth={256}
+          minWidth={200}
+          maxWidth={400}
+          side="left"
+        >
           <Sidebar
             notebooks={notebooks}
             selectedNotebook={selectedNotebook}
@@ -132,7 +137,12 @@ function App() {
           />
         </ResizablePanel>
 
-        <ResizablePanel defaultWidth={224} minWidth={180} maxWidth={400}>
+        <ResizablePanel
+          defaultWidth={224}
+          minWidth={180}
+          maxWidth={400}
+          side="left"
+        >
           <PagesList
             pages={selectedNotebook?.pages || []}
             selectedPage={selectedPage}

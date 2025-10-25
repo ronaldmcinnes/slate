@@ -1,26 +1,15 @@
-import { Mic, MicOff, Sparkles, Download, LineChart, Type } from "lucide-react";
+import { Mic, MicOff, Sparkles, Download, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ToolbarActions({
   isRecording,
   onToggleRecording,
-  onAddTextBox,
   onAddGraph,
   onExport,
   onGenerate,
 }) {
   return (
     <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onAddTextBox}
-        title="Add text box"
-      >
-        <Type size={16} />
-        Text
-      </Button>
-
       <Button
         variant="outline"
         size="sm"

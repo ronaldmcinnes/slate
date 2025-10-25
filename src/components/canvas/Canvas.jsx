@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ReactSketchCanvas } from "react-sketch-canvas";
 import GraphDialog from "@/components/dialogs/GraphDialog";
 import DraggableGraph from "./DraggableGraph";
@@ -9,10 +9,71 @@ import ToolbarActions from "./ToolbarActions";
 export default function Canvas({ page, onUpdatePage }) {
   const [isRecording, setIsRecording] = useState(false);
   const [strokeColor, setStrokeColor] = useState("#000000");
-  const [strokeWidth, setStrokeWidth] = useState(2);
-  const [tool, setTool] = useState("pen");
+  const [strokeWidth, setStrokeWidth] = useState(3);
+  const [tool, setTool] = useState("marker");
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
   const canvasRef = useRef(null);
+  const canvasContainerRef = useRef(null);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if user is typing in an input/textarea
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      // Ctrl+Z - Undo
+      if (e.ctrlKey && e.key === "z") {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Ctrl+Y - Redo
+      else if (e.ctrlKey && e.key === "y") {
+        e.preventDefault();
+        handleRedo();
+      }
+      // T - Text tool
+      else if (
+        (e.key === "t" || e.key === "T") &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey
+      ) {
+        e.preventDefault();
+        handleToolChange("text", "#000000", 0);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Handle canvas click for text tool
+  useEffect(() => {
+    const handleCanvasClick = (e) => {
+      if (tool === "text" && canvasContainerRef.current) {
+        // Check if click is on the canvas area (not on other elements)
+        if (
+          e.target === canvasContainerRef.current ||
+          e.target.closest(".canvas-clickable")
+        ) {
+          const rect = canvasContainerRef.current.getBoundingClientRect();
+          const x =
+            e.clientX - rect.left + canvasContainerRef.current.scrollLeft;
+          const y = e.clientY - rect.top + canvasContainerRef.current.scrollTop;
+
+          handleAddTextBoxAt(x, y);
+        }
+      }
+    };
+
+    const container = canvasContainerRef.current;
+    if (container && tool === "text") {
+      container.addEventListener("click", handleCanvasClick);
+      return () => container.removeEventListener("click", handleCanvasClick);
+    }
+  }, [tool, page]);
 
   if (!page) {
     return (
@@ -49,8 +110,10 @@ export default function Canvas({ page, onUpdatePage }) {
   };
 
   const handleSaveDrawing = async () => {
-    const paths = await canvasRef.current?.exportPaths();
-    onUpdatePage({ drawings: paths });
+    if (canvasRef.current) {
+      const paths = await canvasRef.current.exportPaths();
+      onUpdatePage({ drawings: paths });
+    }
   };
 
   const handleToolChange = (newTool, color, width) => {
@@ -80,17 +143,19 @@ export default function Canvas({ page, onUpdatePage }) {
     onUpdatePage({ graphs });
   };
 
-  const handleAddTextBox = () => {
+  const handleAddTextBoxAt = (x, y) => {
     const textBoxes = page.textBoxes || [];
-    const randomOffset = Math.floor(Math.random() * 200) + 150;
     const newTextBox = {
       id: Date.now(),
       text: "",
-      x: randomOffset,
-      y: randomOffset,
+      x: x - 100,
+      y: y - 30,
     };
     textBoxes.push(newTextBox);
     onUpdatePage({ textBoxes });
+
+    // Switch back to select tool after placing text
+    setTool("select");
   };
 
   const handleRemoveTextBox = (textBoxId) => {
@@ -117,6 +182,18 @@ export default function Canvas({ page, onUpdatePage }) {
     console.log("Generate clicked");
   };
 
+  // Determine if canvas should be interactive for drawing
+  const isDrawingTool =
+    tool !== "select" && tool !== "text" && tool !== "lasso";
+
+  // Get cursor style based on tool
+  const getCursorStyle = () => {
+    if (tool === "text") return "text";
+    if (tool === "select" || tool === "lasso") return "crosshair";
+    if (tool === "eraser") return "default";
+    return "crosshair";
+  };
+
   return (
     <>
       <div className="flex-1 flex flex-col bg-background">
@@ -126,6 +203,7 @@ export default function Canvas({ page, onUpdatePage }) {
             <ToolbarDrawingTools
               tool={tool}
               strokeColor={strokeColor}
+              strokeWidth={strokeWidth}
               onUndo={handleUndo}
               onRedo={handleRedo}
               onToolChange={handleToolChange}
@@ -134,7 +212,6 @@ export default function Canvas({ page, onUpdatePage }) {
             <ToolbarActions
               isRecording={isRecording}
               onToggleRecording={() => setIsRecording(!isRecording)}
-              onAddTextBox={handleAddTextBox}
               onAddGraph={() => setGraphDialogOpen(true)}
               onExport={handleExport}
               onGenerate={handleGenerate}
@@ -143,7 +220,11 @@ export default function Canvas({ page, onUpdatePage }) {
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 relative bg-muted/30 overflow-auto">
+        <div
+          ref={canvasContainerRef}
+          className="flex-1 relative bg-muted/30 overflow-auto"
+          style={{ cursor: getCursorStyle() }}
+        >
           {/* Page Title - Top Left */}
           <div className="absolute top-6 left-6 z-10 pointer-events-auto">
             <h1 className="text-3xl font-bold text-foreground px-1">
@@ -153,24 +234,33 @@ export default function Canvas({ page, onUpdatePage }) {
 
           {/* Drawing Canvas */}
           <div
-            className="absolute inset-0"
+            className="canvas-clickable absolute inset-0"
             style={{ minWidth: "200%", minHeight: "200%" }}
           >
-            <ReactSketchCanvas
-              ref={canvasRef}
-              strokeWidth={strokeWidth}
-              strokeColor={tool === "eraser" ? "#FAFAFA" : strokeColor}
-              canvasColor="#FAFAFA"
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
-              svgStyle={{
-                width: "100%",
-                height: "100%",
-              }}
-              onChange={handleSaveDrawing}
-            />
+            {isDrawingTool && (
+              <ReactSketchCanvas
+                ref={canvasRef}
+                strokeWidth={strokeWidth}
+                strokeColor={tool === "eraser" ? "#FAFAFA" : strokeColor}
+                eraserWidth={tool === "eraser" ? strokeWidth : 0}
+                canvasColor="#FAFAFA"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                svgStyle={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                onChange={handleSaveDrawing}
+              />
+            )}
+            {!isDrawingTool && (
+              <div
+                className="w-full h-full bg-transparent"
+                style={{ backgroundColor: "#FAFAFA" }}
+              />
+            )}
           </div>
 
           {/* Text Boxes Overlay */}
