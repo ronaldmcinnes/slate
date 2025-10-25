@@ -12,7 +12,10 @@ interface ToolbarSettingsProps {
   onToggleTool: (toolId: string) => void;
 }
 
-export default function ToolbarSettings({ visibleTools, onToggleTool }: ToolbarSettingsProps) {
+export default function ToolbarSettings({
+  visibleTools,
+  onToggleTool,
+}: ToolbarSettingsProps) {
   const [open, setOpen] = useState(false);
 
   const allTools = [

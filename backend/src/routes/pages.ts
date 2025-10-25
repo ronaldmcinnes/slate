@@ -1,0 +1,361 @@
+import { Router } from "express";
+import { AuthRequest, authenticate } from "../middleware/auth";
+import {
+  checkNotebookAccess,
+  checkPageAccess,
+} from "../middleware/permissions";
+import Page from "../models/Page";
+import Notebook from "../models/Notebook";
+import Trash from "../models/Trash";
+import Activity from "../models/Activity";
+
+const router = Router();
+
+// Get all pages in a notebook
+router.get(
+  "/notebook/:notebookId",
+  authenticate,
+  checkNotebookAccess("view"),
+  async (req: AuthRequest, res) => {
+    try {
+      const pages = await Page.find({
+        notebookId: req.params.notebookId,
+        isDeleted: false,
+      }).sort({ order: 1, createdAt: 1 });
+
+      res.json({
+        success: true,
+        data: pages.map((p) => ({
+          ...p.toObject(),
+          id: p._id,
+        })),
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: "Error fetching pages",
+      });
+    }
+  }
+);
+
+// Get single page
+router.get(
+  "/:id",
+  authenticate,
+  checkPageAccess("view"),
+  async (req: AuthRequest, res) => {
+    try {
+      const page = await Page.findById(req.params.id);
+
+      if (!page) {
+        res.status(404).json({
+          success: false,
+          error: "Page not found",
+        });
+        return;
+      }
+
+      // Update recent pages for user
+      const user = req.user!;
+      user.recentPages = user.recentPages.filter(
+        (rp) => rp.pageId.toString() !== page._id.toString()
+      );
+      user.recentPages.unshift({
+        pageId: page._id,
+        notebookId: page.notebookId,
+        accessedAt: new Date(),
+      });
+      user.recentPages = user.recentPages.slice(0, 10); // Keep only 10 most recent
+      await user.save();
+
+      res.json({
+        success: true,
+        data: {
+          ...page.toObject(),
+          id: page._id,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: "Error fetching page",
+      });
+    }
+  }
+);
+
+// Create page
+router.post(
+  "/notebook/:notebookId",
+  authenticate,
+  checkNotebookAccess("edit"),
+  async (req: AuthRequest, res) => {
+    try {
+      const { title, content, tags } = req.body;
+      const notebookId = req.params.notebookId;
+
+      if (!title || title.trim() === "") {
+        res.status(400).json({
+          success: false,
+          error: "Title is required",
+        });
+        return;
+      }
+
+      // Get max order
+      const maxOrderPage = await Page.findOne({ notebookId }).sort({
+        order: -1,
+      });
+      const order = maxOrderPage ? maxOrderPage.order + 1 : 0;
+
+      const page = await Page.create({
+        notebookId,
+        userId: req.user!._id,
+        title: title.trim(),
+        content: content || "",
+        tags: tags || [],
+        order,
+        lastModifiedBy: req.user!._id,
+      });
+
+      // Update notebook lastModified
+      await Notebook.findByIdAndUpdate(notebookId, {
+        lastModified: new Date(),
+      });
+
+      // Log activity
+      await Activity.create({
+        userId: req.user!._id,
+        action: "create",
+        targetType: "page",
+        targetId: page._id,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          ...page.toObject(),
+          id: page._id,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating page:", error);
+      res.status(500).json({
+        success: false,
+        error: "Error creating page",
+      });
+    }
+  }
+);
+
+// Update page
+router.patch(
+  "/:id",
+  authenticate,
+  checkPageAccess("edit"),
+  async (req: AuthRequest, res) => {
+    try {
+      const { title, content, drawings, graphs, textBoxes, tags, order } =
+        req.body;
+      const page = await Page.findById(req.params.id);
+
+      if (!page) {
+        res.status(404).json({
+          success: false,
+          error: "Page not found",
+        });
+        return;
+      }
+
+      if (title !== undefined) page.title = title.trim();
+      if (content !== undefined) page.content = content;
+      if (drawings !== undefined) page.drawings = drawings;
+      if (graphs !== undefined) page.graphs = graphs;
+      if (textBoxes !== undefined) page.textBoxes = textBoxes;
+      if (tags !== undefined) page.tags = tags;
+      if (order !== undefined) page.order = order;
+
+      page.lastModifiedBy = req.user!._id;
+      await page.save();
+
+      // Update notebook lastModified
+      await Notebook.findByIdAndUpdate(page.notebookId, {
+        lastModified: new Date(),
+      });
+
+      // Log activity
+      await Activity.create({
+        userId: req.user!._id,
+        action: "update",
+        targetType: "page",
+        targetId: page._id,
+        changes: req.body,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          ...page.toObject(),
+          id: page._id,
+        },
+      });
+    } catch (error) {
+      console.error("Error updating page:", error);
+      res.status(500).json({
+        success: false,
+        error: "Error updating page",
+      });
+    }
+  }
+);
+
+// Soft delete page
+router.delete(
+  "/:id",
+  authenticate,
+  checkPageAccess("edit"),
+  async (req: AuthRequest, res) => {
+    try {
+      const page = await Page.findById(req.params.id);
+
+      if (!page) {
+        res.status(404).json({
+          success: false,
+          error: "Page not found",
+        });
+        return;
+      }
+
+      page.isDeleted = true;
+      page.deletedAt = new Date();
+      page.deletedBy = req.user!._id;
+      await page.save();
+
+      // Add to trash
+      await Trash.create({
+        userId: req.user!._id,
+        itemType: "page",
+        itemId: page._id,
+        originalData: page.toObject(),
+      });
+
+      // Update notebook lastModified
+      await Notebook.findByIdAndUpdate(page.notebookId, {
+        lastModified: new Date(),
+      });
+
+      // Log activity
+      await Activity.create({
+        userId: req.user!._id,
+        action: "delete",
+        targetType: "page",
+        targetId: page._id,
+      });
+
+      res.json({
+        success: true,
+        message: "Page moved to trash",
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: "Error deleting page",
+      });
+    }
+  }
+);
+
+// Restore page from trash
+router.post("/:id/restore", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const page = await Page.findOne({
+      _id: req.params.id,
+      isDeleted: true,
+    });
+
+    if (!page) {
+      res.status(404).json({
+        success: false,
+        error: "Page not found in trash",
+      });
+      return;
+    }
+
+    // Check if notebook is accessible
+    const notebook = await Notebook.findById(page.notebookId);
+    if (!notebook || notebook.isDeleted) {
+      res.status(400).json({
+        success: false,
+        error: "Cannot restore page: parent notebook is deleted",
+      });
+      return;
+    }
+
+    page.isDeleted = false;
+    page.deletedAt = undefined;
+    page.deletedBy = undefined;
+    await page.save();
+
+    // Remove from trash
+    await Trash.deleteOne({
+      itemType: "page",
+      itemId: page._id,
+    });
+
+    // Log activity
+    await Activity.create({
+      userId: req.user!._id,
+      action: "restore",
+      targetType: "page",
+      targetId: page._id,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...page.toObject(),
+        id: page._id,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Error restoring page",
+    });
+  }
+});
+
+// Get recent pages
+router.get("/recent/list", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const user = req.user!;
+
+    const recentPageIds = user.recentPages.map((rp) => rp.pageId);
+
+    const pages = await Page.find({
+      _id: { $in: recentPageIds },
+      isDeleted: false,
+    }).populate("notebookId", "title");
+
+    // Sort by recent access order
+    const sortedPages = recentPageIds
+      .map((id) => pages.find((p) => p._id.toString() === id.toString()))
+      .filter((p) => p !== undefined);
+
+    res.json({
+      success: true,
+      data: sortedPages.map((p) => ({
+        ...p!.toObject(),
+        id: p!._id,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Error fetching recent pages",
+    });
+  }
+});
+
+export default router;
