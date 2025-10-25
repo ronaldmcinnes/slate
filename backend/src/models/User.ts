@@ -12,6 +12,21 @@ export interface IUser extends Document {
     theme?: "light" | "dark" | "system";
     defaultNotebook?: mongoose.Types.ObjectId;
   };
+  canvasState: {
+    expandedPanels: {
+      sidebar?: boolean;
+      pagesList?: boolean;
+      toolbar?: boolean;
+    };
+    currentNotebookId?: mongoose.Types.ObjectId;
+    currentPageId?: mongoose.Types.ObjectId;
+    canvasViewport: {
+      x?: number;
+      y?: number;
+      zoom?: number;
+    };
+    lastUsedTool?: string;
+  };
   recentPages: Array<{
     pageId: mongoose.Types.ObjectId;
     notebookId: mongoose.Types.ObjectId;
@@ -58,6 +73,48 @@ const UserSchema: Schema = new Schema(
       defaultNotebook: {
         type: Schema.Types.ObjectId,
         ref: "Notebook",
+      },
+    },
+    canvasState: {
+      expandedPanels: {
+        sidebar: {
+          type: Boolean,
+          default: true,
+        },
+        pagesList: {
+          type: Boolean,
+          default: true,
+        },
+        toolbar: {
+          type: Boolean,
+          default: true,
+        },
+      },
+      currentNotebookId: {
+        type: Schema.Types.ObjectId,
+        ref: "Notebook",
+      },
+      currentPageId: {
+        type: Schema.Types.ObjectId,
+        ref: "Page",
+      },
+      canvasViewport: {
+        x: {
+          type: Number,
+          default: 0,
+        },
+        y: {
+          type: Number,
+          default: 0,
+        },
+        zoom: {
+          type: Number,
+          default: 1,
+        },
+      },
+      lastUsedTool: {
+        type: String,
+        default: "marker1",
       },
     },
     recentPages: [

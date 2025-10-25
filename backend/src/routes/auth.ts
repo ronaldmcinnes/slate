@@ -61,6 +61,7 @@ router.get("/me", authenticate, (req: AuthRequest, res) => {
         lastLogin: user.lastLogin,
         tutorialCompleted: user.tutorialCompleted,
         settings: user.settings,
+        canvasState: user.canvasState,
       },
     });
   } catch (error) {
@@ -113,6 +114,74 @@ router.patch("/settings", authenticate, async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: "Error updating settings",
+    });
+  }
+});
+
+// Update canvas state
+router.patch("/canvas-state", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const user = req.user!;
+    const {
+      expandedPanels,
+      currentNotebookId,
+      currentPageId,
+      canvasViewport,
+      lastUsedTool,
+    } = req.body;
+
+    // Update expanded panels
+    if (expandedPanels) {
+      if (expandedPanels.sidebar !== undefined) {
+        user.canvasState.expandedPanels.sidebar = expandedPanels.sidebar;
+      }
+      if (expandedPanels.pagesList !== undefined) {
+        user.canvasState.expandedPanels.pagesList = expandedPanels.pagesList;
+      }
+      if (expandedPanels.toolbar !== undefined) {
+        user.canvasState.expandedPanels.toolbar = expandedPanels.toolbar;
+      }
+    }
+
+    // Update current notebook/page
+    if (currentNotebookId !== undefined) {
+      user.canvasState.currentNotebookId = currentNotebookId;
+    }
+    if (currentPageId !== undefined) {
+      user.canvasState.currentPageId = currentPageId;
+    }
+
+    // Update canvas viewport
+    if (canvasViewport) {
+      if (canvasViewport.x !== undefined) {
+        user.canvasState.canvasViewport.x = canvasViewport.x;
+      }
+      if (canvasViewport.y !== undefined) {
+        user.canvasState.canvasViewport.y = canvasViewport.y;
+      }
+      if (canvasViewport.zoom !== undefined) {
+        user.canvasState.canvasViewport.zoom = canvasViewport.zoom;
+      }
+    }
+
+    // Update last used tool
+    if (lastUsedTool !== undefined) {
+      user.canvasState.lastUsedTool = lastUsedTool;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      data: {
+        canvasState: user.canvasState,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating canvas state:", error);
+    res.status(500).json({
+      success: false,
+      error: "Error updating canvas state",
     });
   }
 });

@@ -6,13 +6,16 @@ import ResizablePanel from "@/components/layout/ResizablePanel";
 import RenamePageDialog from "@/components/dialogs/RenamePageDialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { api } from "@/lib/api";
-import type { Notebook, Page } from "@shared/types";
+import { useAuth } from "@/lib/authContext";
+import type { Notebook, Page as SharedPage } from "@shared/types";
+import type { Page } from "@/types";
 
 interface NotebookAppProps {
   onNavigateHome?: () => void;
 }
 
 export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
+  const { user, updateCanvasState } = useAuth();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(
     null
@@ -50,9 +53,13 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const loadPagesForNotebook = async (notebookId: string) => {
     try {
       const fetchedPages = await api.getPages(notebookId);
-      setPages(fetchedPages);
-      if (fetchedPages.length > 0) {
-        setSelectedPage(fetchedPages[0]);
+      // Convert shared types to frontend types
+      const convertedPages = fetchedPages.map((page) =>
+        convertPageToFrontendType(page)
+      );
+      setPages(convertedPages);
+      if (convertedPages.length > 0) {
+        setSelectedPage(convertedPages[0]);
       } else {
         setSelectedPage(null);
       }
@@ -61,6 +68,19 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       setPages([]);
       setSelectedPage(null);
     }
+  };
+
+  const convertPageToFrontendType = (sharedPage: SharedPage): Page => {
+    return {
+      id: parseInt(sharedPage.id, 10) || 0,
+      title: sharedPage.title,
+      createdAt: sharedPage.createdAt,
+      lastModified: sharedPage.lastModified,
+      content: sharedPage.content,
+      drawings: sharedPage.drawings,
+      graphs: sharedPage.graphs,
+      textBoxes: sharedPage.textBoxes,
+    };
   };
 
   const refreshNotebooks = async (): Promise<Notebook[]> => {
@@ -92,7 +112,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         const newPage = await api.createPage(selectedNotebook.id, { title });
         // Reload pages to include the new one
         await loadPagesForNotebook(selectedNotebook.id);
-        setSelectedPage(newPage);
+        setSelectedPage(convertPageToFrontendType(newPage));
       } catch (error) {
         console.error("Error creating page:", error);
       }
@@ -107,9 +127,18 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
     if (selectedNotebook && selectedPage) {
       try {
-        const updatedPage = await api.updatePage(selectedPage.id, updates);
-        await refreshNotebooks();
-        setSelectedPage(updatedPage);
+        const updatedPage = await api.updatePage(
+          selectedPage.id.toString(),
+          updates
+        );
+        // Update local state directly instead of refreshing all notebooks
+        const convertedPage = convertPageToFrontendType(updatedPage);
+        setSelectedPage(convertedPage);
+
+        // Update pages list locally
+        setPages(
+          pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
+        );
       } catch (error) {
         console.error("Error updating page:", error);
       }
@@ -127,14 +156,21 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   ): Promise<void> => {
     if (selectedNotebook) {
       try {
-        const updatedPage = await api.updatePage(page.id, { title: newTitle });
+        const updatedPage = await api.updatePage(page.id.toString(), {
+          title: newTitle,
+        });
 
-        // Reload pages to reflect the change
-        await loadPagesForNotebook(selectedNotebook.id);
+        // Update local state directly instead of reloading pages
+        const convertedPage = convertPageToFrontendType(updatedPage);
+        setPages(
+          pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
+        );
 
         if (selectedPage?.id === page.id) {
-          setSelectedPage(updatedPage);
+          setSelectedPage(convertedPage);
         }
+
+        setRenameDialogOpen(false);
       } catch (error) {
         console.error("Error renaming page:", error);
       }
@@ -149,7 +185,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const handleDeletePage = async (): Promise<void> => {
     if (selectedNotebook && pageToEdit) {
       try {
-        await api.deletePage(pageToEdit.id);
+        await api.deletePage(pageToEdit.id.toString());
 
         // Reload pages after deletion
         await loadPagesForNotebook(selectedNotebook.id);
@@ -166,6 +202,22 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     }
   };
 
+  const handleSidebarCollapsedChange = (collapsed: boolean) => {
+    updateCanvasState({
+      expandedPanels: {
+        sidebar: !collapsed,
+      },
+    });
+  };
+
+  const handlePagesListCollapsedChange = (collapsed: boolean) => {
+    updateCanvasState({
+      expandedPanels: {
+        pagesList: !collapsed,
+      },
+    });
+  };
+
   return (
     <>
       <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -177,6 +229,10 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           panelId="notebooks"
           activePanel={activePanel}
           onInteractionChange={setActivePanel}
+          initialCollapsed={
+            user?.canvasState?.expandedPanels?.sidebar === false
+          }
+          onCollapsedChange={handleSidebarCollapsedChange}
         >
           <Sidebar
             notebooks={notebooks}
@@ -196,6 +252,10 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           panelId="pages"
           activePanel={activePanel}
           onInteractionChange={setActivePanel}
+          initialCollapsed={
+            user?.canvasState?.expandedPanels?.pagesList === false
+          }
+          onCollapsedChange={handlePagesListCollapsedChange}
         >
           <PagesList
             pages={pages}

@@ -6,7 +6,6 @@ import Notebook from "../models/Notebook";
 import Page from "../models/Page";
 import User from "../models/User";
 import Trash from "../models/Trash";
-import Activity from "../models/Activity";
 
 const router = Router();
 
@@ -128,14 +127,6 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
       order,
     });
 
-    // Log activity
-    await Activity.create({
-      userId,
-      action: "create",
-      targetType: "notebook",
-      targetId: notebook._id,
-    });
-
     res.status(201).json({
       success: true,
       data: {
@@ -181,15 +172,6 @@ router.patch(
 
       await notebook.save();
 
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "update",
-        targetType: "notebook",
-        targetId: notebook._id,
-        changes: req.body,
-      });
-
       res.json({
         success: true,
         data: {
@@ -224,7 +206,10 @@ router.delete(
       }
 
       // Only owner can delete
-      if (notebook.userId.toString() !== (req.user!._id as mongoose.Types.ObjectId).toString()) {
+      if (
+        notebook.userId.toString() !==
+        (req.user!._id as mongoose.Types.ObjectId).toString()
+      ) {
         res.status(403).json({
           success: false,
           error: "Only owner can delete notebook",
@@ -249,14 +234,6 @@ router.delete(
         itemType: "notebook",
         itemId: notebook._id,
         originalData: notebook.toObject(),
-      });
-
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "delete",
-        targetType: "notebook",
-        targetId: notebook._id,
       });
 
       res.json({
@@ -305,14 +282,6 @@ router.post("/:id/restore", authenticate, async (req: AuthRequest, res) => {
       itemId: notebook._id,
     });
 
-    // Log activity
-    await Activity.create({
-      userId: req.user!._id,
-      action: "restore",
-      targetType: "notebook",
-      targetId: notebook._id,
-    });
-
     res.json({
       success: true,
       data: {
@@ -347,7 +316,10 @@ router.post(
       }
 
       // Only owner can share
-      if (notebook.userId.toString() !== (req.user!._id as mongoose.Types.ObjectId).toString()) {
+      if (
+        notebook.userId.toString() !==
+        (req.user!._id as mongoose.Types.ObjectId).toString()
+      ) {
         res.status(403).json({
           success: false,
           error: "Only owner can share notebook",
@@ -368,7 +340,9 @@ router.post(
 
       // Check if already shared
       const existingShare = notebook.sharedWith.find(
-        (s) => s.userId.toString() === (userToShare._id as mongoose.Types.ObjectId).toString()
+        (s) =>
+          s.userId.toString() ===
+          (userToShare._id as mongoose.Types.ObjectId).toString()
       );
 
       if (existingShare) {
@@ -385,15 +359,6 @@ router.post(
       }
 
       await notebook.save();
-
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "share",
-        targetType: "notebook",
-        targetId: notebook._id,
-        collaboratorId: userToShare._id,
-      });
 
       res.json({
         success: true,
@@ -432,7 +397,10 @@ router.delete(
       }
 
       // Only owner can unshare
-      if (notebook.userId.toString() !== (req.user!._id as mongoose.Types.ObjectId).toString()) {
+      if (
+        notebook.userId.toString() !==
+        (req.user!._id as mongoose.Types.ObjectId).toString()
+      ) {
         res.status(403).json({
           success: false,
           error: "Only owner can unshare notebook",
@@ -445,15 +413,6 @@ router.delete(
       );
 
       await notebook.save();
-
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "unshare",
-        targetType: "notebook",
-        targetId: notebook._id,
-        collaboratorId: req.params.userId,
-      });
 
       res.json({
         success: true,

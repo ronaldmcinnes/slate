@@ -15,6 +15,21 @@ export interface User {
     theme?: "light" | "dark" | "system";
     defaultNotebook?: string;
   };
+  canvasState?: {
+    expandedPanels?: {
+      sidebar?: boolean;
+      pagesList?: boolean;
+      toolbar?: boolean;
+    };
+    currentNotebookId?: string;
+    currentPageId?: string;
+    canvasViewport?: {
+      x?: number;
+      y?: number;
+      zoom?: number;
+    };
+    lastUsedTool?: string;
+  };
 }
 
 // ============================================
@@ -133,6 +148,22 @@ export interface UpdatePageRequest {
   textBoxes?: TextBox[];
   tags?: string[];
   order?: number;
+}
+
+export interface UpdateCanvasStateRequest {
+  expandedPanels?: {
+    sidebar?: boolean;
+    pagesList?: boolean;
+    toolbar?: boolean;
+  };
+  currentNotebookId?: string;
+  currentPageId?: string;
+  canvasViewport?: {
+    x?: number;
+    y?: number;
+    zoom?: number;
+  };
+  lastUsedTool?: string;
 }
 
 export interface SearchQuery {
