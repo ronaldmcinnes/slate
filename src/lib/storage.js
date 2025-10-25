@@ -35,6 +35,7 @@ export const createPage = (notebookId, title) => {
     const newPage = {
       id: Date.now(),
       title,
+      createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),
       content: "",
       drawings: null,

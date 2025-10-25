@@ -1,14 +1,10 @@
 import {
-  Undo,
-  Redo,
   Eraser,
   Pencil,
   Highlighter,
   Type,
-  MousePointer2,
   ChevronDown,
   PenTool,
-  Lasso,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,9 +38,8 @@ const DEFAULT_COLORS = [
 
 export default function ToolbarDrawingTools({
   tool,
-  onUndo,
-  onRedo,
   onToolChange,
+  visibleTools = {},
 }) {
   // Tool colors state
   const [marker1Color, setMarker1Color] = useState("#000000");
@@ -119,6 +114,8 @@ export default function ToolbarDrawingTools({
             </PopoverTrigger>
             <PopoverContent
               className="w-auto p-3"
+              side="bottom"
+              align="center"
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
               <div
@@ -207,6 +204,8 @@ export default function ToolbarDrawingTools({
             </PopoverTrigger>
             <PopoverContent
               className="w-auto p-3"
+              side="bottom"
+              align="center"
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
               <div
@@ -282,172 +281,156 @@ export default function ToolbarDrawingTools({
   };
 
   return (
-    <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-      {/* Undo/Redo */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 hover:bg-muted"
-        onClick={onUndo}
-        title="Undo (Ctrl+Z)"
-      >
-        <Undo size={18} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 hover:bg-muted"
-        onClick={onRedo}
-        title="Redo (Ctrl+Y)"
-      >
-        <Redo size={18} />
-      </Button>
-
-      <div className="w-px h-6 bg-border mx-1" />
-
-      {/* Selection Tools */}
-      <Button
-        variant={tool === "select" ? "secondary" : "ghost"}
-        size="icon"
-        className={cn("h-9 w-9", tool === "select" ? "bg-muted" : "")}
-        onClick={() => handleToolSelect("select", "#000000", 0)}
-        title="Selection Tool"
-      >
-        <MousePointer2 size={18} />
-      </Button>
-      <Button
-        variant={tool === "lasso" ? "secondary" : "ghost"}
-        size="icon"
-        className={cn("h-9 w-9", tool === "lasso" ? "bg-muted" : "")}
-        onClick={() => handleToolSelect("lasso", "#000000", 0)}
-        title="Lasso Tool"
-      >
-        <Lasso size={18} />
-      </Button>
-
-      <div className="w-px h-6 bg-border mx-1" />
-
+    <div className="flex items-center gap-1">
       {/* Eraser - Single button with dropdown when active */}
-      <EraserButton />
-
-      <div className="w-px h-6 bg-border mx-1" />
+      {visibleTools.eraser !== false && (
+        <>
+          <EraserButton />
+          <div className="w-px h-6 bg-border mx-1" />
+        </>
+      )}
 
       {/* Markers (3) */}
-      <ColorAndSizeButton
-        color={marker1Color}
-        width={marker1Width}
-        onColorChange={(c) => {
-          setMarker1Color(c);
-          handleToolSelect("marker", c, marker1Width);
-        }}
-        onWidthChange={(w) => {
-          setMarker1Width(w);
-          handleToolSelect("marker", marker1Color, w);
-        }}
-        isActive={tool === "marker" && activeMarkerColor === marker1Color}
-        onClick={() => handleToolSelect("marker", marker1Color, marker1Width)}
-        icon={Pencil}
-        label="Marker 1"
-        minWidth={1}
-        maxWidth={20}
-      />
-      <ColorAndSizeButton
-        color={marker2Color}
-        width={marker2Width}
-        onColorChange={(c) => {
-          setMarker2Color(c);
-          handleToolSelect("marker", c, marker2Width);
-        }}
-        onWidthChange={(w) => {
-          setMarker2Width(w);
-          handleToolSelect("marker", marker2Color, w);
-        }}
-        isActive={tool === "marker" && activeMarkerColor === marker2Color}
-        onClick={() => handleToolSelect("marker", marker2Color, marker2Width)}
-        icon={Pencil}
-        label="Marker 2"
-        minWidth={1}
-        maxWidth={20}
-      />
-      <ColorAndSizeButton
-        color={marker3Color}
-        width={marker3Width}
-        onColorChange={(c) => {
-          setMarker3Color(c);
-          handleToolSelect("marker", c, marker3Width);
-        }}
-        onWidthChange={(w) => {
-          setMarker3Width(w);
-          handleToolSelect("marker", marker3Color, w);
-        }}
-        isActive={tool === "marker" && activeMarkerColor === marker3Color}
-        onClick={() => handleToolSelect("marker", marker3Color, marker3Width)}
-        icon={Pencil}
-        label="Marker 3"
-        minWidth={1}
-        maxWidth={20}
-      />
-
-      <div className="w-px h-6 bg-border mx-1" />
+      {visibleTools.markers !== false && (
+        <>
+          <ColorAndSizeButton
+            color={marker1Color}
+            width={marker1Width}
+            onColorChange={(c) => {
+              setMarker1Color(c);
+              handleToolSelect("marker", c, marker1Width);
+            }}
+            onWidthChange={(w) => {
+              setMarker1Width(w);
+              handleToolSelect("marker", marker1Color, w);
+            }}
+            isActive={tool === "marker" && activeMarkerColor === marker1Color}
+            onClick={() =>
+              handleToolSelect("marker", marker1Color, marker1Width)
+            }
+            icon={Pencil}
+            label="Marker 1"
+            minWidth={1}
+            maxWidth={20}
+          />
+          <ColorAndSizeButton
+            color={marker2Color}
+            width={marker2Width}
+            onColorChange={(c) => {
+              setMarker2Color(c);
+              handleToolSelect("marker", c, marker2Width);
+            }}
+            onWidthChange={(w) => {
+              setMarker2Width(w);
+              handleToolSelect("marker", marker2Color, w);
+            }}
+            isActive={tool === "marker" && activeMarkerColor === marker2Color}
+            onClick={() =>
+              handleToolSelect("marker", marker2Color, marker2Width)
+            }
+            icon={Pencil}
+            label="Marker 2"
+            minWidth={1}
+            maxWidth={20}
+          />
+          <ColorAndSizeButton
+            color={marker3Color}
+            width={marker3Width}
+            onColorChange={(c) => {
+              setMarker3Color(c);
+              handleToolSelect("marker", c, marker3Width);
+            }}
+            onWidthChange={(w) => {
+              setMarker3Width(w);
+              handleToolSelect("marker", marker3Color, w);
+            }}
+            isActive={tool === "marker" && activeMarkerColor === marker3Color}
+            onClick={() =>
+              handleToolSelect("marker", marker3Color, marker3Width)
+            }
+            icon={Pencil}
+            label="Marker 3"
+            minWidth={1}
+            maxWidth={20}
+          />
+          <div className="w-px h-6 bg-border mx-1" />
+        </>
+      )}
 
       {/* Highlighter */}
-      <ColorAndSizeButton
-        color={highlighterColor}
-        width={highlighterWidth}
-        onColorChange={(c) => {
-          setHighlighterColor(c);
-          handleToolSelect("highlighter", c, highlighterWidth);
-        }}
-        onWidthChange={(w) => {
-          setHighlighterWidth(w);
-          handleToolSelect("highlighter", highlighterColor, w);
-        }}
-        isActive={tool === "highlighter"}
-        onClick={() =>
-          handleToolSelect("highlighter", highlighterColor, highlighterWidth)
-        }
-        icon={Highlighter}
-        label="Highlighter"
-        minWidth={10}
-        maxWidth={40}
-      />
-
-      <div className="w-px h-6 bg-border mx-1" />
+      {visibleTools.highlighter !== false && (
+        <>
+          <ColorAndSizeButton
+            color={highlighterColor}
+            width={highlighterWidth}
+            onColorChange={(c) => {
+              setHighlighterColor(c);
+              handleToolSelect("highlighter", c, highlighterWidth);
+            }}
+            onWidthChange={(w) => {
+              setHighlighterWidth(w);
+              handleToolSelect("highlighter", highlighterColor, w);
+            }}
+            isActive={tool === "highlighter"}
+            onClick={() =>
+              handleToolSelect(
+                "highlighter",
+                highlighterColor,
+                highlighterWidth
+              )
+            }
+            icon={Highlighter}
+            label="Highlighter"
+            minWidth={10}
+            maxWidth={40}
+          />
+          <div className="w-px h-6 bg-border mx-1" />
+        </>
+      )}
 
       {/* Fountain Pen */}
-      <ColorAndSizeButton
-        color={fountainPenColor}
-        width={fountainPenWidth}
-        onColorChange={(c) => {
-          setFountainPenColor(c);
-          handleToolSelect("fountain-pen", c, fountainPenWidth);
-        }}
-        onWidthChange={(w) => {
-          setFountainPenWidth(w);
-          handleToolSelect("fountain-pen", fountainPenColor, w);
-        }}
-        isActive={tool === "fountain-pen"}
-        onClick={() =>
-          handleToolSelect("fountain-pen", fountainPenColor, fountainPenWidth)
-        }
-        icon={PenTool}
-        label="Fountain Pen"
-        minWidth={1}
-        maxWidth={8}
-      />
-
-      <div className="w-px h-6 bg-border mx-1" />
+      {visibleTools.fountainPen !== false && (
+        <>
+          <ColorAndSizeButton
+            color={fountainPenColor}
+            width={fountainPenWidth}
+            onColorChange={(c) => {
+              setFountainPenColor(c);
+              handleToolSelect("fountain-pen", c, fountainPenWidth);
+            }}
+            onWidthChange={(w) => {
+              setFountainPenWidth(w);
+              handleToolSelect("fountain-pen", fountainPenColor, w);
+            }}
+            isActive={tool === "fountain-pen"}
+            onClick={() =>
+              handleToolSelect(
+                "fountain-pen",
+                fountainPenColor,
+                fountainPenWidth
+              )
+            }
+            icon={PenTool}
+            label="Fountain Pen"
+            minWidth={1}
+            maxWidth={8}
+          />
+          <div className="w-px h-6 bg-border mx-1" />
+        </>
+      )}
 
       {/* Text Tool */}
-      <Button
-        variant={tool === "text" ? "secondary" : "ghost"}
-        size="icon"
-        className={cn("h-9 w-9", tool === "text" ? "bg-muted" : "")}
-        onClick={() => handleToolSelect("text", "#000000", 0)}
-        title="Text Tool (T)"
-      >
-        <Type size={18} />
-      </Button>
+      {visibleTools.text !== false && (
+        <Button
+          variant={tool === "text" ? "secondary" : "ghost"}
+          size="icon"
+          className={cn("h-9 w-9", tool === "text" ? "bg-muted" : "")}
+          onClick={() => handleToolSelect("text", "#000000", 0)}
+          title="Text Tool (T)"
+        >
+          <Type size={18} />
+        </Button>
+      )}
     </div>
   );
 }
