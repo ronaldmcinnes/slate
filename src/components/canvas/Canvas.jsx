@@ -12,8 +12,19 @@ export default function Canvas({ page, onUpdatePage }) {
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [tool, setTool] = useState("marker");
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState("");
   const canvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
+  const titleInputRef = useRef(null);
+
+  // Focus input when editing title
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -226,9 +237,42 @@ export default function Canvas({ page, onUpdatePage }) {
         >
           {/* Page Title - Top Left */}
           <div className="absolute top-6 left-6 z-10 pointer-events-auto">
-            <h1 className="text-3xl font-bold text-foreground px-1">
-              {page.title}
-            </h1>
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={tempTitle}
+                onChange={(e) => setTempTitle(e.target.value)}
+                onBlur={() => {
+                  if (tempTitle.trim()) {
+                    onUpdatePage({ title: tempTitle.trim() });
+                  }
+                  setIsEditingTitle(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (tempTitle.trim()) {
+                      onUpdatePage({ title: tempTitle.trim() });
+                    }
+                    setIsEditingTitle(false);
+                  } else if (e.key === "Escape") {
+                    setIsEditingTitle(false);
+                  }
+                }}
+                className="text-3xl font-bold text-foreground px-1 bg-background border-2 border-primary rounded focus:outline-none"
+                autoFocus
+              />
+            ) : (
+              <h1
+                className="text-3xl font-bold text-foreground px-1 cursor-pointer hover:bg-muted/50 rounded transition-colors"
+                onDoubleClick={() => {
+                  setTempTitle(page.title);
+                  setIsEditingTitle(true);
+                }}
+              >
+                {page.title}
+              </h1>
+            )}
           </div>
 
           {/* Drawing Canvas */}
