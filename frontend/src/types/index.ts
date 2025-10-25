@@ -8,7 +8,7 @@ export interface Notebook {
 }
 
 export interface Page {
-  id: number;
+  id: string;
   title: string;
   createdAt: string;
   lastModified: string;
@@ -46,7 +46,7 @@ export interface DrawingData {
 
 export interface CanvasElement {
   id: string;
-  type: 'text' | 'graph' | 'drawing';
+  type: "text" | "graph" | "drawing";
   position: { x: number; y: number };
   size: { width: number; height: number };
   data: any;
@@ -77,7 +77,14 @@ export interface CreateDialogProps extends DialogProps {
 export interface GraphSpec {
   version: string;
   plot: {
-    kind: '2d_explicit' | '2d_parametric' | '2d_polar' | '2d_inequality' | '3d_surface' | '2d_integral' | '3d_integral';
+    kind:
+      | "2d_explicit"
+      | "2d_parametric"
+      | "2d_polar"
+      | "2d_inequality"
+      | "3d_surface"
+      | "2d_integral"
+      | "3d_integral";
     title?: string;
     xLabel?: string;
     yLabel?: string;
@@ -111,7 +118,7 @@ export interface GraphSpec {
     style?: {
       lineWidth?: number;
       showGrid?: boolean;
-      theme?: 'light' | 'dark' | 'system';
+      theme?: "light" | "dark" | "system";
       color?: string;
     };
   };

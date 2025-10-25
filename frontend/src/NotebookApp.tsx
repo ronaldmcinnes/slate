@@ -50,7 +50,12 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     }
   };
 
-  const loadPagesForNotebook = async (notebookId: string) => {
+  const loadPagesForNotebook = async (
+    notebookId: string,
+    options: { autoSelectFirst?: boolean; preserveSelection?: boolean } = {}
+  ) => {
+    const { autoSelectFirst = true, preserveSelection = true } = options;
+
     try {
       const fetchedPages = await api.getPages(notebookId);
       // Convert shared types to frontend types
@@ -58,21 +63,44 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         convertPageToFrontendType(page)
       );
       setPages(convertedPages);
-      if (convertedPages.length > 0) {
-        setSelectedPage(convertedPages[0]);
-      } else {
-        setSelectedPage(null);
+
+      // Handle page selection logic
+      if (autoSelectFirst) {
+        if (preserveSelection && selectedPage) {
+          // Check if current selection still exists in the new pages
+          const pageStillExists = convertedPages.some(
+            (p) => p.id === selectedPage.id
+          );
+          if (!pageStillExists) {
+            // Current page was deleted or is unavailable, select first
+            if (convertedPages.length > 0) {
+              setSelectedPage(convertedPages[0]);
+            } else {
+              setSelectedPage(null);
+            }
+          }
+          // If page still exists, keep current selection (don't call setSelectedPage)
+        } else {
+          // Don't preserve selection, select first page
+          if (convertedPages.length > 0) {
+            setSelectedPage(convertedPages[0]);
+          } else {
+            setSelectedPage(null);
+          }
+        }
       }
     } catch (err) {
       console.error("Error loading pages:", err);
       setPages([]);
-      setSelectedPage(null);
+      if (autoSelectFirst && !preserveSelection) {
+        setSelectedPage(null);
+      }
     }
   };
 
   const convertPageToFrontendType = (sharedPage: SharedPage): Page => {
     return {
-      id: parseInt(sharedPage.id, 10) || 0,
+      id: sharedPage.id,
       title: sharedPage.title,
       createdAt: sharedPage.createdAt,
       lastModified: sharedPage.lastModified,
@@ -110,8 +138,11 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook) {
       try {
         const newPage = await api.createPage(selectedNotebook.id, { title });
-        // Reload pages to include the new one
-        await loadPagesForNotebook(selectedNotebook.id);
+        // Reload pages to include the new one, preserving current selection
+        await loadPagesForNotebook(selectedNotebook.id, {
+          autoSelectFirst: false,
+          preserveSelection: true,
+        });
         setSelectedPage(convertPageToFrontendType(newPage));
       } catch (error) {
         console.error("Error creating page:", error);
@@ -121,16 +152,16 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   const handleSelectNotebook = async (notebook: Notebook): Promise<void> => {
     setSelectedNotebook(notebook);
-    await loadPagesForNotebook(notebook.id);
+    await loadPagesForNotebook(notebook.id, {
+      autoSelectFirst: true,
+      preserveSelection: false,
+    });
   };
 
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
     if (selectedNotebook && selectedPage) {
       try {
-        const updatedPage = await api.updatePage(
-          selectedPage.id.toString(),
-          updates
-        );
+        const updatedPage = await api.updatePage(selectedPage.id, updates);
         // Update local state directly instead of refreshing all notebooks
         const convertedPage = convertPageToFrontendType(updatedPage);
         setSelectedPage(convertedPage);
@@ -156,7 +187,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   ): Promise<void> => {
     if (selectedNotebook) {
       try {
-        const updatedPage = await api.updatePage(page.id.toString(), {
+        const updatedPage = await api.updatePage(page.id, {
           title: newTitle,
         });
 
@@ -185,17 +216,28 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const handleDeletePage = async (): Promise<void> => {
     if (selectedNotebook && pageToEdit) {
       try {
-        await api.deletePage(pageToEdit.id.toString());
+        const isDeleted = selectedPage?.id === pageToEdit.id;
+
+        await api.deletePage(pageToEdit.id);
 
         // Reload pages after deletion
-        await loadPagesForNotebook(selectedNotebook.id);
+        const fetchedPages = await api.getPages(selectedNotebook.id);
+        const convertedPages = fetchedPages.map((page) =>
+          convertPageToFrontendType(page)
+        );
+        setPages(convertedPages);
 
-        // If deleting current page, pages state is already updated
-        if (selectedPage?.id === pageToEdit.id && pages.length > 0) {
-          setSelectedPage(pages[0]);
+        // If we deleted the currently selected page, select the first remaining page
+        if (isDeleted) {
+          if (convertedPages.length > 0) {
+            setSelectedPage(convertedPages[0]);
+          } else {
+            setSelectedPage(null);
+          }
         }
 
         setPageToEdit(null);
+        setDeleteDialogOpen(false);
       } catch (error) {
         console.error("Error deleting page:", error);
       }
