@@ -1,23 +1,33 @@
-import { useState } from "react";
-import HomePage from "./components/HomePage";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "@/lib/authContext";
+import LoginPage from "@/components/LoginPage";
+import AuthCallback from "@/components/AuthCallback";
 import NotebookApp from "./NotebookApp";
 
 function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'app'>('home');
+  return (
+    <Router>
+      <AuthProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-  const handleNavigateToApp = () => {
-    setCurrentView('app');
-  };
+          {/* Protected app route */}
+          <Route path="/app/*" element={<NotebookApp />} />
 
-  const handleNavigateToHome = () => {
-    setCurrentView('home');
-  };
-
-  if (currentView === 'app') {
-    return <NotebookApp onNavigateHome={handleNavigateToHome} />;
-  }
-
-  return <HomePage onNavigateToApp={handleNavigateToApp} />;
+          {/* Catch all - redirect to login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
 }
 
 export default App;
