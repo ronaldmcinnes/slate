@@ -1,15 +1,21 @@
 import { useState } from "react";
-import { Plus, BookOpen, User, Home } from "lucide-react";
+import { Plus, BookOpen, User, Home, Settings, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreateNotebookDialog from "@/components/dialogs/CreateNotebookDialog";
-import type { Notebook } from "@/types";
+import ShareNotebookDialog from "@/components/dialogs/ShareNotebookDialog";
+import DeleteNotebookDialog from "@/components/dialogs/DeleteNotebookDialog";
+import NotebookActionsMenu from "@/components/dialogs/NotebookActionsMenu";
+import AccountSettings from "@/components/AccountSettings";
+import { useAuth } from "@/lib/authContext";
+import type { Notebook } from "@shared/types";
 
 interface SidebarProps {
   notebooks: Notebook[];
   selectedNotebook: Notebook | null;
   onSelectNotebook: (notebook: Notebook) => void;
   onCreateNotebook: (title: string) => void;
+  onNotebookChanged: () => void;
   onNavigateHome?: () => void;
 }
 
@@ -18,9 +24,28 @@ export default function Sidebar({
   selectedNotebook,
   onSelectNotebook,
   onCreateNotebook,
+  onNotebookChanged,
   onNavigateHome,
 }: SidebarProps) {
+  const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [notebookToShare, setNotebookToShare] = useState<Notebook | null>(null);
+  const [notebookToDelete, setNotebookToDelete] = useState<Notebook | null>(
+    null
+  );
+
+  const handleShare = (notebook: Notebook) => {
+    setNotebookToShare(notebook);
+    setShareDialogOpen(true);
+  };
+
+  const handleDelete = (notebook: Notebook) => {
+    setNotebookToDelete(notebook);
+    setDeleteDialogOpen(true);
+  };
 
   return (
     <>
@@ -83,15 +108,15 @@ export default function Sidebar({
           ) : (
             <div className="space-y-1">
               {notebooks.map((notebook) => (
-                <button
+                <div
                   key={notebook.id}
-                  onClick={() => onSelectNotebook(notebook)}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-md transition-all duration-150",
+                    "group relative w-full text-left px-3 py-2.5 rounded-md transition-all duration-150 cursor-pointer",
                     selectedNotebook?.id === notebook.id
                       ? "bg-accent text-accent-foreground font-medium"
                       : "text-foreground hover:bg-muted"
                   )}
+                  onClick={() => onSelectNotebook(notebook)}
                 >
                   <div className="flex items-start gap-2.5">
                     <BookOpen
@@ -99,14 +124,37 @@ export default function Sidebar({
                       className="mt-0.5 flex-shrink-0 text-muted-foreground"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate">{notebook.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {notebook.pages.length}{" "}
-                        {notebook.pages.length === 1 ? "page" : "pages"}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm truncate flex-1">
+                          {notebook.title}
+                        </span>
+                        {!notebook.isOwner && (
+                          <Users
+                            size={12}
+                            className="flex-shrink-0 text-muted-foreground"
+                          />
+                        )}
                       </div>
+                      {notebook.tags && notebook.tags.length > 0 && (
+                        <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {notebook.tags.join(", ")}
+                        </div>
+                      )}
+                      {notebook.permission === "view" && (
+                        <div className="text-xs text-orange-600 mt-0.5">
+                          View only
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0">
+                      <NotebookActionsMenu
+                        notebook={notebook}
+                        onShare={handleShare}
+                        onDelete={handleDelete}
+                      />
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -115,13 +163,34 @@ export default function Sidebar({
         {/* User Section */}
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-              <User size={18} className="text-muted-foreground" />
-            </div>
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={user.displayName}
+                className="w-9 h-9 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+                <User size={18} className="text-muted-foreground" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">Educator</div>
-              <div className="text-xs text-muted-foreground">Professor</div>
+              <div className="text-sm font-medium truncate">
+                {user?.displayName || "User"}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {user?.email || ""}
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={() => setSettingsOpen(true)}
+              title="Account Settings"
+            >
+              <Settings size={16} />
+            </Button>
           </div>
         </div>
       </div>
@@ -131,6 +200,24 @@ export default function Sidebar({
         onOpenChange={setCreateDialogOpen}
         onCreate={onCreateNotebook}
       />
+
+      <ShareNotebookDialog
+        notebook={notebookToShare}
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        onShared={onNotebookChanged}
+      />
+
+      <DeleteNotebookDialog
+        notebook={notebookToDelete}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onDeleted={onNotebookChanged}
+      />
+
+      {settingsOpen && (
+        <AccountSettings onClose={() => setSettingsOpen(false)} />
+      )}
     </>
   );
 }

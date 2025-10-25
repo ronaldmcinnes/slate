@@ -10,6 +10,11 @@ export interface User {
   profilePicture?: string;
   createdAt: string;
   lastLogin: string;
+  tutorialCompleted: boolean;
+  settings?: {
+    theme?: "light" | "dark" | "system";
+    defaultNotebook?: string;
+  };
 }
 
 // ============================================

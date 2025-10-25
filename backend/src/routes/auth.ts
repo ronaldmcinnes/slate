@@ -59,6 +59,7 @@ router.get("/me", authenticate, (req: AuthRequest, res) => {
         profilePicture: user.profilePicture,
         createdAt: user.createdAt,
         lastLogin: user.lastLogin,
+        tutorialCompleted: user.tutorialCompleted,
         settings: user.settings,
       },
     });
@@ -83,7 +84,7 @@ router.post("/logout", (req, res) => {
 router.patch("/settings", authenticate, async (req: AuthRequest, res) => {
   try {
     const user = req.user!;
-    const { theme, defaultNotebook, displayName } = req.body;
+    const { theme, defaultNotebook, displayName, tutorialCompleted } = req.body;
 
     if (theme) {
       user.settings.theme = theme;
@@ -94,6 +95,9 @@ router.patch("/settings", authenticate, async (req: AuthRequest, res) => {
     if (displayName) {
       user.displayName = displayName;
     }
+    if (tutorialCompleted !== undefined) {
+      user.tutorialCompleted = tutorialCompleted;
+    }
 
     await user.save();
 
@@ -102,6 +106,7 @@ router.patch("/settings", authenticate, async (req: AuthRequest, res) => {
       data: {
         settings: user.settings,
         displayName: user.displayName,
+        tutorialCompleted: user.tutorialCompleted,
       },
     });
   } catch (error) {

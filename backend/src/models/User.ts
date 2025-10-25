@@ -7,6 +7,7 @@ export interface IUser extends Document {
   profilePicture?: string;
   createdAt: Date;
   lastLogin: Date;
+  tutorialCompleted: boolean;
   settings: {
     theme?: "light" | "dark" | "system";
     defaultNotebook?: mongoose.Types.ObjectId;
@@ -43,6 +44,10 @@ const UserSchema: Schema = new Schema(
     lastLogin: {
       type: Date,
       default: Date.now,
+    },
+    tutorialCompleted: {
+      type: Boolean,
+      default: false,
     },
     settings: {
       theme: {

@@ -24,20 +24,20 @@ export default function AuthCallback() {
           // Save token
           api.setToken(token);
 
-          // Check if user has any notebooks (to determine if first-time user)
+          // Check if user has completed tutorial
           try {
-            const { owned } = await api.getNotebooks();
+            const user = await api.getCurrentUser();
 
-            if (owned.length === 0) {
-              // First-time user - redirect to onboarding
+            if (!user.tutorialCompleted) {
+              // First-time user - redirect to tutorial/onboarding
               navigate("/onboarding");
             } else {
               // Existing user - redirect to app
               navigate("/app");
             }
           } catch (err) {
-            // If error checking notebooks, still redirect to onboarding to be safe
-            console.error("Error checking notebooks:", err);
+            // If error checking user, redirect to onboarding to be safe
+            console.error("Error checking user:", err);
             navigate("/onboarding");
           }
         } else {
