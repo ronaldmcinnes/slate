@@ -238,6 +238,20 @@ export default function Canvas({
     onUpdatePage({ graphs });
   };
 
+  const handleUpdateGraph = (graphId: string, newGraphSpec: any) => {
+    const graphs = page.graphs.map((g) =>
+      g.id === graphId ? { ...g, graphSpec: newGraphSpec, data: newGraphSpec } : g
+    );
+    onUpdatePage({ graphs });
+  };
+
+  const handleSizeChange = (graphId: string, width: number, height: number) => {
+    const graphs = page.graphs.map((g) =>
+      g.id === graphId ? { ...g, size: { width, height } } : g
+    );
+    onUpdatePage({ graphs });
+  };
+
   const handleAddTextBoxAt = (x: number, y: number) => {
     const textBoxes = page.textBoxes || [];
     const newTextBox = {
@@ -359,6 +373,7 @@ export default function Canvas({
       data: graph.data || [],
       layout: graph.layout || {},
       graphSpec: graph.graphSpec,
+      size: graph.size || { width: 500, height: 400 },
     };
   };
 
@@ -591,9 +606,6 @@ export default function Canvas({
 
                       <ToolbarActions
                         onAddGraph={() => setGraphDialogOpen(true)}
-                        onStartRecording={handleStartRecording}
-                        onStopRecording={handleStopRecording}
-                        isRecording={isRecording}
                         visibleTools={visibleTools}
                       />
                     </>
@@ -801,7 +813,7 @@ export default function Canvas({
 
           {/* Interactive Graphs Overlay */}
           {page.graphs && page.graphs.length > 0 && (
-            <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-auto">
               <div className="relative w-full h-full">
                 {page.graphs.map(
                   (graph) =>
@@ -811,6 +823,8 @@ export default function Canvas({
                         graph={convertGraphForComponent(graph)}
                         onPositionChange={handleUpdateGraphPosition}
                         onRemove={handleRemoveGraph}
+                        onUpdateGraph={handleUpdateGraph}
+                        onSizeChange={handleSizeChange}
                       />
                     )
                 )}

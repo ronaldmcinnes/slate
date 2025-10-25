@@ -1,19 +1,13 @@
-import { LineChart, Mic } from "lucide-react";
+import { LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ToolbarActionsProps {
   onAddGraph: () => void;
-  onStartRecording?: () => void;
-  onStopRecording?: () => void;
-  isRecording?: boolean;
   visibleTools?: Record<string, boolean>;
 }
 
 export default function ToolbarActions({ 
   onAddGraph, 
-  onStartRecording, 
-  onStopRecording, 
-  isRecording = false, 
   visibleTools = {} 
 }: ToolbarActionsProps) {
   return (
@@ -30,20 +24,6 @@ export default function ToolbarActions({
         </Button>
       )}
       
-      {visibleTools.microphone !== false && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`h-9 w-9 hover:bg-muted ${isRecording ? 'bg-red-100 text-red-600' : ''}`}
-          onMouseDown={onStartRecording}
-          onMouseUp={onStopRecording}
-          onTouchStart={onStartRecording}
-          onTouchEnd={onStopRecording}
-          title={isRecording ? "Release to stop recording" : "Hold to record audio"}
-        >
-          <Mic size={18} />
-        </Button>
-      )}
     </div>
   );
 }
