@@ -56,7 +56,7 @@ export default function PagesList({
 
   return (
     <>
-      <div className="w-full bg-muted/20 border-r border-border flex flex-col h-screen">
+      <div className="w-full bg-muted/20 border-r border-border flex flex-col h-screen overflow-hidden">
         {/* Header */}
         <div className="p-3 border-b border-border bg-card">
           <div className="flex items-center justify-between">

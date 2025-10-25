@@ -14,7 +14,7 @@ export default function Sidebar({
 
   return (
     <>
-      <div className="w-full bg-card border-r border-border flex flex-col h-screen">
+      <div className="w-full bg-card border-r border-border flex flex-col h-screen overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">

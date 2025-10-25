@@ -17,6 +17,7 @@ function App() {
   const [notebooks, setNotebooks] = useState([]);
   const [selectedNotebook, setSelectedNotebook] = useState(null);
   const [selectedPage, setSelectedPage] = useState(null);
+  const [activePanel, setActivePanel] = useState(null);
 
   // Dialog states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -128,6 +129,9 @@ function App() {
           minWidth={200}
           maxWidth={400}
           side="left"
+          panelId="notebooks"
+          activePanel={activePanel}
+          onInteractionChange={setActivePanel}
         >
           <Sidebar
             notebooks={notebooks}
@@ -142,6 +146,9 @@ function App() {
           minWidth={180}
           maxWidth={400}
           side="left"
+          panelId="pages"
+          activePanel={activePanel}
+          onInteractionChange={setActivePanel}
         >
           <PagesList
             pages={selectedNotebook?.pages || []}

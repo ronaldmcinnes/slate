@@ -8,6 +8,9 @@ export default function ResizablePanel({
   minWidth = 200,
   maxWidth = 600,
   side = "left", // "left" or "right"
+  panelId = "",
+  activePanel = null,
+  onInteractionChange = () => {},
 }) {
   const [width, setWidth] = useState(defaultWidth);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -18,6 +21,7 @@ export default function ResizablePanel({
 
   const handleMouseDown = (e) => {
     setIsResizing(true);
+    onInteractionChange(panelId);
     startXRef.current = e.clientX;
     startWidthRef.current = width;
     e.preventDefault();
@@ -36,6 +40,7 @@ export default function ResizablePanel({
 
   const handleMouseUp = () => {
     setIsResizing(false);
+    onInteractionChange(null);
   };
 
   const toggleCollapse = () => {
@@ -52,45 +57,76 @@ export default function ResizablePanel({
   return (
     <>
       <div
-        style={{ width: isCollapsed ? "0px" : `${width}px` }}
+        style={{ width: isCollapsed ? "20px" : `${width}px` }}
         className="relative flex-shrink-0 transition-all duration-200"
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        <div className={isCollapsed ? "hidden" : ""}>{children}</div>
+        <div className={isCollapsed ? "hidden" : "overflow-hidden"}>
+          {children}
+        </div>
 
         {/* Resize Handle */}
         {!isCollapsed && (
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors group"
-            onMouseDown={handleMouseDown}
+            className="absolute top-0 -right-[12px] h-full w-6 flex items-center justify-center group z-30"
+            onMouseEnter={() => onInteractionChange(panelId)}
+            onMouseLeave={() => {
+              if (!isResizing) {
+                onInteractionChange(null);
+              }
+            }}
           >
-            <div className="absolute top-0 right-0 w-1 h-full bg-transparent group-hover:bg-primary/50" />
+            {/* Hover area for easier grabbing */}
+            <div
+              className="absolute inset-0 cursor-col-resize"
+              onMouseDown={handleMouseDown}
+            />
+
+            {/* Visible divider line */}
+            <div
+              className={`absolute w-[1px] h-full cursor-col-resize transition-all ${
+                isResizing
+                  ? "bg-primary"
+                  : "bg-border group-hover:bg-primary/60"
+              }`}
+              onMouseDown={handleMouseDown}
+            />
+
+            {/* Toggle Button - centered on divider */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-1/2 -translate-y-1/2 h-12 w-5 p-0 bg-card border border-border hover:bg-accent rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-40"
+              onClick={toggleCollapse}
+            >
+              {side === "left" ? (
+                <ChevronLeft size={12} />
+              ) : (
+                <ChevronRight size={12} />
+              )}
+            </Button>
           </div>
         )}
 
-        {/* Toggle Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`absolute top-1/2 -translate-y-1/2 ${
-            isCollapsed ? "-right-8" : "-right-4"
-          } z-20 h-16 w-4 rounded-l-md rounded-r-none bg-card border border-r-0 border-border shadow-sm hover:bg-accent`}
-          onClick={toggleCollapse}
-        >
-          {isCollapsed ? (
-            side === "left" ? (
-              <ChevronRight size={14} />
-            ) : (
-              <ChevronLeft size={14} />
-            )
-          ) : side === "left" ? (
-            <ChevronLeft size={14} />
-          ) : (
-            <ChevronRight size={14} />
-          )}
-        </Button>
+        {/* Collapsed state button - hide when another panel is active */}
+        {isCollapsed && (activePanel === null || activePanel === panelId) && (
+          <div className="absolute top-0 left-0 h-full w-full flex items-center justify-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-12 w-5 p-0 bg-card border border-border hover:bg-accent rounded shadow-sm"
+              onClick={toggleCollapse}
+            >
+              {side === "left" ? (
+                <ChevronRight size={12} />
+              ) : (
+                <ChevronLeft size={12} />
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </>
   );
