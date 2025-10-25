@@ -32,10 +32,27 @@ export default function ResizablePanel({
 
     const delta = e.clientX - startXRef.current;
     const newWidth = Math.max(
-      minWidth,
+      0,
       Math.min(maxWidth, startWidthRef.current + delta)
     );
-    setWidth(newWidth);
+
+    // Auto-collapse when dragged below threshold (half of minWidth)
+    if (newWidth < minWidth / 2) {
+      setWidth(0);
+      setIsCollapsed(true);
+      collapsedWidthRef.current = startWidthRef.current;
+    } else if (newWidth < minWidth) {
+      // Snap to minWidth if between threshold and minWidth
+      setWidth(minWidth);
+      if (isCollapsed) {
+        setIsCollapsed(false);
+      }
+    } else {
+      setWidth(newWidth);
+      if (isCollapsed) {
+        setIsCollapsed(false);
+      }
+    }
   };
 
   const handleMouseUp = () => {
