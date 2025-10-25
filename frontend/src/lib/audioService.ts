@@ -101,7 +101,7 @@ export class AudioRecordingService {
       throw new Error('OpenAI API key not found. Please set VITE_OPENAI_API_KEY in your .env file');
     }
     
-    const systemPrompt = `You are a mathematical function interpreter. Convert the user's request into a JSON object that describes a mathematical function to be graphed.
+    const systemPrompt = `You are a mathematical function interpreter. Convert the user's request into a valid JSON object that describes a mathematical function to be graphed.
 
 IMPORTANT: Return ONLY a valid JSON object. Do not wrap it in markdown code blocks or any other formatting. Just return the raw JSON.
 
@@ -168,13 +168,12 @@ For domains, use reasonable ranges like [-5, 5] for 2D, [-3, 3] for 3D`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text }
         ],
-        temperature: 0.1,
-        max_tokens: 1000
+        max_completion_tokens: 2000
       }),
     });
     

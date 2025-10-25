@@ -121,12 +121,13 @@ export default function ToolbarDrawingTools({
           </div>
         </Button>
         {isActive && (
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={false}>
             <PopoverTrigger asChild>
               <Button
                 variant="secondary"
                 size="icon"
                 className="h-3 w-9 rounded-t-none bg-muted py-0 flex items-center justify-center"
+                onClick={() => setPopoverOpen(!popoverOpen)}
               >
                 <ChevronDown size={10} />
               </Button>
@@ -211,12 +212,13 @@ export default function ToolbarDrawingTools({
           <Eraser size={18} />
         </Button>
         {isActive && (
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={false}>
             <PopoverTrigger asChild>
               <Button
                 variant="secondary"
                 size="icon"
                 className="h-3 w-9 rounded-t-none bg-muted py-0 flex items-center justify-center"
+                onClick={() => setPopoverOpen(!popoverOpen)}
               >
                 <ChevronDown size={10} />
               </Button>
