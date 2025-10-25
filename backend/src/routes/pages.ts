@@ -255,9 +255,22 @@ router.delete(
   checkPageAccess("edit"),
   async (req: AuthRequest, res) => {
     try {
-      const page = await Page.findById(req.params.id);
+      console.log("🗑️ DELETE /api/pages/:id - Received delete request");
+      console.log("  Page ID:", req.params.id);
+
+      // Use findByIdAndUpdate for atomic operation
+      const page = await Page.findByIdAndUpdate(
+        req.params.id,
+        {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: req.user!._id as mongoose.Types.ObjectId,
+        },
+        { new: true } // Return the updated document
+      );
 
       if (!page) {
+        console.log("  ❌ Page not found");
         res.status(404).json({
           success: false,
           error: "Page not found",
@@ -265,10 +278,38 @@ router.delete(
         return;
       }
 
-      page.isDeleted = true;
-      page.deletedAt = new Date();
-      page.deletedBy = req.user!._id as mongoose.Types.ObjectId;
-      await page.save();
+      console.log("  📄 Found and updated page:", page.title);
+      console.log("  ✅ isDeleted is now:", page.isDeleted);
+      console.log(
+        "  📋 Full page object:",
+        JSON.stringify(
+          {
+            _id: page._id,
+            title: page.title,
+            isDeleted: page.isDeleted,
+            deletedAt: page.deletedAt,
+            deletedBy: page.deletedBy,
+          },
+          null,
+          2
+        )
+      );
+
+      // Verify deletion in database with fresh query
+      const verifyPage = await Page.findById(req.params.id);
+      console.log(
+        "  🔍 Fresh verification - Page in DB:",
+        JSON.stringify(
+          {
+            _id: verifyPage?._id,
+            title: verifyPage?.title,
+            isDeleted: verifyPage?.isDeleted,
+            deletedAt: verifyPage?.deletedAt,
+          },
+          null,
+          2
+        )
+      );
 
       // Add to trash
       await Trash.create({
@@ -278,16 +319,21 @@ router.delete(
         originalData: page.toObject(),
       });
 
+      console.log("  🗑️ Added to trash");
+
       // Update notebook lastModified
       await Notebook.findByIdAndUpdate(page.notebookId, {
         lastModified: new Date(),
       });
 
+      console.log("  📤 Sending success response");
       res.json({
         success: true,
         message: "Page moved to trash",
       });
+      console.log("  ✅ Response sent");
     } catch (error) {
+      console.error("❌ Error deleting page:", error);
       res.status(500).json({
         success: false,
         error: "Error deleting page",

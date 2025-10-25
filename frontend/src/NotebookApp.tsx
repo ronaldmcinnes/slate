@@ -5,8 +5,10 @@ import Canvas from "@/components/canvas/Canvas";
 import ResizablePanel from "@/components/layout/ResizablePanel";
 import RenamePageDialog from "@/components/dialogs/RenamePageDialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { ToastContainer } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authContext";
+import { useToast } from "@/lib/toastContext";
 import type { Notebook, Page as SharedPage } from "@shared/types";
 import type { Page } from "@/types";
 
@@ -16,6 +18,7 @@ interface NotebookAppProps {
 
 export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const { user, updateCanvasState } = useAuth();
+  const { addToast } = useToast();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(
     null
@@ -216,9 +219,11 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const handleDeletePage = async (): Promise<void> => {
     if (selectedNotebook && pageToEdit) {
       try {
+        console.log("🗑️ Deleting page:", pageToEdit.id, pageToEdit.title);
         const isDeleted = selectedPage?.id === pageToEdit.id;
 
         await api.deletePage(pageToEdit.id);
+        console.log("✅ Page deleted successfully on backend");
 
         // Reload pages after deletion
         const fetchedPages = await api.getPages(selectedNotebook.id);
@@ -226,6 +231,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           convertPageToFrontendType(page)
         );
         setPages(convertedPages);
+        console.log("📄 Reloaded pages, count:", convertedPages.length);
 
         // If we deleted the currently selected page, select the first remaining page
         if (isDeleted) {
@@ -238,8 +244,26 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
         setPageToEdit(null);
         setDeleteDialogOpen(false);
+
+        // Show toast with undo option
+        addToast({
+          message: "Deleted",
+          itemName: pageToEdit.title,
+          type: "delete-page",
+          onUndo: async () => {
+            await api.restorePage(pageToEdit.id);
+            // Reload pages to show restored page
+            const updatedPages = await api.getPages(selectedNotebook.id);
+            const convertedUpdatedPages = updatedPages.map((page) =>
+              convertPageToFrontendType(page)
+            );
+            setPages(convertedUpdatedPages);
+            console.log("✅ Page restored successfully");
+          },
+        });
       } catch (error) {
-        console.error("Error deleting page:", error);
+        console.error("❌ Error deleting page:", error);
+        // Keep dialog open on error so user can retry
       }
     }
   };
@@ -332,6 +356,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         title="Delete Page"
         itemName={pageToEdit?.title}
       />
+      <ToastContainer />
     </>
   );
 }
