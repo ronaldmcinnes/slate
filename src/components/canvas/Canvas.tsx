@@ -8,8 +8,14 @@ import TextBox from "./TextBox";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import ToolbarSettings from "./ToolbarSettings";
+import type { Page } from "@/types";
 
-export default function Canvas({ page, onUpdatePage }) {
+interface CanvasProps {
+  page: Page | null;
+  onUpdatePage: (updates: Partial<Page>) => void;
+}
+
+export default function Canvas({ page, onUpdatePage }: CanvasProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [strokeColor, setStrokeColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(3);
@@ -28,12 +34,12 @@ export default function Canvas({ page, onUpdatePage }) {
     text: true,
     graph: true,
   });
-  const canvasRef = useRef(null);
-  const canvasContainerRef = useRef(null);
-  const titleInputRef = useRef(null);
-  const toolbarScrollRef = useRef(null);
+  const canvasRef = useRef<any>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const toolbarScrollRef = useRef<HTMLDivElement>(null);
 
-  const handleToggleTool = (toolId) => {
+  const handleToggleTool = (toolId: string) => {
     setVisibleTools((prev) => ({
       ...prev,
       [toolId]: !prev[toolId],
@@ -88,7 +94,7 @@ export default function Canvas({ page, onUpdatePage }) {
     canvasRef.current?.redo();
   };
 
-  const handleToolChange = (newTool, color, width) => {
+  const handleToolChange = (newTool: string, color: string, width: number) => {
     setTool(newTool);
     setStrokeColor(color);
     setStrokeWidth(width);

@@ -2,7 +2,22 @@ import { useState, useRef } from "react";
 import Plot from "react-plotly.js";
 import { GripVertical, X } from "lucide-react";
 
-export default function DraggableGraph({ graph, onPositionChange, onRemove }) {
+interface GraphData {
+  id: string;
+  x: number | string;
+  y: number | string;
+  title: string;
+  data: any[];
+  layout?: any;
+}
+
+interface DraggableGraphProps {
+  graph: GraphData;
+  onPositionChange: (id: string, x: number, y: number) => void;
+  onRemove: (id: string) => void;
+}
+
+export default function DraggableGraph({ graph, onPositionChange, onRemove }: DraggableGraphProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({
     x: parseInt(graph.x) || 100,
@@ -10,7 +25,7 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove }) {
   });
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     // Only allow dragging from the header
     if (e.target.closest(".drag-handle")) {
       setIsDragging(true);
@@ -23,7 +38,7 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove }) {
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
       const deltaX = e.clientX - dragRef.current.startX;
       const deltaY = e.clientY - dragRef.current.startY;

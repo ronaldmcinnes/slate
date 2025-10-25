@@ -12,17 +12,18 @@ import {
   updatePage,
   deletePage as deletePageFromStorage,
 } from "@/lib/storage";
+import type { Notebook, Page } from "@/types";
 
 function App() {
-  const [notebooks, setNotebooks] = useState([]);
-  const [selectedNotebook, setSelectedNotebook] = useState(null);
-  const [selectedPage, setSelectedPage] = useState(null);
-  const [activePanel, setActivePanel] = useState(null);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
+  const [selectedPage, setSelectedPage] = useState<Page | null>(null);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
 
   // Dialog states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [pageToEdit, setPageToEdit] = useState(null);
+  const [pageToEdit, setPageToEdit] = useState<Page | null>(null);
 
   // Load notebooks from localStorage on mount
   useEffect(() => {
@@ -36,30 +37,30 @@ function App() {
     }
   }, []);
 
-  const refreshNotebooks = () => {
+  const refreshNotebooks = (): Notebook[] => {
     const updated = getNotebooks();
     setNotebooks(updated);
     return updated;
   };
 
-  const handleCreateNotebook = (title) => {
+  const handleCreateNotebook = (title: string): void => {
     const newNotebook = createNotebook(title);
     refreshNotebooks();
     setSelectedNotebook(newNotebook);
     setSelectedPage(null);
   };
 
-  const handleCreatePage = (title) => {
+  const handleCreatePage = (title: string): void => {
     if (selectedNotebook) {
       const newPage = createPage(selectedNotebook.id, title);
       const updated = refreshNotebooks();
       const notebook = updated.find((n) => n.id === selectedNotebook.id);
-      setSelectedNotebook(notebook);
+      setSelectedNotebook(notebook || null);
       setSelectedPage(newPage);
     }
   };
 
-  const handleSelectNotebook = (notebook) => {
+  const handleSelectNotebook = (notebook: Notebook): void => {
     setSelectedNotebook(notebook);
     if (notebook.pages.length > 0) {
       setSelectedPage(notebook.pages[0]);
@@ -68,50 +69,50 @@ function App() {
     }
   };
 
-  const handleUpdatePage = (updates) => {
+  const handleUpdatePage = (updates: Partial<Page>): void => {
     if (selectedNotebook && selectedPage) {
       updatePage(selectedNotebook.id, selectedPage.id, updates);
       const updated = refreshNotebooks();
       const notebook = updated.find((n) => n.id === selectedNotebook.id);
-      const page = notebook.pages.find((p) => p.id === selectedPage.id);
-      setSelectedPage(page);
-      setSelectedNotebook(notebook);
+      const page = notebook?.pages.find((p) => p.id === selectedPage.id);
+      setSelectedPage(page || null);
+      setSelectedNotebook(notebook || null);
     }
   };
 
-  const handleOpenRenameDialog = (page) => {
+  const handleOpenRenameDialog = (page: Page): void => {
     setPageToEdit(page);
     setRenameDialogOpen(true);
   };
 
-  const handleRenamePage = (page, newTitle) => {
+  const handleRenamePage = (page: Page, newTitle: string): void => {
     if (selectedNotebook) {
       updatePage(selectedNotebook.id, page.id, { title: newTitle });
       const updated = refreshNotebooks();
       const notebook = updated.find((n) => n.id === selectedNotebook.id);
-      setSelectedNotebook(notebook);
+      setSelectedNotebook(notebook || null);
       if (selectedPage?.id === page.id) {
-        const updatedPage = notebook.pages.find((p) => p.id === page.id);
-        setSelectedPage(updatedPage);
+        const updatedPage = notebook?.pages.find((p) => p.id === page.id);
+        setSelectedPage(updatedPage || null);
       }
     }
   };
 
-  const handleOpenDeleteDialog = (page) => {
+  const handleOpenDeleteDialog = (page: Page): void => {
     setPageToEdit(page);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeletePage = () => {
+  const handleDeletePage = (): void => {
     if (selectedNotebook && pageToEdit) {
       deletePageFromStorage(selectedNotebook.id, pageToEdit.id);
       const updated = refreshNotebooks();
       const notebook = updated.find((n) => n.id === selectedNotebook.id);
-      setSelectedNotebook(notebook);
+      setSelectedNotebook(notebook || null);
 
       // If deleting current page, select first available
       if (selectedPage?.id === pageToEdit.id) {
-        if (notebook.pages.length > 0) {
+        if (notebook && notebook.pages.length > 0) {
           setSelectedPage(notebook.pages[0]);
         } else {
           setSelectedPage(null);

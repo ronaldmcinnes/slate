@@ -1,8 +1,9 @@
 // Local storage utilities for notebooks and pages
+import type { Notebook, Page } from '../types';
 
 const STORAGE_KEY = "slate_notebooks";
 
-export const getNotebooks = () => {
+export const getNotebooks = (): Notebook[] => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
     return JSON.parse(stored);
@@ -11,13 +12,13 @@ export const getNotebooks = () => {
   return [];
 };
 
-export const saveNotebooks = (notebooks) => {
+export const saveNotebooks = (notebooks: Notebook[]): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(notebooks));
 };
 
-export const createNotebook = (title) => {
+export const createNotebook = (title: string): Notebook => {
   const notebooks = getNotebooks();
-  const newNotebook = {
+  const newNotebook: Notebook = {
     id: Date.now(),
     title,
     pages: [],
@@ -28,11 +29,11 @@ export const createNotebook = (title) => {
   return newNotebook;
 };
 
-export const createPage = (notebookId, title) => {
+export const createPage = (notebookId: number, title: string): Page | null => {
   const notebooks = getNotebooks();
   const notebook = notebooks.find((n) => n.id === notebookId);
   if (notebook) {
-    const newPage = {
+    const newPage: Page = {
       id: Date.now(),
       title,
       createdAt: new Date().toISOString(),
@@ -49,7 +50,7 @@ export const createPage = (notebookId, title) => {
   return null;
 };
 
-export const updatePage = (notebookId, pageId, updates) => {
+export const updatePage = (notebookId: number, pageId: number, updates: Partial<Page>): Page | null => {
   const notebooks = getNotebooks();
   const notebook = notebooks.find((n) => n.id === notebookId);
   if (notebook) {
@@ -63,13 +64,13 @@ export const updatePage = (notebookId, pageId, updates) => {
   return null;
 };
 
-export const deleteNotebook = (notebookId) => {
+export const deleteNotebook = (notebookId: number): void => {
   let notebooks = getNotebooks();
   notebooks = notebooks.filter((n) => n.id !== notebookId);
   saveNotebooks(notebooks);
 };
 
-export const deletePage = (notebookId, pageId) => {
+export const deletePage = (notebookId: number, pageId: number): void => {
   const notebooks = getNotebooks();
   const notebook = notebooks.find((n) => n.id === notebookId);
   if (notebook) {

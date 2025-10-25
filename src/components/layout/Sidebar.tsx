@@ -3,13 +3,21 @@ import { Plus, BookOpen, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreateNotebookDialog from "@/components/dialogs/CreateNotebookDialog";
+import type { Notebook } from "@/types";
+
+interface SidebarProps {
+  notebooks: Notebook[];
+  selectedNotebook: Notebook | null;
+  onSelectNotebook: (notebook: Notebook) => void;
+  onCreateNotebook: (title: string) => void;
+}
 
 export default function Sidebar({
   notebooks,
   selectedNotebook,
   onSelectNotebook,
   onCreateNotebook,
-}) {
+}: SidebarProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   return (

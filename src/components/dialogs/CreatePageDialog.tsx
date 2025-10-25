@@ -8,11 +8,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { CreateDialogProps } from "@/types";
 
-export default function CreatePageDialog({ open, onOpenChange, onCreate }) {
+export default function CreatePageDialog({ open, onOpenChange, onCreate }: CreateDialogProps) {
   const [title, setTitle] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
       onCreate(title.trim());
@@ -21,7 +22,7 @@ export default function CreatePageDialog({ open, onOpenChange, onCreate }) {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onOpenChange(false);
     }

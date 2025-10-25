@@ -36,11 +36,17 @@ const DEFAULT_COLORS = [
   "#C4B5FD",
 ];
 
+interface ToolbarDrawingToolsProps {
+  tool: string;
+  onToolChange: (toolType: string, color: string, width: number) => void;
+  visibleTools?: Record<string, boolean>;
+}
+
 export default function ToolbarDrawingTools({
   tool,
   onToolChange,
   visibleTools = {},
-}) {
+}: ToolbarDrawingToolsProps) {
   // Tool colors state
   const [marker1Color, setMarker1Color] = useState("#000000");
   const [marker2Color, setMarker2Color] = useState("#EF4444");
@@ -62,12 +68,25 @@ export default function ToolbarDrawingTools({
   // Track which specific marker is active
   const [activeMarkerColor, setActiveMarkerColor] = useState(marker1Color);
 
-  const handleToolSelect = (toolType, color, width) => {
+  const handleToolSelect = (toolType: string, color: string, width: number) => {
     if (toolType === "marker") {
       setActiveMarkerColor(color);
     }
     onToolChange(toolType, color, width);
   };
+
+  interface ColorAndSizeButtonProps {
+    color: string;
+    width: number;
+    onColorChange: (color: string) => void;
+    onWidthChange: (width: number) => void;
+    isActive: boolean;
+    onClick: () => void;
+    icon: any;
+    label: string;
+    minWidth?: number;
+    maxWidth?: number;
+  }
 
   const ColorAndSizeButton = ({
     color,
@@ -80,7 +99,7 @@ export default function ToolbarDrawingTools({
     label,
     minWidth = 1,
     maxWidth = 30,
-  }) => {
+  }: ColorAndSizeButtonProps) => {
     const [popoverOpen, setPopoverOpen] = useState(false);
     const IconComponent = icon;
 

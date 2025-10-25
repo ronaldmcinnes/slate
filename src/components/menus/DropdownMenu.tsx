@@ -7,30 +7,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { LucideIcon } from "lucide-react";
 
-/**
- * Generic reusable dropdown menu component
- *
- * @param {Object} props
- * @param {Array} props.items - Array of menu items with structure:
- *   {
- *     icon: Component,
- *     label: string,
- *     onClick: function,
- *     disabled?: boolean,
- *     separator?: boolean (adds separator AFTER this item),
- *     variant?: "default" | "destructive"
- *   }
- * @param {string} props.align - Menu alignment ("start" | "end" | "center")
- * @param {React.ReactNode} props.trigger - Custom trigger button (optional)
- * @param {string} props.className - Additional classes for trigger button
- */
+interface MenuItem {
+  icon?: LucideIcon;
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  separator?: boolean;
+  variant?: "default" | "destructive";
+}
+
+interface DropdownMenuProps {
+  items?: MenuItem[];
+  align?: "start" | "end" | "center";
+  trigger?: React.ReactNode;
+  className?: string;
+}
+
 export default function DropdownMenu({
   items = [],
   align = "end",
   trigger,
   className = "h-6 w-6 mr-1 opacity-0 group-hover:opacity-100 transition-opacity",
-}) {
+}: DropdownMenuProps) {
   return (
     <DropdownMenuPrimitive>
       <DropdownMenuTrigger asChild>

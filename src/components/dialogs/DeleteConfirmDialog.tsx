@@ -8,6 +8,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  title?: string;
+  description?: string;
+  itemName?: string;
+}
+
 export default function DeleteConfirmDialog({
   open,
   onOpenChange,
@@ -15,13 +24,13 @@ export default function DeleteConfirmDialog({
   title = "Confirm Delete",
   description = "Are you sure you want to delete this item? This action cannot be undone.",
   itemName,
-}) {
+}: DeleteConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onOpenChange(false);
     } else if (e.key === "Enter") {

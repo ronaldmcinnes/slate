@@ -12,6 +12,17 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreatePageDialog from "@/components/dialogs/CreatePageDialog";
 import DropdownMenu from "@/components/menus/DropdownMenu";
+import type { Page } from "@/types";
+
+interface PagesListProps {
+  pages: Page[];
+  selectedPage: Page | null;
+  onSelectPage: (page: Page) => void;
+  onCreatePage: (title: string) => void;
+  onDeletePage: (page: Page) => void;
+  onRenamePage: (page: Page) => void;
+  notebookSelected: boolean;
+}
 
 export default function PagesList({
   pages,
@@ -21,10 +32,10 @@ export default function PagesList({
   onDeletePage,
   onRenamePage,
   notebookSelected,
-}) {
+}: PagesListProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const getPageMenuItems = (page) => [
+  const getPageMenuItems = (page: Page) => [
     {
       icon: Edit3,
       label: "Rename",

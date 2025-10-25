@@ -8,13 +8,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { PageDialogProps } from "@/types";
 
 export default function RenamePageDialog({
   page,
   open,
   onOpenChange,
   onRename,
-}) {
+}: PageDialogProps) {
   const [title, setTitle] = useState("");
 
   useEffect(() => {
@@ -23,15 +24,15 @@ export default function RenamePageDialog({
     }
   }, [page]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (title.trim() && title !== page?.title) {
+    if (title.trim() && title !== page?.title && page && onRename) {
       onRename(page, title.trim());
       onOpenChange(false);
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onOpenChange(false);
     }

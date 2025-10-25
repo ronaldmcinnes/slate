@@ -7,7 +7,12 @@ import {
 } from "@/components/ui/popover";
 import { useState } from "react";
 
-export default function ToolbarSettings({ visibleTools, onToggleTool }) {
+interface ToolbarSettingsProps {
+  visibleTools: Record<string, boolean>;
+  onToggleTool: (toolId: string) => void;
+}
+
+export default function ToolbarSettings({ visibleTools, onToggleTool }: ToolbarSettingsProps) {
   const [open, setOpen] = useState(false);
 
   const allTools = [

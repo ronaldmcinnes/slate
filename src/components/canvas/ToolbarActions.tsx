@@ -1,7 +1,12 @@
 import { LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function ToolbarActions({ onAddGraph, visibleTools = {} }) {
+interface ToolbarActionsProps {
+  onAddGraph: () => void;
+  visibleTools?: Record<string, boolean>;
+}
+
+export default function ToolbarActions({ onAddGraph, visibleTools = {} }: ToolbarActionsProps) {
   return (
     <div className="flex items-center gap-1">
       {visibleTools.graph !== false && (

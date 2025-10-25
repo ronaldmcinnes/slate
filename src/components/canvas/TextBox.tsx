@@ -1,12 +1,26 @@
 import { useState, useRef, useEffect } from "react";
 import { GripVertical, X } from "lucide-react";
 
+interface TextBoxData {
+  id: string;
+  x: number | string;
+  y: number | string;
+  text: string;
+}
+
+interface TextBoxProps {
+  textBox: TextBoxData;
+  onPositionChange: (id: string, x: number, y: number) => void;
+  onTextChange: (id: string, text: string) => void;
+  onRemove: (id: string) => void;
+}
+
 export default function TextBox({
   textBox,
   onPositionChange,
   onTextChange,
   onRemove,
-}) {
+}: TextBoxProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [position, setPosition] = useState({
@@ -15,7 +29,7 @@ export default function TextBox({
   });
   const [text, setText] = useState(textBox.text || "");
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -23,7 +37,7 @@ export default function TextBox({
     }
   }, [isEditing]);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target.closest(".drag-handle")) {
       setIsDragging(true);
       dragRef.current = {
@@ -35,7 +49,7 @@ export default function TextBox({
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
       const deltaX = e.clientX - dragRef.current.startX;
       const deltaY = e.clientY - dragRef.current.startY;
@@ -53,7 +67,7 @@ export default function TextBox({
     }
   };
 
-  const handleTextChange = (e) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
   };
 

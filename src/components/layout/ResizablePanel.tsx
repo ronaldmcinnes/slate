@@ -2,16 +2,27 @@ import { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+interface ResizablePanelProps {
+  children: React.ReactNode;
+  defaultWidth?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  side?: "left" | "right";
+  panelId?: string;
+  activePanel?: string | null;
+  onInteractionChange?: (panelId: string | null) => void;
+}
+
 export default function ResizablePanel({
   children,
   defaultWidth = 256,
   minWidth = 200,
   maxWidth = 600,
-  side = "left", // "left" or "right"
+  side = "left",
   panelId = "",
   activePanel = null,
   onInteractionChange = () => {},
-}) {
+}: ResizablePanelProps) {
   const [width, setWidth] = useState(defaultWidth);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -19,7 +30,7 @@ export default function ResizablePanel({
   const startWidthRef = useRef(defaultWidth);
   const collapsedWidthRef = useRef(defaultWidth);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
     onInteractionChange(panelId);
     startXRef.current = e.clientX;
@@ -27,7 +38,7 @@ export default function ResizablePanel({
     e.preventDefault();
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent) => {
     if (!isResizing) return;
 
     const delta = e.clientX - startXRef.current;

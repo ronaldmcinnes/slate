@@ -9,24 +9,30 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-export default function GraphDialog({ open, onOpenChange, onAddGraph }) {
+interface GraphDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddGraph: (graphData: any) => void;
+}
+
+export default function GraphDialog({ open, onOpenChange, onAddGraph }: GraphDialogProps) {
   const [title, setTitle] = useState("");
   const [graphType, setGraphType] = useState("function");
   const [equation, setEquation] = useState("x^2");
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onOpenChange(false);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Random offset so graphs don't stack on top of each other
     const randomOffset = Math.floor(Math.random() * 200) + 150;
 
-    let graphData = {
+    let graphData: any = {
       title: title || "Graph",
       x: randomOffset,
       y: randomOffset,
