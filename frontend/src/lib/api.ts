@@ -252,6 +252,24 @@ class ApiClient {
   async emptyTrash(): Promise<void> {
     await this.request("/api/trash/empty/all", { method: "DELETE" });
   }
+
+  // ============================================
+  // AGGREGATION
+  // ============================================
+  async getUserWithNotebooksAndPages(): Promise<any> {
+    const response = await this.request<any>("/api/aggregate/user/full");
+    return response.data;
+  }
+
+  async getUserStats(): Promise<{
+    totalNotebooks: number;
+    totalPages: number;
+    totalWordCount: number;
+    lastModified: string | null;
+  }> {
+    const response = await this.request<any>("/api/aggregate/stats");
+    return response.data;
+  }
 }
 
 // Export singleton instance

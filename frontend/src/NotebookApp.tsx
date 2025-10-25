@@ -17,6 +17,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(
     null
   );
+  const [pages, setPages] = useState<Page[]>([]); // Add pages state
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
@@ -39,17 +40,26 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       if (allNotebooks.length > 0) {
         setSelectedNotebook(allNotebooks[0]);
         // Load pages for the first notebook
-        try {
-          const pages = await api.getPages(allNotebooks[0].id);
-          if (pages.length > 0) {
-            setSelectedPage(pages[0]);
-          }
-        } catch (err) {
-          console.error("Error loading pages:", err);
-        }
+        await loadPagesForNotebook(allNotebooks[0].id);
       }
     } catch (error) {
       console.error("Error loading notebooks:", error);
+    }
+  };
+
+  const loadPagesForNotebook = async (notebookId: string) => {
+    try {
+      const fetchedPages = await api.getPages(notebookId);
+      setPages(fetchedPages);
+      if (fetchedPages.length > 0) {
+        setSelectedPage(fetchedPages[0]);
+      } else {
+        setSelectedPage(null);
+      }
+    } catch (err) {
+      console.error("Error loading pages:", err);
+      setPages([]);
+      setSelectedPage(null);
     }
   };
 
@@ -80,11 +90,8 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook) {
       try {
         const newPage = await api.createPage(selectedNotebook.id, { title });
-        await refreshNotebooks();
-        const updated = await api.getNotebooks();
-        const allNotebooks = [...updated.owned, ...updated.shared];
-        const notebook = allNotebooks.find((n) => n.id === selectedNotebook.id);
-        setSelectedNotebook(notebook || null);
+        // Reload pages to include the new one
+        await loadPagesForNotebook(selectedNotebook.id);
         setSelectedPage(newPage);
       } catch (error) {
         console.error("Error creating page:", error);
@@ -94,17 +101,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   const handleSelectNotebook = async (notebook: Notebook): Promise<void> => {
     setSelectedNotebook(notebook);
-    try {
-      const pages = await api.getPages(notebook.id);
-      if (pages.length > 0) {
-        setSelectedPage(pages[0]);
-      } else {
-        setSelectedPage(null);
-      }
-    } catch (error) {
-      console.error("Error loading pages:", error);
-      setSelectedPage(null);
-    }
+    await loadPagesForNotebook(notebook.id);
   };
 
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
@@ -131,7 +128,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook) {
       try {
         const updatedPage = await api.updatePage(page.id, { title: newTitle });
-        await refreshNotebooks();
+
+        // Reload pages to reflect the change
+        await loadPagesForNotebook(selectedNotebook.id);
 
         if (selectedPage?.id === page.id) {
           setSelectedPage(updatedPage);
@@ -151,19 +150,15 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook && pageToEdit) {
       try {
         await api.deletePage(pageToEdit.id);
-        const updated = await refreshNotebooks();
-        const notebook = updated.find((n) => n.id === selectedNotebook.id);
-        setSelectedNotebook(notebook || null);
 
-        // If deleting current page, select first available
-        if (selectedPage?.id === pageToEdit.id) {
-          const pages = await api.getPages(selectedNotebook.id);
-          if (pages.length > 0) {
-            setSelectedPage(pages[0]);
-          } else {
-            setSelectedPage(null);
-          }
+        // Reload pages after deletion
+        await loadPagesForNotebook(selectedNotebook.id);
+
+        // If deleting current page, pages state is already updated
+        if (selectedPage?.id === pageToEdit.id && pages.length > 0) {
+          setSelectedPage(pages[0]);
         }
+
         setPageToEdit(null);
       } catch (error) {
         console.error("Error deleting page:", error);
@@ -188,6 +183,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             selectedNotebook={selectedNotebook}
             onSelectNotebook={handleSelectNotebook}
             onCreateNotebook={handleCreateNotebook}
+            onNotebookChanged={loadNotebooks}
             onNavigateHome={onNavigateHome}
           />
         </ResizablePanel>
@@ -202,7 +198,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           onInteractionChange={setActivePanel}
         >
           <PagesList
-            pages={selectedNotebook?.pages || []}
+            pages={pages}
             selectedPage={selectedPage}
             onSelectPage={setSelectedPage}
             onCreatePage={handleCreatePage}
@@ -212,7 +208,11 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           />
         </ResizablePanel>
 
-        <Canvas page={selectedPage} onUpdatePage={handleUpdatePage} />
+        <Canvas
+          page={selectedPage}
+          onUpdatePage={handleUpdatePage}
+          permission={selectedNotebook?.permission}
+        />
       </div>
 
       {/* Modals */}
