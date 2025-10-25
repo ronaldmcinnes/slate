@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { AuthRequest, authenticate } from "../middleware/auth";
 import Page from "../models/Page";
 import Notebook from "../models/Notebook";
@@ -9,7 +10,7 @@ const router = Router();
 router.get("/", authenticate, async (req: AuthRequest, res) => {
   try {
     const { q, notebookId, tags, limit = 20 } = req.query;
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
 
     if (!q || typeof q !== "string" || q.trim() === "") {
       res.status(400).json({
@@ -112,7 +113,7 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
 router.get("/notebooks", authenticate, async (req: AuthRequest, res) => {
   try {
     const { q, tags } = req.query;
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
 
     if (!q && !tags) {
       res.status(400).json({

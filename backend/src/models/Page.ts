@@ -144,10 +144,10 @@ PageSchema.pre("save", function (next) {
   this.lastModified = new Date();
 
   // Calculate word count
-  if (this.content) {
+  if (this.content && typeof this.content === 'string') {
     this.wordCount = this.content
       .split(/\s+/)
-      .filter((word) => word.length > 0).length;
+      .filter((word: string) => word.length > 0).length;
   }
 
   next();

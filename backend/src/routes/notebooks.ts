@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { AuthRequest, authenticate } from "../middleware/auth";
 import { checkNotebookAccess } from "../middleware/permissions";
 import Notebook from "../models/Notebook";
@@ -12,7 +13,7 @@ const router = Router();
 // Get all notebooks (owned + shared)
 router.get("/", authenticate, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
 
     // Get owned notebooks
     const ownedNotebooks = await Notebook.find({
@@ -73,7 +74,7 @@ router.get(
     try {
       const notebook = await Notebook.findById(req.params.id);
 
-      const userId = req.user!._id;
+      const userId = req.user!._id as mongoose.Types.ObjectId;
       const isOwner = notebook!.userId.toString() === userId.toString();
       const share = notebook!.sharedWith.find(
         (s) => s.userId.toString() === userId.toString()
@@ -100,7 +101,7 @@ router.get(
 // Create notebook
 router.post("/", authenticate, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
     const { title, description, tags, color, icon } = req.body;
 
     if (!title || title.trim() === "") {
@@ -223,7 +224,7 @@ router.delete(
       }
 
       // Only owner can delete
-      if (notebook.userId.toString() !== req.user!._id.toString()) {
+      if (notebook.userId.toString() !== (req.user!._id as mongoose.Types.ObjectId).toString()) {
         res.status(403).json({
           success: false,
           error: "Only owner can delete notebook",
@@ -346,7 +347,7 @@ router.post(
       }
 
       // Only owner can share
-      if (notebook.userId.toString() !== req.user!._id.toString()) {
+      if (notebook.userId.toString() !== (req.user!._id as mongoose.Types.ObjectId).toString()) {
         res.status(403).json({
           success: false,
           error: "Only owner can share notebook",
@@ -367,7 +368,7 @@ router.post(
 
       // Check if already shared
       const existingShare = notebook.sharedWith.find(
-        (s) => s.userId.toString() === userToShare._id.toString()
+        (s) => s.userId.toString() === (userToShare._id as mongoose.Types.ObjectId).toString()
       );
 
       if (existingShare) {
@@ -376,10 +377,10 @@ router.post(
       } else {
         // Add new share
         notebook.sharedWith.push({
-          userId: userToShare._id,
+          userId: userToShare._id as mongoose.Types.ObjectId,
           permission,
           sharedAt: new Date(),
-          sharedBy: req.user!._id,
+          sharedBy: req.user!._id as mongoose.Types.ObjectId,
         });
       }
 
@@ -431,7 +432,7 @@ router.delete(
       }
 
       // Only owner can unshare
-      if (notebook.userId.toString() !== req.user!._id.toString()) {
+      if (notebook.userId.toString() !== (req.user!._id as mongoose.Types.ObjectId).toString()) {
         res.status(403).json({
           success: false,
           error: "Only owner can unshare notebook",
@@ -470,7 +471,7 @@ router.delete(
 // Get all unique tags
 router.get("/tags/list", authenticate, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user!._id;
+    const userId = req.user!._id as mongoose.Types.ObjectId;
 
     const notebooks = await Notebook.find({
       userId,
