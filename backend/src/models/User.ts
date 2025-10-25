@@ -81,9 +81,6 @@ const UserSchema: Schema = new Schema(
   }
 );
 
-// Indexes
-UserSchema.index({ email: 1 }, { unique: true });
-UserSchema.index({ googleId: 1 }, { unique: true });
 UserSchema.index({ isActive: 1 });
 
 export default mongoose.model<IUser>("User", UserSchema);
