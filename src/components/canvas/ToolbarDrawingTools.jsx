@@ -42,8 +42,6 @@ const DEFAULT_COLORS = [
 
 export default function ToolbarDrawingTools({
   tool,
-  strokeColor,
-  strokeWidth,
   onUndo,
   onRedo,
   onToolChange,
@@ -83,24 +81,25 @@ export default function ToolbarDrawingTools({
     onWidthChange,
     isActive,
     onClick,
-    icon: Icon,
+    icon,
     label,
     minWidth = 1,
     maxWidth = 30,
   }) => {
     const [popoverOpen, setPopoverOpen] = useState(false);
+    const IconComponent = icon;
 
     return (
       <div className="flex flex-col items-center">
         <Button
           variant={isActive ? "secondary" : "ghost"}
           size="icon"
-          className={cn("h-9 w-9", isActive ? "rounded-b-none" : "")}
+          className={cn("h-9 w-9", isActive ? "rounded-b-none bg-muted" : "")}
           onClick={onClick}
           title={label}
         >
           <div className="relative">
-            <Icon size={18} />
+            <IconComponent size={18} />
             <div
               className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full"
               style={{ backgroundColor: color }}
@@ -113,7 +112,7 @@ export default function ToolbarDrawingTools({
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-3 w-9 rounded-t-none py-0 flex items-center justify-center"
+                className="h-3 w-9 rounded-t-none bg-muted py-0 flex items-center justify-center"
               >
                 <ChevronDown size={10} />
               </Button>
@@ -189,7 +188,7 @@ export default function ToolbarDrawingTools({
         <Button
           variant={isActive ? "secondary" : "ghost"}
           size="icon"
-          className={cn("h-9 w-9", isActive ? "rounded-b-none pb-1" : "")}
+          className={cn("h-9 w-9", isActive ? "rounded-b-none bg-muted" : "")}
           onClick={() => handleToolSelect("eraser", "#FAFAFA", eraserWidth)}
           title="Eraser"
         >
@@ -201,7 +200,7 @@ export default function ToolbarDrawingTools({
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-3 w-9 rounded-t-none py-0 flex items-center justify-center"
+                className="h-3 w-9 rounded-t-none bg-muted py-0 flex items-center justify-center"
               >
                 <ChevronDown size={10} />
               </Button>
@@ -288,7 +287,7 @@ export default function ToolbarDrawingTools({
       <Button
         variant="ghost"
         size="icon"
-        className="h-9 w-9"
+        className="h-9 w-9 hover:bg-muted"
         onClick={onUndo}
         title="Undo (Ctrl+Z)"
       >
@@ -297,7 +296,7 @@ export default function ToolbarDrawingTools({
       <Button
         variant="ghost"
         size="icon"
-        className="h-9 w-9"
+        className="h-9 w-9 hover:bg-muted"
         onClick={onRedo}
         title="Redo (Ctrl+Y)"
       >
@@ -310,7 +309,7 @@ export default function ToolbarDrawingTools({
       <Button
         variant={tool === "select" ? "secondary" : "ghost"}
         size="icon"
-        className="h-9 w-9"
+        className={cn("h-9 w-9", tool === "select" ? "bg-muted" : "")}
         onClick={() => handleToolSelect("select", "#000000", 0)}
         title="Selection Tool"
       >
@@ -319,7 +318,7 @@ export default function ToolbarDrawingTools({
       <Button
         variant={tool === "lasso" ? "secondary" : "ghost"}
         size="icon"
-        className="h-9 w-9"
+        className={cn("h-9 w-9", tool === "lasso" ? "bg-muted" : "")}
         onClick={() => handleToolSelect("lasso", "#000000", 0)}
         title="Lasso Tool"
       >
@@ -443,7 +442,7 @@ export default function ToolbarDrawingTools({
       <Button
         variant={tool === "text" ? "secondary" : "ghost"}
         size="icon"
-        className="h-9 w-9"
+        className={cn("h-9 w-9", tool === "text" ? "bg-muted" : "")}
         onClick={() => handleToolSelect("text", "#000000", 0)}
         title="Text Tool (T)"
       >

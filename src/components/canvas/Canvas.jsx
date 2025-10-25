@@ -189,7 +189,8 @@ export default function Canvas({ page, onUpdatePage }) {
   // Get cursor style based on tool
   const getCursorStyle = () => {
     if (tool === "text") return "text";
-    if (tool === "select" || tool === "lasso") return "crosshair";
+    if (tool === "select") return "default";
+    if (tool === "lasso") return "crosshair";
     if (tool === "eraser") return "default";
     return "crosshair";
   };
@@ -202,8 +203,6 @@ export default function Canvas({ page, onUpdatePage }) {
           <div className="flex items-center justify-between px-4 py-2">
             <ToolbarDrawingTools
               tool={tool}
-              strokeColor={strokeColor}
-              strokeWidth={strokeWidth}
               onUndo={handleUndo}
               onRedo={handleRedo}
               onToolChange={handleToolChange}
