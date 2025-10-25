@@ -8,6 +8,7 @@ import type {
   ShareNotebookRequest,
   CreatePageRequest,
   UpdatePageRequest,
+  UpdateCanvasStateRequest,
   SearchQuery,
   SearchResult,
   TrashItem,
@@ -84,6 +85,14 @@ class ApiClient {
     const response = await this.request("/api/auth/settings", {
       method: "PATCH",
       body: JSON.stringify(settings),
+    });
+    return response.data;
+  }
+
+  async updateCanvasState(canvasState: UpdateCanvasStateRequest): Promise<any> {
+    const response = await this.request("/api/auth/canvas-state", {
+      method: "PATCH",
+      body: JSON.stringify(canvasState),
     });
     return response.data;
   }

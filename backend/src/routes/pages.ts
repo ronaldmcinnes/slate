@@ -8,30 +8,51 @@ import {
 import Page from "../models/Page";
 import Notebook from "../models/Notebook";
 import Trash from "../models/Trash";
-import Activity from "../models/Activity";
 
 const router = Router();
 
-// Get all pages in a notebook
+// Get all pages in a notebook (metadata only - fast!)
 router.get(
   "/notebook/:notebookId",
   authenticate,
   checkNotebookAccess("view"),
   async (req: AuthRequest, res) => {
     try {
+      console.log("📄 Fetching pages for notebook:", req.params.notebookId);
+
       const pages = await Page.find({
         notebookId: req.params.notebookId,
         isDeleted: false,
-      }).sort({ order: 1, createdAt: 1 });
+      })
+        .select(
+          "title createdAt lastModified lastModifiedBy order tags notebookId userId"
+        ) // Only lightweight fields
+        .sort({ order: 1, createdAt: 1 });
+
+      console.log("✅ Found", pages.length, "pages");
 
       res.json({
         success: true,
         data: pages.map((p) => ({
-          ...p.toObject(),
           id: p._id,
+          title: p.title,
+          createdAt: p.createdAt,
+          lastModified: p.lastModified,
+          lastModifiedBy: p.lastModifiedBy,
+          order: p.order,
+          tags: p.tags,
+          notebookId: p.notebookId,
+          userId: p.userId,
+          // These are excluded but set to null/empty for frontend compatibility
+          content: "",
+          drawings: null,
+          graphs: [],
+          textBoxes: [],
+          isDeleted: false,
         })),
       });
     } catch (error) {
+      console.error("❌ Error fetching pages:", error);
       res.status(500).json({
         success: false,
         error: "Error fetching pages",
@@ -60,7 +81,9 @@ router.get(
       // Update recent pages for user
       const user = req.user!;
       user.recentPages = user.recentPages.filter(
-        (rp) => rp.pageId.toString() !== (page._id as mongoose.Types.ObjectId).toString()
+        (rp) =>
+          rp.pageId.toString() !==
+          (page._id as mongoose.Types.ObjectId).toString()
       );
       user.recentPages.unshift({
         pageId: page._id as mongoose.Types.ObjectId,
@@ -125,14 +148,6 @@ router.post(
         lastModified: new Date(),
       });
 
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "create",
-        targetType: "page",
-        targetId: page._id,
-      });
-
       res.status(201).json({
         success: true,
         data: {
@@ -159,9 +174,26 @@ router.patch(
     try {
       const { title, content, drawings, graphs, textBoxes, tags, order } =
         req.body;
+
+      // DEBUG: Log what we received
+      console.log("🔵 PATCH /api/pages/:id - Received update request");
+      console.log("  Page ID:", req.params.id);
+      console.log("  Update fields:", Object.keys(req.body));
+      if (drawings) {
+        console.log("  Drawings data:", {
+          type: typeof drawings,
+          isArray: Array.isArray(drawings),
+          hasPaths: !!drawings.paths,
+          pathCount: drawings.paths?.length || 0,
+          hasWidth: !!drawings.width,
+          hasHeight: !!drawings.height,
+        });
+      }
+
       const page = await Page.findById(req.params.id);
 
       if (!page) {
+        console.log("  ❌ Page not found");
         res.status(404).json({
           success: false,
           error: "Page not found",
@@ -169,9 +201,17 @@ router.patch(
         return;
       }
 
+      console.log("  📄 Found page:", page.title);
+
       if (title !== undefined) page.title = title.trim();
       if (content !== undefined) page.content = content;
-      if (drawings !== undefined) page.drawings = drawings;
+      if (drawings !== undefined) {
+        console.log("  💾 Saving drawings:", {
+          pathCount: drawings.paths?.length || 0,
+          previousPathCount: page.drawings?.paths?.length || 0,
+        });
+        page.drawings = drawings;
+      }
       if (graphs !== undefined) page.graphs = graphs;
       if (textBoxes !== undefined) page.textBoxes = textBoxes;
       if (tags !== undefined) page.tags = tags;
@@ -180,18 +220,15 @@ router.patch(
       page.lastModifiedBy = req.user!._id as mongoose.Types.ObjectId;
       await page.save();
 
+      console.log("  ✅ Page saved to database");
+      console.log("  📊 Current drawings in DB:", {
+        hasPaths: !!page.drawings?.paths,
+        pathCount: page.drawings?.paths?.length || 0,
+      });
+
       // Update notebook lastModified
       await Notebook.findByIdAndUpdate(page.notebookId, {
         lastModified: new Date(),
-      });
-
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "update",
-        targetType: "page",
-        targetId: page._id,
-        changes: req.body,
       });
 
       res.json({
@@ -246,14 +283,6 @@ router.delete(
         lastModified: new Date(),
       });
 
-      // Log activity
-      await Activity.create({
-        userId: req.user!._id,
-        action: "delete",
-        targetType: "page",
-        targetId: page._id,
-      });
-
       res.json({
         success: true,
         message: "Page moved to trash",
@@ -304,14 +333,6 @@ router.post("/:id/restore", authenticate, async (req: AuthRequest, res) => {
       itemId: page._id,
     });
 
-    // Log activity
-    await Activity.create({
-      userId: req.user!._id,
-      action: "restore",
-      targetType: "page",
-      targetId: page._id,
-    });
-
     res.json({
       success: true,
       data: {
@@ -341,7 +362,11 @@ router.get("/recent/list", authenticate, async (req: AuthRequest, res) => {
 
     // Sort by recent access order
     const sortedPages = recentPageIds
-      .map((id) => pages.find((p) => (p._id as mongoose.Types.ObjectId).toString() === id.toString()))
+      .map((id) =>
+        pages.find(
+          (p) => (p._id as mongoose.Types.ObjectId).toString() === id.toString()
+        )
+      )
       .filter((p) => p !== undefined);
 
     res.json({
