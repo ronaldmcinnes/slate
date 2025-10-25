@@ -1,81 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import PagesList from "./components/PagesList";
 import Canvas from "./components/Canvas";
-
-// Mock data
-const mockNotebooks = [
-  {
-    id: 1,
-    title: "Calculus I",
-    pages: [
-      {
-        id: 1,
-        title: "Derivatives Introduction",
-        lastModified: "2025-10-24T10:30:00",
-        content: "",
-      },
-      {
-        id: 2,
-        title: "Chain Rule Examples",
-        lastModified: "2025-10-23T14:20:00",
-        content: "",
-      },
-      {
-        id: 3,
-        title: "Integration Basics",
-        lastModified: "2025-10-22T09:15:00",
-        content: "",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Linear Algebra",
-    pages: [
-      {
-        id: 4,
-        title: "Matrix Operations",
-        lastModified: "2025-10-24T11:00:00",
-        content: "",
-      },
-      {
-        id: 5,
-        title: "Eigenvalues & Eigenvectors",
-        lastModified: "2025-10-21T16:45:00",
-        content: "",
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "Physics 101",
-    pages: [
-      {
-        id: 6,
-        title: "Newtons Laws",
-        lastModified: "2025-10-20T13:30:00",
-        content: "",
-      },
-      {
-        id: 7,
-        title: "Energy & Momentum",
-        lastModified: "2025-10-19T10:00:00",
-        content: "",
-      },
-      {
-        id: 8,
-        title: "Rotational Motion",
-        lastModified: "2025-10-18T15:20:00",
-        content: "",
-      },
-    ],
-  },
-];
+import {
+  getNotebooks,
+  createNotebook,
+  createPage,
+  updatePage,
+} from "./lib/storage";
 
 function App() {
-  const [selectedNotebook, setSelectedNotebook] = useState(mockNotebooks[0]);
-  const [selectedPage, setSelectedPage] = useState(mockNotebooks[0].pages[0]);
+  const [notebooks, setNotebooks] = useState([]);
+  const [selectedNotebook, setSelectedNotebook] = useState(null);
+  const [selectedPage, setSelectedPage] = useState(null);
+
+  // Load notebooks from localStorage on mount
+  useEffect(() => {
+    const stored = getNotebooks();
+    setNotebooks(stored);
+    if (stored.length > 0) {
+      setSelectedNotebook(stored[0]);
+      if (stored[0].pages.length > 0) {
+        setSelectedPage(stored[0].pages[0]);
+      }
+    }
+  }, []);
+
+  const handleCreateNotebook = (title) => {
+    const newNotebook = createNotebook(title);
+    const updated = getNotebooks();
+    setNotebooks(updated);
+    setSelectedNotebook(newNotebook);
+    setSelectedPage(null);
+  };
+
+  const handleCreatePage = (title) => {
+    if (selectedNotebook) {
+      const newPage = createPage(selectedNotebook.id, title);
+      const updated = getNotebooks();
+      setNotebooks(updated);
+      const notebook = updated.find((n) => n.id === selectedNotebook.id);
+      setSelectedNotebook(notebook);
+      setSelectedPage(newPage);
+    }
+  };
 
   const handleSelectNotebook = (notebook) => {
     setSelectedNotebook(notebook);
@@ -86,19 +54,33 @@ function App() {
     }
   };
 
+  const handleUpdatePage = (updates) => {
+    if (selectedNotebook && selectedPage) {
+      updatePage(selectedNotebook.id, selectedPage.id, updates);
+      const updated = getNotebooks();
+      setNotebooks(updated);
+      const notebook = updated.find((n) => n.id === selectedNotebook.id);
+      const page = notebook.pages.find((p) => p.id === selectedPage.id);
+      setSelectedPage(page);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar
-        notebooks={mockNotebooks}
+        notebooks={notebooks}
         selectedNotebook={selectedNotebook}
         onSelectNotebook={handleSelectNotebook}
+        onCreateNotebook={handleCreateNotebook}
       />
       <PagesList
         pages={selectedNotebook?.pages || []}
         selectedPage={selectedPage}
         onSelectPage={setSelectedPage}
+        onCreatePage={handleCreatePage}
+        notebookSelected={!!selectedNotebook}
       />
-      <Canvas page={selectedPage} />
+      <Canvas page={selectedPage} onUpdatePage={handleUpdatePage} />
     </div>
   );
 }
