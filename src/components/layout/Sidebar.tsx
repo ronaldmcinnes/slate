@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, BookOpen, User } from "lucide-react";
+import { Plus, BookOpen, User, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreateNotebookDialog from "@/components/dialogs/CreateNotebookDialog";
@@ -10,6 +10,7 @@ interface SidebarProps {
   selectedNotebook: Notebook | null;
   onSelectNotebook: (notebook: Notebook) => void;
   onCreateNotebook: (title: string) => void;
+  onNavigateHome?: () => void;
 }
 
 export default function Sidebar({
@@ -17,6 +18,7 @@ export default function Sidebar({
   selectedNotebook,
   onSelectNotebook,
   onCreateNotebook,
+  onNavigateHome,
 }: SidebarProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -25,12 +27,27 @@ export default function Sidebar({
       <div className="w-full bg-card border-r border-border flex flex-col h-screen overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-border">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Slate
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Voice-Activated Teaching Canvas
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                Slate
+              </h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                Voice-Activated Teaching Canvas
+              </p>
+            </div>
+            {onNavigateHome && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={onNavigateHome}
+                title="Go to Home"
+              >
+                <Home size={16} />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Notebooks List */}
