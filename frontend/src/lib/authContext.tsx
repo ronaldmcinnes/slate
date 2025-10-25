@@ -9,6 +9,7 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  updateCanvasState: (updates: any) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,8 +62,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await fetchUser();
   };
 
+  const updateCanvasState = async (updates: any) => {
+    try {
+      await api.updateCanvasState(updates);
+      // Update local user state optimistically
+      if (user) {
+        setUser({
+          ...user,
+          canvasState: {
+            ...user.canvasState,
+            ...updates,
+            expandedPanels: {
+              ...user.canvasState?.expandedPanels,
+              ...updates.expandedPanels,
+            },
+            canvasViewport: {
+              ...user.canvasState?.canvasViewport,
+              ...updates.canvasViewport,
+            },
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update canvas state:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, logout, refreshUser, updateCanvasState }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,0 +1,88 @@
+---
+alwaysApply: true
+---
+
+# Slate - Collaborative Notebook Application
+
+Slate is a modern, collaborative notebook application with real-time canvas drawing, mathematical graphs (Three.js), and AI-powered features. It's a full-stack TypeScript monorepo with a React/Vite frontend, Express/MongoDB backend, and Google OAuth authentication.
+
+## Project Conventions
+
+### General Development Rules
+
+- Always use best practices and keep code clean and legible
+- Ask questions if you need clarification to avoid overdoing things
+- Default to using `pnpm` instead of `npm` for package management
+- Never use samples, caching, fallback, or testing data without asking first
+- Always put sensitive information in `.env` files, never in the codebase
+- Restate directions as understood before implementing
+- Use component-based architecture for reusability
+
+### Code Organization
+
+- **Frontend components structure**:
+  - `/components/canvas/` - Canvas-related components (drawing, graphs, text boxes)
+  - `/components/dialogs/` - Modal dialogs and action menus
+  - `/components/layout/` - Layout components (sidebar, panels, page lists)
+  - `/components/ui/` - Reusable UI primitives (buttons, inputs, dropdowns)
+  - `/components/hero/` - Landing page components
+  - `/lib/` - Utilities, API client, context providers
+  - `/types/` - TypeScript type definitions
+- **Backend structure**:
+
+  - `/models/` - Mongoose schemas (User, Notebook, Page, Trash, Activity)
+  - `/routes/` - Express route handlers grouped by resource
+  - `/middleware/` - Auth and permission middleware
+  - `/config/` - Database and Passport configuration
+
+- **Shared types**: Use `/shared/types/` for types shared between frontend and backend
+
+### Technical Standards
+
+- **State Management**: Use React Context (AuthContext) for global state; avoid prop drilling beyond 2-3 levels
+- **API Communication**: Use the centralized API client (`lib/api.ts`) with proper error handling
+- **Canvas Operations**: All canvas state and drawing operations should follow the existing patterns in Canvas.tsx
+- **Canvas State Persistence**: User's canvas UI state is persisted in the database (expanded panels, current notebook/page, viewport position, last used tool). Use `api.updateCanvasState()` to save changes
+- **Permissions**: Always check user permissions (view/edit) for notebooks and pages
+- **Soft Deletes**: Use soft delete patterns with trash functionality for user data
+
+### Authentication & Security
+
+- JWT tokens stored in httpOnly cookies and Authorization header
+- Always use authentication middleware for protected routes
+- Verify permissions before allowing edit operations
+- Google OAuth for user authentication
+
+### Database Conventions
+
+- Use Mongoose models with proper TypeScript typing
+- Create indexes for all common query patterns
+- Use soft deletes (isDeleted flag) instead of hard deletes
+- Track metadata: createdAt, updatedAt, lastAccessedAt, lastModifiedBy
+
+### Component Development
+
+- Use React.memo for performance-critical components
+- Keep dropdown state lifted to parent when needed (see memory #10334254)
+- Use Radix UI primitives for accessible UI components
+- Follow Tailwind CSS utility-first approach
+
+### API Design
+
+- RESTful endpoints grouped by resource
+- Consistent response format with proper HTTP status codes
+- Type-safe request/response with shared types
+- Error handling with descriptive messages
+
+### Canvas & Drawing
+
+- Support for drawing tools (markers, highlighters, erasers)
+- Text boxes with rich editing
+- Mathematical graphs using Three.js
+- Draggable and resizable elements
+
+### Deployment
+
+- Backend: Vercel Serverless (Express)
+- Frontend: Vercel (Vite SPA)
+- MongoDB Atlas for database

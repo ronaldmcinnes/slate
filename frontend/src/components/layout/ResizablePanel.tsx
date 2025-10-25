@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,8 @@ interface ResizablePanelProps {
   panelId?: string;
   activePanel?: string | null;
   onInteractionChange?: (panelId: string | null) => void;
+  initialCollapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 export default function ResizablePanel({
@@ -22,13 +24,25 @@ export default function ResizablePanel({
   panelId = "",
   activePanel = null,
   onInteractionChange = () => {},
+  initialCollapsed = false,
+  onCollapsedChange = () => {},
 }: ResizablePanelProps) {
   const [width, setWidth] = useState(defaultWidth);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [isResizing, setIsResizing] = useState(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(defaultWidth);
   const collapsedWidthRef = useRef(defaultWidth);
+
+  // Persist collapse state when it changes
+  useEffect(() => {
+    onCollapsedChange(isCollapsed);
+  }, [isCollapsed]);
+
+  // Load initial collapsed state
+  useEffect(() => {
+    setIsCollapsed(initialCollapsed);
+  }, [initialCollapsed]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
