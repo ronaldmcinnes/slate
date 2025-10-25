@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
-import Plot from "react-plotly.js";
 import { GripVertical, X } from "lucide-react";
+import ThreeJSGraph from "./ThreeJSGraph";
+import type { GraphSpec } from "@/types";
 
 interface GraphData {
   id: string;
@@ -9,6 +10,7 @@ interface GraphData {
   title: string;
   data: any[];
   layout?: any;
+  graphSpec?: GraphSpec; // For Three.js mathematical graphs
 }
 
 interface DraggableGraphProps {
@@ -20,14 +22,14 @@ interface DraggableGraphProps {
 export default function DraggableGraph({ graph, onPositionChange, onRemove }: DraggableGraphProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({
-    x: parseInt(graph.x) || 100,
-    y: parseInt(graph.y) || 100,
+    x: parseInt(String(graph.x)) || 100,
+    y: parseInt(String(graph.y)) || 100,
   });
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Only allow dragging from the header
-    if (e.target.closest(".drag-handle")) {
+    if ((e.target as Element).closest(".drag-handle")) {
       setIsDragging(true);
       dragRef.current = {
         startX: e.clientX,
@@ -86,23 +88,26 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove }: Dr
             <X size={14} />
           </button>
         </div>
-        <div className="pointer-events-auto">
-          <Plot
-            data={graph.data}
-            layout={{
-              width: 500,
-              height: 400,
-              margin: { l: 50, r: 30, t: 30, b: 50 },
-              paper_bgcolor: "white",
-              plot_bgcolor: "#fafafa",
-              ...graph.layout,
-            }}
-            config={{
-              displayModeBar: true,
-              displaylogo: false,
-              modeBarButtonsToRemove: ["toImage"],
-            }}
-          />
+        <div className="pointer-events-auto p-4">
+          {graph.graphSpec ? (
+            <div className="w-[500px] h-[400px]">
+              <ThreeJSGraph 
+                graphSpec={graph.graphSpec} 
+                width={500} 
+                height={400} 
+              />
+            </div>
+          ) : (
+            <div className="w-[500px] h-[400px] bg-muted/50 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
+              <div className="text-center text-muted-foreground">
+                <div className="text-4xl mb-2">📊</div>
+                <p className="text-sm font-medium">Graph Visualization</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  Plotly.js dependency removed
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

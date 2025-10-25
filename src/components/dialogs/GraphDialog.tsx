@@ -36,67 +36,10 @@ export default function GraphDialog({ open, onOpenChange, onAddGraph }: GraphDia
       title: title || "Graph",
       x: randomOffset,
       y: randomOffset,
+      type: graphType,
+      // Store the equation for potential future use
+      equation: graphType === "function" ? equation : null,
     };
-
-    // Generate data based on type
-    if (graphType === "function") {
-      // Simple function plot
-      const xValues = [];
-      const yValues = [];
-      for (let x = -10; x <= 10; x += 0.1) {
-        xValues.push(x);
-        try {
-          // Simple evaluation (in production, use a proper math parser)
-          const y = eval(equation.replace(/x/g, `(${x})`).replace(/\^/g, "**"));
-          yValues.push(y);
-        } catch {
-          yValues.push(null);
-        }
-      }
-      graphData.data = [
-        {
-          x: xValues,
-          y: yValues,
-          type: "scatter",
-          mode: "lines",
-          line: { color: "#000" },
-        },
-      ];
-      graphData.layout = {
-        xaxis: { title: "x", zeroline: true },
-        yaxis: { title: "y", zeroline: true },
-      };
-    } else if (graphType === "scatter") {
-      // Sample scatter plot
-      const x = Array.from({ length: 20 }, () => Math.random() * 10);
-      const y = Array.from({ length: 20 }, () => Math.random() * 10);
-      graphData.data = [
-        {
-          x,
-          y,
-          type: "scatter",
-          mode: "markers",
-          marker: { size: 8 },
-        },
-      ];
-      graphData.layout = {
-        xaxis: { title: "x" },
-        yaxis: { title: "y" },
-      };
-    } else if (graphType === "bar") {
-      // Sample bar chart
-      graphData.data = [
-        {
-          x: ["A", "B", "C", "D", "E"],
-          y: [20, 14, 23, 25, 18],
-          type: "bar",
-        },
-      ];
-      graphData.layout = {
-        xaxis: { title: "Category" },
-        yaxis: { title: "Value" },
-      };
-    }
 
     onAddGraph(graphData);
     setTitle("");

@@ -8,7 +8,8 @@ import TextBox from "./TextBox";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import ToolbarSettings from "./ToolbarSettings";
-import type { Page } from "@/types";
+import { AudioRecordingService } from "@/lib/audioService";
+import type { Page, GraphSpec } from "@/types";
 
 interface CanvasProps {
   page: Page | null;
@@ -17,6 +18,10 @@ interface CanvasProps {
 
 export default function Canvas({ page, onUpdatePage }: CanvasProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isInterpreting, setIsInterpreting] = useState(false);
+  const [transcription, setTranscription] = useState("");
+  const [error, setError] = useState("");
   const [strokeColor, setStrokeColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [tool, setTool] = useState("marker");
@@ -33,13 +38,15 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
     fountainPen: true,
     text: true,
     graph: true,
+    microphone: true,
   });
   const canvasRef = useRef<any>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const toolbarScrollRef = useRef<HTMLDivElement>(null);
+  const audioService = useRef(new AudioRecordingService());
 
-  const handleToggleTool = (toolId: string) => {
+  const handleToggleTool = (toolId: keyof typeof visibleTools) => {
     setVisibleTools((prev) => ({
       ...prev,
       [toolId]: !prev[toolId],
@@ -110,9 +117,9 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input/textarea
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+      if (e.target && (e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "TEXTAREA") {
         return;
       }
 
@@ -144,12 +151,12 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
 
   // Handle canvas click for text tool
   useEffect(() => {
-    const handleCanvasClick = (e) => {
+    const handleCanvasClick = (e: MouseEvent) => {
       if (tool === "text" && canvasContainerRef.current) {
         // Check if click is on the canvas area (not on other elements)
         if (
           e.target === canvasContainerRef.current ||
-          e.target.closest(".canvas-clickable")
+          (e.target as HTMLElement)?.closest(".canvas-clickable")
         ) {
           const rect = canvasContainerRef.current.getBoundingClientRect();
           const x =
@@ -201,7 +208,7 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
     }
   };
 
-  const handleAddGraph = (graphData) => {
+  const handleAddGraph = (graphData: any) => {
     const graphs = page.graphs || [];
     graphs.push({
       id: Date.now(),
@@ -210,25 +217,28 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
     onUpdatePage({ graphs });
   };
 
-  const handleRemoveGraph = (graphId) => {
+  const handleRemoveGraph = (graphId: string) => {
     const graphs = (page.graphs || []).filter((g) => g.id !== graphId);
     onUpdatePage({ graphs });
   };
 
-  const handleUpdateGraphPosition = (graphId, x, y) => {
+  const handleUpdateGraphPosition = (graphId: string, x: number, y: number) => {
     const graphs = page.graphs.map((g) =>
       g.id === graphId ? { ...g, x, y } : g
     );
     onUpdatePage({ graphs });
   };
 
-  const handleAddTextBoxAt = (x, y) => {
+  const handleAddTextBoxAt = (x: number, y: number) => {
     const textBoxes = page.textBoxes || [];
     const newTextBox = {
-      id: Date.now(),
+      id: Date.now().toString(),
       text: "",
-      x: x - 100,
-      y: y - 30,
+      position: { x: x - 100, y: y - 30 },
+      size: { width: 200, height: 60 },
+      fontSize: 16,
+      fontFamily: "Arial",
+      color: "#000000",
     };
     textBoxes.push(newTextBox);
     onUpdatePage({ textBoxes });
@@ -237,19 +247,19 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
     setTool("select");
   };
 
-  const handleRemoveTextBox = (textBoxId) => {
+  const handleRemoveTextBox = (textBoxId: string) => {
     const textBoxes = (page.textBoxes || []).filter((t) => t.id !== textBoxId);
     onUpdatePage({ textBoxes });
   };
 
-  const handleUpdateTextBoxPosition = (textBoxId, x, y) => {
+  const handleUpdateTextBoxPosition = (textBoxId: string, x: number, y: number) => {
     const textBoxes = (page.textBoxes || []).map((t) =>
-      t.id === textBoxId ? { ...t, x, y } : t
+      t.id === textBoxId ? { ...t, position: { x, y } } : t
     );
     onUpdatePage({ textBoxes });
   };
 
-  const handleUpdateTextBoxText = (textBoxId, text) => {
+  const handleUpdateTextBoxText = (textBoxId: string, text: string) => {
     const textBoxes = (page.textBoxes || []).map((t) =>
       t.id === textBoxId ? { ...t, text } : t
     );
@@ -259,6 +269,79 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
   const handleGenerate = () => {
     // TODO: Implement AI generation
     console.log("Generate clicked");
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      setError("");
+      await audioService.current.startRecording();
+      setIsRecording(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start recording');
+      console.error('Error starting recording:', err);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      const audioBlob = await audioService.current.stopRecording();
+      setIsRecording(false);
+      setIsTranscribing(true);
+      
+      // Transcribe the audio
+      const transcriptionText = await audioService.current.transcribeAudio(audioBlob);
+      setTranscription(transcriptionText);
+      setIsTranscribing(false);
+      
+      // Interpret the transcription and create a graph
+      setIsInterpreting(true);
+      const graphSpec = await audioService.current.interpretTranscription(transcriptionText);
+      setIsInterpreting(false);
+      
+      // Add the graph to the page
+      const graphs = page?.graphs || [];
+      const newGraph = {
+        id: Date.now().toString(),
+        type: "threejs",
+        data: graphSpec,
+        layout: {},
+        position: { x: 100, y: 100 },
+        size: { width: 500, height: 400 },
+        graphSpec: graphSpec
+      };
+      graphs.push(newGraph);
+      onUpdatePage({ graphs });
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Recording failed');
+      console.error('Recording error:', err);
+      setIsRecording(false);
+      setIsTranscribing(false);
+      setIsInterpreting(false);
+    }
+  };
+
+  // Adapter functions to convert between main types and component interfaces
+  const convertTextBoxForComponent = (textBox: any) => ({
+    id: textBox.id,
+    x: textBox.position?.x || textBox.x || 100,
+    y: textBox.position?.y || textBox.y || 100,
+    text: textBox.text || "",
+  });
+
+  const convertGraphForComponent = (graph: any) => {
+    // Debug logging to help identify the issue
+    console.log('Converting graph:', graph);
+    
+    return {
+      id: graph.id,
+      x: graph.position?.x || graph.x || 100,
+      y: graph.position?.y || graph.y || 100,
+      title: graph.graphSpec?.plot?.title || graph.title || "Graph",
+      data: graph.data || [],
+      layout: graph.layout || {},
+      graphSpec: graph.graphSpec,
+    };
   };
 
   // Determine if canvas should be interactive for drawing
@@ -370,15 +453,27 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
                     <Lasso size={18} />
                   </Button>
 
-                  {/* Recording */}
+                  {/* Audio Recording */}
                   <Button
-                    onClick={() => setIsRecording(!isRecording)}
+                    onMouseDown={handleStartRecording}
+                    onMouseUp={handleStopRecording}
+                    onMouseLeave={handleStopRecording}
+                    onTouchStart={handleStartRecording}
+                    onTouchEnd={handleStopRecording}
                     variant={isRecording ? "destructive" : "ghost"}
                     size="icon"
-                    className="h-9 w-9 hover:bg-muted"
-                    title={isRecording ? "Stop Recording" : "Start Recording"}
+                    className={`h-9 w-9 hover:bg-muted ${isTranscribing || isInterpreting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={isTranscribing || isInterpreting}
+                    title={
+                      isTranscribing ? "Transcribing..." :
+                      isInterpreting ? "Interpreting..." :
+                      isRecording ? "Release to stop recording" : 
+                      "Hold to record audio"
+                    }
                   >
-                    {isRecording ? (
+                    {isTranscribing || isInterpreting ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    ) : isRecording ? (
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="18"
@@ -455,7 +550,7 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
                     msOverflowStyle: "none",
                   }}
                   onScroll={(e) =>
-                    setToolbarScrollPosition(e.target.scrollLeft)
+                    setToolbarScrollPosition((e.target as HTMLDivElement).scrollLeft)
                   }
                 >
                   <ToolbarDrawingTools
@@ -468,6 +563,9 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
 
                   <ToolbarActions
                     onAddGraph={() => setGraphDialogOpen(true)}
+                    onStartRecording={handleStartRecording}
+                    onStopRecording={handleStopRecording}
+                    isRecording={isRecording}
                     visibleTools={visibleTools}
                   />
                 </div>
@@ -507,7 +605,7 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
 
                 <ToolbarSettings
                   visibleTools={visibleTools}
-                  onToggleTool={handleToggleTool}
+                  onToggleTool={(toolId: string) => handleToggleTool(toolId as keyof typeof visibleTools)}
                 />
 
                 <Button
@@ -645,13 +743,15 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
             <div className="absolute inset-0 pointer-events-none">
               <div className="relative w-full h-full">
                 {page.textBoxes.map((textBox) => (
-                  <TextBox
-                    key={textBox.id}
-                    textBox={textBox}
-                    onPositionChange={handleUpdateTextBoxPosition}
-                    onTextChange={handleUpdateTextBoxText}
-                    onRemove={handleRemoveTextBox}
-                  />
+                  textBox && (
+                    <TextBox
+                      key={textBox.id}
+                      textBox={convertTextBoxForComponent(textBox)}
+                      onPositionChange={handleUpdateTextBoxPosition}
+                      onTextChange={handleUpdateTextBoxText}
+                      onRemove={handleRemoveTextBox}
+                    />
+                  )
                 ))}
               </div>
             </div>
@@ -662,22 +762,75 @@ export default function Canvas({ page, onUpdatePage }: CanvasProps) {
             <div className="absolute inset-0 pointer-events-none">
               <div className="relative w-full h-full">
                 {page.graphs.map((graph) => (
-                  <DraggableGraph
-                    key={graph.id}
-                    graph={graph}
-                    onPositionChange={handleUpdateGraphPosition}
-                    onRemove={handleRemoveGraph}
-                  />
+                  graph && (
+                    <DraggableGraph
+                      key={graph.id}
+                      graph={convertGraphForComponent(graph)}
+                      onPositionChange={handleUpdateGraphPosition}
+                      onRemove={handleRemoveGraph}
+                    />
+                  )
                 ))}
               </div>
             </div>
           )}
 
-          {/* Recording Indicator */}
+          {/* Status Indicators */}
           {isRecording && (
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-pulse z-50">
               <div className="w-2 h-2 bg-destructive-foreground rounded-full"></div>
               <span className="text-sm font-medium">Recording...</span>
+            </div>
+          )}
+          
+          {isTranscribing && (
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span className="text-sm font-medium">Transcribing...</span>
+            </div>
+          )}
+          
+          {isInterpreting && (
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span className="text-sm font-medium">Interpreting...</span>
+            </div>
+          )}
+          
+          {/* Error Display */}
+          {error && (
+            <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-50 border border-red-200 rounded-lg p-4 max-w-md z-50">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">{error}</div>
+                  <button
+                    onClick={() => setError("")}
+                    className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Transcription Result */}
+          {transcription && (
+            <div className="absolute top-20 right-6 bg-green-50 border border-green-200 rounded-lg p-4 max-w-md z-50">
+              <h3 className="text-sm font-medium text-green-800 mb-2">Transcription:</h3>
+              <p className="text-green-700 text-sm">{transcription}</p>
+              <button
+                onClick={() => setTranscription("")}
+                className="mt-2 text-xs text-green-600 hover:text-green-800 underline"
+              >
+                Dismiss
+              </button>
             </div>
           )}
         </div>
