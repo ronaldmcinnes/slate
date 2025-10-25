@@ -1,9 +1,9 @@
 // Handle OAuth callback and extract token
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { api } from "@/lib/api";
 
-export const AuthCallback = () => {
+export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -12,6 +12,13 @@ export const AuthCallback = () => {
         // Extract token from URL
         const params = new URLSearchParams(window.location.search);
         const token = params.get("token");
+        const error = params.get("error");
+
+        if (error) {
+          console.error("Auth error:", error);
+          navigate("/login?error=" + error);
+          return;
+        }
 
         if (token) {
           // Save token
@@ -33,18 +40,16 @@ export const AuthCallback = () => {
   }, [navigate]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-      }}
-    >
-      <div>
-        <h2>Authenticating...</h2>
-        <p>Please wait while we log you in.</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 dark:border-white mb-4"></div>
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">
+          Authenticating...
+        </h2>
+        <p className="text-slate-600 dark:text-slate-400">
+          Please wait while we log you in.
+        </p>
       </div>
     </div>
   );
-};
+}
