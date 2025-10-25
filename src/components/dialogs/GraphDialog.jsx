@@ -14,13 +14,22 @@ export default function GraphDialog({ open, onOpenChange, onAddGraph }) {
   const [graphType, setGraphType] = useState("function");
   const [equation, setEquation] = useState("x^2");
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onOpenChange(false);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Random offset so graphs don't stack on top of each other
+    const randomOffset = Math.floor(Math.random() * 200) + 150;
+
     let graphData = {
       title: title || "Graph",
-      x: "20%",
-      y: "20%",
+      x: randomOffset,
+      y: randomOffset,
     };
 
     // Generate data based on type
@@ -91,7 +100,7 @@ export default function GraphDialog({ open, onOpenChange, onAddGraph }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Add Interactive Graph</DialogTitle>
         </DialogHeader>

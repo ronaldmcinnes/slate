@@ -21,9 +21,15 @@ export default function CreatePageDialog({ open, onOpenChange, onCreate }) {
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Create New Page</DialogTitle>
         </DialogHeader>

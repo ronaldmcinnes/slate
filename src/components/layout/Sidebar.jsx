@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, BookOpen, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import CreateNotebookDialog from "./CreateNotebookDialog";
+import CreateNotebookDialog from "@/components/dialogs/CreateNotebookDialog";
 
 export default function Sidebar({
   notebooks,
@@ -14,7 +14,7 @@ export default function Sidebar({
 
   return (
     <>
-      <div className="w-64 bg-card border-r border-border flex flex-col h-screen">
+      <div className="w-full bg-card border-r border-border flex flex-col h-screen">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">

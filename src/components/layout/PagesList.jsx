@@ -1,21 +1,62 @@
 import { useState } from "react";
-import { Plus, FileText } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Edit3,
+  Trash2,
+  Scissors,
+  Copy,
+  ClipboardPaste,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import CreatePageDialog from "./CreatePageDialog";
+import CreatePageDialog from "@/components/dialogs/CreatePageDialog";
+import DropdownMenu from "@/components/menus/DropdownMenu";
 
 export default function PagesList({
   pages,
   selectedPage,
   onSelectPage,
   onCreatePage,
+  onDeletePage,
+  onRenamePage,
   notebookSelected,
 }) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
+  const getPageMenuItems = (page) => [
+    {
+      icon: Edit3,
+      label: "Rename",
+      onClick: () => onRenamePage(page),
+    },
+    {
+      icon: Trash2,
+      label: "Delete",
+      onClick: () => onDeletePage(page),
+      variant: "destructive",
+      separator: true,
+    },
+    {
+      icon: Scissors,
+      label: "Cut",
+      disabled: true,
+    },
+    {
+      icon: Copy,
+      label: "Copy",
+      disabled: true,
+    },
+    {
+      icon: ClipboardPaste,
+      label: "Paste",
+      disabled: true,
+    },
+  ];
+
   return (
     <>
-      <div className="w-56 bg-muted/20 border-r border-border flex flex-col h-screen">
+      <div className="w-full bg-muted/20 border-r border-border flex flex-col h-screen">
         {/* Header */}
         <div className="p-3 border-b border-border bg-card">
           <div className="flex items-center justify-between">
@@ -53,29 +94,43 @@ export default function PagesList({
           ) : (
             <div className="space-y-1">
               {pages.map((page) => (
-                <button
+                <div
                   key={page.id}
-                  onClick={() => onSelectPage(page)}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-md transition-all duration-150",
+                    "group flex items-center gap-1 rounded-md transition-all duration-150",
                     selectedPage?.id === page.id
-                      ? "bg-card text-foreground shadow-sm font-medium"
-                      : "text-foreground/80 hover:bg-card/50"
+                      ? "bg-card shadow-sm"
+                      : "hover:bg-card/50"
                   )}
                 >
-                  <div className="flex items-start gap-2">
+                  <button
+                    onClick={() => onSelectPage(page)}
+                    className="flex-1 flex items-start gap-2 px-3 py-2.5 text-left"
+                  >
                     <FileText
                       size={14}
                       className="mt-0.5 flex-shrink-0 text-muted-foreground"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate">{page.title}</div>
+                      <div
+                        className={cn(
+                          "text-sm truncate",
+                          selectedPage?.id === page.id
+                            ? "font-medium text-foreground"
+                            : "text-foreground/80"
+                        )}
+                      >
+                        {page.title}
+                      </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {new Date(page.lastModified).toLocaleDateString()}
                       </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+
+                  {/* Page Actions Menu */}
+                  <DropdownMenu items={getPageMenuItems(page)} />
+                </div>
               ))}
             </div>
           )}

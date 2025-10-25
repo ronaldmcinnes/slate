@@ -39,6 +39,7 @@ export const createPage = (notebookId, title) => {
       content: "",
       drawings: null,
       graphs: [],
+      textBoxes: [],
     };
     notebook.pages.push(newPage);
     saveNotebooks(notebooks);
