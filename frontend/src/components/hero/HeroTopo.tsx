@@ -86,7 +86,9 @@ const VERT = `
     vec3 samplePos = vec3(position.x * uNoiseScale, position.y * uNoiseScale, position.z * uNoiseScale - uTime * 0.06);
 
     float n = fbm(samplePos);
-    pos.y += n * uDisplacement;
+    float ridge = 1.0 - abs(n);
+    float sharp = pow(ridge, 2.0); // smaller exponent = softer
+    pos.y += sharp * uDisplacement;
 
     vec4 worldPos = modelMatrix * vec4(pos, 1.0);
     vWorldPos = worldPos.xyz;
@@ -159,12 +161,15 @@ function TerrainPlane({
   const ref = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial | null>(null);
 
+  const tRef = useRef(0);
+
   // uniforms initial values
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0.0 },
-      uDisplacement: { value: 3.0 } /* terrain */,
+      uDisplacement: { value: 4.5 } /* terrain */,
       uNoiseScale: { value: 0.03 },
+      uRidgeExp: { value: 0.6 },
       uColorBase: { value: new THREE.Color(0x1f4e79) },
       uContourSpacing: { value: 0.6 } /* spacing of the lines */,
       uContourThickness: { value: 0.5 } /* thickness of lines here!! */,
@@ -184,9 +189,25 @@ function TerrainPlane({
   // update time uniform in animation loop
   useFrame((state, delta) => {
     if (!materialRef.current) return;
-    // Use the renderer clock elapsed time (stable across reloads)
-    const elapsed = state.clock.getElapsedTime(); // seconds
-    materialRef.current.uniforms.uTime.value = elapsed; // optionally * speed factor
+    // clamp delta to avoid huge jumps when tab was inactive or on full reload
+    const clampedDelta = Math.min(delta, 0.05); // max frame step 50ms
+
+    /* debuggin!! */
+/*     console.log({
+      delta,
+      clampedDelta,
+      elapsed: state.clock.getElapsedTime(),
+    }); */
+
+/*     const elapsed = state.clock.getElapsedTime();
+    console.log("TerrainPlane BEFORE set uTime:", materialRef.current.uniforms?.uTime?.value);
+  materialRef.current.uniforms.uTime.value = elapsed;
+  console.log("TerrainPlane AFTER set uTime:", materialRef.current.uniforms?.uTime?.value);
+
+    tRef.current += clampedDelta;
+
+    materialRef.current.uniforms.uTime.value = tRef.current; */
+
     // small subtle motion of whole mesh for extra organic feel
     if (ref.current) {
       ref.current.rotation.y =
@@ -211,20 +232,29 @@ function IdleCamera({ paused }: { paused: boolean }) {
   const { camera } = useThree();
   const tRef = useRef(0);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (paused) return;
 
-    // Use the same stable elapsed time for the camera too
-    const elapsed = state.clock.getElapsedTime();
+    // accumulate clamped time (stable across reloads)
+    const clampedDelta = Math.min(delta, 0.05);
+
+/*     console.log({
+      delta,
+      clampedDelta,
+      elapsed: state.clock.getElapsedTime(),
+    }); */
+
+    tRef.current += clampedDelta;
+    const t = tRef.current;
 
     const radius = 22.0;
     const speed = 0.06; // smaller = slower rotation
-    const t = elapsed; // already in seconds
 
     const x = Math.cos(t * speed) * radius;
     const z = Math.sin(t * speed) * radius;
-    const y = 5.0 + Math.sin(t * 0.5) * 1.3;
+    const y = 10.0 + Math.sin(t * 0.5) * 1.3;
 
+    // debug camera jump
     camera.position.set(x, y, z);
     camera.lookAt(0, 2, 0);
   });
@@ -265,35 +295,7 @@ export default function HeroTopo() {
         <TerrainPlane segments={segments} size={70} paused={paused} />
       </Canvas>
 
-      {/* controls */}
-      <div className="absolute right-4 bottom-4 z-30 hero-controls rounded-lg p-2 shadow-md bg-white/80">
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={() => setPaused((p) => !p)}
-            className="px-3 py-1 bg-slate-900 text-white rounded hover:brightness-95"
-          >
-            {paused ? "Play" : "Pause"}
-          </button>
-
-          <button
-            onClick={() =>
-              setSegments((s) => Math.max(60, Math.floor(s / 1.5)))
-            }
-            className="px-3 py-1 bg-white border rounded hover:bg-slate-50 text-sm"
-          >
-            Lower detail
-          </button>
-
-          <button
-            onClick={() =>
-              setSegments((s) => Math.min(640, Math.floor(s * 1.5)))
-            }
-            className="px-3 py-1 bg-white border rounded hover:bg-slate-50 text-sm"
-          >
-            Raise detail
-          </button>
-        </div>
-      </div>
+      
     </div>
   );
 }
