@@ -47,12 +47,30 @@ export default function ToolbarDrawingTools({
   onToolChange,
   visibleTools = {},
 }: ToolbarDrawingToolsProps) {
-  // Tool colors state
-  const [marker1Color, setMarker1Color] = useState("#000000");
-  const [marker2Color, setMarker2Color] = useState("#EF4444");
-  const [marker3Color, setMarker3Color] = useState("#3B82F6");
-  const [highlighterColor, setHighlighterColor] = useState("#FEF08A");
-  const [fountainPenColor, setFountainPenColor] = useState("#000000");
+  // Tool colors state - initialize based on current theme
+  const getInitialColors = () => {
+    const isDark =
+      typeof window !== "undefined" &&
+      document.documentElement.classList.contains("dark");
+    return {
+      marker1: isDark ? "#FFFFFF" : "#000000",
+      marker2: "#EF4444",
+      marker3: "#3B82F6",
+      highlighter: "#FEF08A",
+      fountainPen: isDark ? "#FFFFFF" : "#000000",
+    };
+  };
+
+  const initialColors = getInitialColors();
+  const [marker1Color, setMarker1Color] = useState(initialColors.marker1);
+  const [marker2Color, setMarker2Color] = useState(initialColors.marker2);
+  const [marker3Color, setMarker3Color] = useState(initialColors.marker3);
+  const [highlighterColor, setHighlighterColor] = useState(
+    initialColors.highlighter
+  );
+  const [fountainPenColor, setFountainPenColor] = useState(
+    initialColors.fountainPen
+  );
 
   // Update default colors when theme changes
   useEffect(() => {

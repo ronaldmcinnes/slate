@@ -28,12 +28,14 @@ export default function Canvas({
   const [isInterpreting, setIsInterpreting] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [error, setError] = useState("");
-  const initialInk =
-    typeof window !== "undefined" &&
-    document.documentElement.classList.contains("dark")
+  // Initialize stroke color based on current theme
+  const getInitialStrokeColor = () => {
+    return typeof window !== "undefined" &&
+      document.documentElement.classList.contains("dark")
       ? "#FFFFFF"
       : "#000000";
-  const [strokeColor, setStrokeColor] = useState(initialInk);
+  };
+  const [strokeColor, setStrokeColor] = useState(getInitialStrokeColor());
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [tool, setTool] = useState("marker");
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
