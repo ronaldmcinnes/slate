@@ -1,4 +1,6 @@
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useToast } from "@/lib/toastContext";
+import { useEffect } from "react";
 
 interface AudioStatusProps {
   isRecording: boolean;
@@ -15,6 +17,21 @@ export default function AudioStatus({
   transcription,
   onClearTranscription,
 }: AudioStatusProps) {
+  const { addToast } = useToast();
+
+  // Show transcription as toast notification
+  useEffect(() => {
+    if (transcription) {
+      addToast({
+        message: transcription,
+        itemName: "Transcription",
+        type: "transcription",
+      });
+      // Clear the transcription after showing toast
+      onClearTranscription();
+    }
+  }, [transcription, addToast, onClearTranscription]);
+
   return (
     <>
       {/* Recording Status */}
@@ -48,22 +65,6 @@ export default function AudioStatus({
             className="text-white"
           />
           <span className="text-sm font-medium">Interpreting...</span>
-        </div>
-      )}
-
-      {/* Transcription Result */}
-      {transcription && (
-        <div className="absolute top-20 right-6 bg-green-50 border border-green-200 rounded-lg p-4 max-w-md z-50">
-          <h3 className="text-sm font-medium text-green-800 mb-2">
-            Transcription:
-          </h3>
-          <p className="text-green-700 text-sm">{transcription}</p>
-          <button
-            onClick={onClearTranscription}
-            className="mt-2 text-xs text-green-600 hover:text-green-800 underline"
-          >
-            Dismiss
-          </button>
         </div>
       )}
     </>

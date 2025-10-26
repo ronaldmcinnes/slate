@@ -43,12 +43,18 @@ export default function CanvasDrawing({
       <ReactSketchCanvas
         key={canvasKey}
         ref={canvasRef}
-        strokeWidth={strokeWidth}
+        strokeWidth={
+          tool === "fountain-pen"
+            ? Math.max(1, strokeWidth * 0.7) // Fountain pen has variable pressure
+            : strokeWidth
+        }
         strokeColor={
           tool === "eraser"
             ? document.documentElement.classList.contains("dark")
               ? "#111111"
               : "#FAFAFA"
+            : tool === "highlighter"
+            ? strokeColor + "80" // Add 50% opacity for highlighter
             : strokeColor
         }
         eraserWidth={tool === "eraser" ? strokeWidth : 0}

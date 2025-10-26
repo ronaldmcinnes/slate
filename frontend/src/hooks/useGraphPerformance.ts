@@ -25,7 +25,10 @@ const DEFAULT_CONFIG: PerformanceConfig = {
   },
 };
 
-export function useGraphPerformance(config: Partial<PerformanceConfig> = {}) {
+export function useGraphPerformance(
+  config: Partial<PerformanceConfig> = {},
+  qualityLevel: keyof PerformanceConfig["qualityLevels"] = "medium"
+) {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
   // Calculate optimal resolution based on zoom and performance
@@ -258,8 +261,16 @@ export function useGraphPerformance(config: Partial<PerformanceConfig> = {}) {
     []
   );
 
+  // Mock performance metrics for now
+  const metrics = {
+    fps: 60, // Default to 60 FPS
+    frameTime: 16.67, // Default frame time in ms
+    memoryUsage: 0, // Memory usage in MB
+  };
+
   return {
     config: finalConfig,
+    metrics,
 
     // Performance optimization functions
     calculateOptimalResolution,

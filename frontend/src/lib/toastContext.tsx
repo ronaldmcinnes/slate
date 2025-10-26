@@ -9,7 +9,8 @@ export interface Toast {
     | "delete-notebook"
     | "leave-notebook"
     | "success"
-    | "error";
+    | "error"
+    | "transcription";
   onUndo?: () => Promise<void>;
   createdAt: number;
 }

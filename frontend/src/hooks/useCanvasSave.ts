@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { Page } from "@/types";
+import { compressDrawingData, getCompressionRatio } from "@/lib/compression";
 
 interface UseCanvasSaveProps {
   page: Page | null;
@@ -116,10 +117,25 @@ export function useCanvasSave({
           }
         }
 
-        // Step 2: Prepare page state with performance monitoring
+        // Step 2: Prepare page state with compression
         const stateStartTime = performance.now();
+
+        // Compress drawing data to reduce storage size
+        let compressedDrawings = null;
+        if (paths) {
+          const drawingData = { paths };
+          compressedDrawings = compressDrawingData(drawingData);
+          const compressionRatio = getCompressionRatio(
+            drawingData,
+            compressedDrawings
+          );
+          console.log(
+            `Drawing data compressed by ${compressionRatio.toFixed(1)}%`
+          );
+        }
+
         const pageState = {
-          drawings: paths ? { paths } : null,
+          drawings: compressedDrawings,
           textBoxes: page.textBoxes || [],
           graphs: page.graphs || [],
         };
