@@ -4,7 +4,12 @@ export interface Toast {
   id: string;
   message: string;
   itemName: string;
-  type: "delete-page" | "delete-notebook";
+  type:
+    | "delete-page"
+    | "delete-notebook"
+    | "leave-notebook"
+    | "success"
+    | "error";
   onUndo?: () => Promise<void>;
   createdAt: number;
 }

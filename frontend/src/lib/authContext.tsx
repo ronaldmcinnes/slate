@@ -2,6 +2,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { api } from "./api";
 import type { User } from "@shared/types";
+import {
+  getSystemTheme,
+  resolveTheme,
+  applyTheme,
+  watchSystemTheme,
+  type Theme,
+} from "./themeUtils";
 
 interface AuthContextType {
   user: User | null;
@@ -20,22 +27,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Apply light theme immediately on app load to prevent white flash
+  useEffect(() => {
+    applyTheme("light");
+  }, []);
+
   const fetchUser = async () => {
     try {
       const userData = await api.getCurrentUser();
       setUser(userData);
-      // Apply theme class synchronously before any rendering
-      const theme =
-        (userData.settings?.theme as "light" | "dark" | undefined) || "light";
-      const root = document.documentElement;
-      // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
-        if (theme === "dark") {
-          root.classList.add("dark");
-        } else {
-          root.classList.remove("dark");
-        }
-      });
+      // Apply user's theme preference
+      const userTheme = (userData.settings?.theme as Theme) || "light";
+      applyTheme(userTheme);
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);

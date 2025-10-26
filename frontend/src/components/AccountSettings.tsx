@@ -3,7 +3,8 @@ import { useAuth } from "@/lib/authContext";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, User, LogOut, Sun, Moon, Check } from "lucide-react";
+import { X, User, LogOut, Sun, Moon, Check, Monitor } from "lucide-react";
+import { resolveTheme, applyTheme, type Theme } from "@/lib/themeUtils";
 
 interface AccountSettingsProps {
   onClose: () => void;
@@ -12,8 +13,8 @@ interface AccountSettingsProps {
 export default function AccountSettings({ onClose }: AccountSettingsProps) {
   const { user, refreshUser, logout } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [theme, setTheme] = useState<"light" | "dark">(
-    (user?.settings?.theme as "light" | "dark") || "light"
+  const [theme, setTheme] = useState<Theme>(
+    (user?.settings?.theme as Theme) || "light"
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,23 +24,15 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
   useEffect(() => {
     if (user) {
       setDisplayName(user.displayName);
-      setTheme((user.settings?.theme as "light" | "dark") || "light");
+      setTheme((user.settings?.theme as Theme) || "light");
     }
   }, [user]);
 
-  const applyThemeClass = (value: "light" | "dark") => {
-    const root = document.documentElement;
-    // Use requestAnimationFrame to prevent flicker
-    requestAnimationFrame(() => {
-      if (value === "dark") {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-    });
+  const applyThemeClass = (value: Theme) => {
+    applyTheme(value);
   };
 
-  const persistTheme = async (value: "light" | "dark") => {
+  const persistTheme = async (value: Theme) => {
     try {
       await api.updateSettings({ theme: value });
       await refreshUser();
@@ -49,7 +42,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
     }
   };
 
-  const handleThemeClick = (value: "light" | "dark") => {
+  const handleThemeClick = (value: Theme) => {
     setTheme(value);
     applyThemeClass(value);
     void persistTheme(value);
@@ -86,7 +79,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-background/50 z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
@@ -112,7 +105,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
                 />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center">
-                  <User className="w-8 h-8 text-white" />
+                  <User className="w-8 h-8 text-primary-foreground" />
                 </div>
               )}
               <div className="flex-1">
@@ -160,10 +153,10 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
 
           {/* Theme Section */}
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="block text-sm font-medium text-foreground">
               Theme Preference
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-4">
               {themeOptions.map((option) => {
                 const Icon = option.icon;
                 return (
@@ -171,16 +164,16 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
                     key={option.value}
                     onClick={() => handleThemeClick(option.value)}
                     className={`
-                      flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all
+                      flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all min-h-[80px]
                       ${
                         theme === option.value
-                          ? "border-gray-500 bg-gray-100 text-gray-900 dark:border-gray-400 dark:bg-neutral-800 dark:text-gray-100"
-                          : "border-gray-200 hover:border-gray-300 text-gray-600 dark:border-neutral-700 dark:text-gray-300"
+                          ? "border-primary bg-accent text-accent-foreground"
+                          : "border-border hover:border-border/80 text-muted-foreground hover:text-foreground"
                       }
                     `}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-xs font-medium">{option.label}</span>
+                    <Icon className="w-6 h-6" />
+                    <span className="text-sm font-medium">{option.label}</span>
                   </button>
                 );
               })}
@@ -199,7 +192,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="w-full text-red-600 border-red-200 hover:bg-red-50"
+              className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Log Out

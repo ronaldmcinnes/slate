@@ -164,6 +164,12 @@ class ApiClient {
     });
   }
 
+  async leaveNotebook(id: string): Promise<void> {
+    await this.request(`/api/notebooks/${id}/leave`, {
+      method: "DELETE",
+    });
+  }
+
   async getNotebookTags(): Promise<string[]> {
     const response = await this.request<string[]>("/api/notebooks/tags/list");
     return response.data!;
@@ -207,6 +213,10 @@ class ApiClient {
     await this.request(`/api/pages/${id}`, { method: "DELETE" });
   }
 
+  async deletePageSilently(id: string): Promise<void> {
+    await this.request(`/api/pages/${id}`, { method: "DELETE" });
+  }
+
   async restorePage(id: string): Promise<Page> {
     const response = await this.request<Page>(`/api/pages/${id}/restore`, {
       method: "POST",
@@ -216,6 +226,14 @@ class ApiClient {
 
   async getRecentPages(): Promise<Page[]> {
     const response = await this.request<Page[]>("/api/pages/recent/list");
+    return response.data!;
+  }
+
+  async getPagesBulk(pageIds: string[]): Promise<Page[]> {
+    const response = await this.request<Page[]>("/api/pages/bulk", {
+      method: "POST",
+      body: JSON.stringify({ pageIds }),
+    });
     return response.data!;
   }
 

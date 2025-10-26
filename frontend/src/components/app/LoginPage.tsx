@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/authContext";
+import { FullScreenLoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -15,11 +16,7 @@ export default function LoginPage() {
   }, [user, navigate]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Loading...</div>
-      </div>
-    );
+    return <FullScreenLoadingSpinner />;
   }
 
   return (
@@ -155,4 +152,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

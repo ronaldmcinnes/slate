@@ -14,6 +14,9 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useCanvasSave } from "@/hooks/useCanvasSave";
 import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
+import { useCanvasState } from "@/hooks/useCanvasState";
+import { useGraphOptimization } from "@/hooks/useGraphOptimization";
+import { useGraphPerformance } from "@/hooks/useGraphPerformance";
 import type { Page } from "@/types";
 
 interface CanvasProps {
@@ -30,8 +33,35 @@ export default function Canvas({
   const isReadOnly = permission === "view";
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
 
-  // Main canvas hook
-  const { state, actions, refs, setters } = useCanvas(page, onUpdatePage);
+  // Canvas state management with persistence
+  const {
+    state: canvasState,
+    setLastUsedTool,
+    setStrokeColor,
+    setStrokeWidth,
+    setCanvasSize,
+    setToolbarScrollPosition,
+    setIsToolbarVisible,
+    setVisibleTools,
+  } = useCanvasState();
+
+  // Graph optimization
+  const {
+    optimizeGraphsForViewport,
+    preloadAdjacentGraphs,
+    shouldRenderGraph,
+  } = useGraphOptimization();
+
+  // Main canvas hook with persistent state
+  const { state, actions, refs, setters } = useCanvas(page, onUpdatePage, {
+    strokeColor: canvasState.strokeColor,
+    strokeWidth: canvasState.strokeWidth,
+    tool: canvasState.lastUsedTool,
+    canvasSize: canvasState.canvasSize,
+    toolbarScrollPosition: canvasState.toolbarScrollPosition,
+    isToolbarVisible: canvasState.isToolbarVisible,
+    visibleTools: canvasState.visibleTools,
+  });
 
   // Save functionality
   const { savePageState } = useCanvasSave({
@@ -78,6 +108,63 @@ export default function Canvas({
     setTranscription: setters.setTranscription,
     setError: setters.setError,
   });
+
+  // Sync canvas state changes to persistent state
+  useEffect(() => {
+    if (state.tool !== canvasState.lastUsedTool) {
+      setLastUsedTool(state.tool);
+    }
+  }, [state.tool, canvasState.lastUsedTool, setLastUsedTool]);
+
+  useEffect(() => {
+    if (state.strokeColor !== canvasState.strokeColor) {
+      setStrokeColor(state.strokeColor);
+    }
+  }, [state.strokeColor, canvasState.strokeColor, setStrokeColor]);
+
+  useEffect(() => {
+    if (state.strokeWidth !== canvasState.strokeWidth) {
+      setStrokeWidth(state.strokeWidth);
+    }
+  }, [state.strokeWidth, canvasState.strokeWidth, setStrokeWidth]);
+
+  useEffect(() => {
+    if (
+      JSON.stringify(state.canvasSize) !==
+      JSON.stringify(canvasState.canvasSize)
+    ) {
+      setCanvasSize(state.canvasSize);
+    }
+  }, [state.canvasSize, canvasState.canvasSize, setCanvasSize]);
+
+  useEffect(() => {
+    if (state.toolbarScrollPosition !== canvasState.toolbarScrollPosition) {
+      setToolbarScrollPosition(state.toolbarScrollPosition);
+    }
+  }, [
+    state.toolbarScrollPosition,
+    canvasState.toolbarScrollPosition,
+    setToolbarScrollPosition,
+  ]);
+
+  useEffect(() => {
+    if (state.isToolbarVisible !== canvasState.isToolbarVisible) {
+      setIsToolbarVisible(state.isToolbarVisible);
+    }
+  }, [
+    state.isToolbarVisible,
+    canvasState.isToolbarVisible,
+    setIsToolbarVisible,
+  ]);
+
+  useEffect(() => {
+    if (
+      JSON.stringify(state.visibleTools) !==
+      JSON.stringify(canvasState.visibleTools)
+    ) {
+      setVisibleTools(state.visibleTools);
+    }
+  }, [state.visibleTools, canvasState.visibleTools, setVisibleTools]);
 
   // Canvas operations
   const handleUndo = () => {
@@ -234,8 +321,7 @@ export default function Canvas({
   }, [state.isEditingTitle]);
 
   // Determine if canvas should be interactive for drawing
-  const isDrawingTool =
-    state.tool !== "select" && state.tool !== "text" && state.tool !== "lasso";
+  const isDrawingTool = state.tool !== "select" && state.tool !== "text";
 
   // Get cursor style based on tool
   const getCursorStyle = () => {
@@ -244,7 +330,6 @@ export default function Canvas({
 
     if (state.tool === "text") return "text";
     if (state.tool === "select") return "default";
-    if (state.tool === "lasso") return "crosshair";
     if (state.tool === "eraser") return "default";
     return "crosshair";
   };
@@ -256,7 +341,7 @@ export default function Canvas({
 
   return (
     <>
-      <div className="flex-1 flex flex-col bg-background">
+      <div className="flex-1 flex flex-col">
         {/* Canvas Area */}
         <CanvasContainer
           canvasSize={state.canvasSize}
@@ -273,8 +358,12 @@ export default function Canvas({
                 actions.setIsToolbarVisible(!state.isToolbarVisible)
               }
               tool={state.tool}
-              onToolChange={(tool) =>
-                handleToolChange(tool, state.strokeColor, state.strokeWidth)
+              onToolChange={(tool, color, width) =>
+                handleToolChange(
+                  tool,
+                  color || state.strokeColor,
+                  width || state.strokeWidth
+                )
               }
               visibleTools={state.visibleTools}
               onToggleTool={(toolId: string) =>
@@ -374,6 +463,8 @@ export default function Canvas({
                   height: "100%",
                 }}
                 onChange={handleSaveDrawing}
+                allowOnlyPointerType="all"
+                preserveBackgroundImageAspectRatio="none"
               />
             </div>
           )}
@@ -390,6 +481,13 @@ export default function Canvas({
             onSizeChange={handleSizeChange}
             onCameraChange={handleCameraChange}
             isReadOnly={isReadOnly}
+            viewport={{
+              x: 0,
+              y: 0,
+              width: state.canvasSize.width,
+              height: state.canvasSize.height,
+              zoom: 1,
+            }}
           />
 
           {/* Status Indicators */}

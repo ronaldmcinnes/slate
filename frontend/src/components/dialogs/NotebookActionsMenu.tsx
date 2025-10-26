@@ -1,4 +1,4 @@
-import { MoreVertical, Share2, Trash2, Edit, Users } from "lucide-react";
+import { MoreVertical, Share2, Trash2, Edit, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,12 +13,14 @@ interface NotebookActionsMenuProps {
   notebook: Notebook;
   onShare: (notebook: Notebook) => void;
   onDelete: (notebook: Notebook) => void;
+  onLeave?: (notebook: Notebook) => void;
 }
 
 export default function NotebookActionsMenu({
   notebook,
   onShare,
   onDelete,
+  onLeave,
 }: NotebookActionsMenuProps) {
   return (
     <DropdownMenu>
@@ -49,10 +51,13 @@ export default function NotebookActionsMenu({
             </DropdownMenuItem>
           </>
         )}
-        {!notebook.isOwner && (
-          <DropdownMenuItem disabled>
-            <Users className="mr-2 h-4 w-4" />
-            Shared with you
+        {!notebook.isOwner && onLeave && (
+          <DropdownMenuItem
+            onClick={() => onLeave(notebook)}
+            className="text-red-600 focus:text-red-600"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Leave
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

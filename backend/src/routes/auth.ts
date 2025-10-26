@@ -128,6 +128,8 @@ router.patch("/canvas-state", authenticate, async (req: AuthRequest, res) => {
       expandedPanels,
       currentNotebookId,
       currentPageId,
+      lastAccessedPages,
+      lastAccessedNotebook,
       canvasViewport,
       lastUsedTool,
     } = req.body;
@@ -151,6 +153,12 @@ router.patch("/canvas-state", authenticate, async (req: AuthRequest, res) => {
     }
     if (currentPageId !== undefined) {
       user.canvasState.currentPageId = currentPageId;
+    }
+    if (lastAccessedPages !== undefined) {
+      user.canvasState.lastAccessedPages = lastAccessedPages;
+    }
+    if (lastAccessedNotebook !== undefined) {
+      user.canvasState.lastAccessedNotebook = lastAccessedNotebook;
     }
 
     // Update canvas viewport

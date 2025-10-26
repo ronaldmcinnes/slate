@@ -13,6 +13,7 @@ interface ResizablePanelProps {
   onInteractionChange?: (panelId: string | null) => void;
   initialCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  onWidthChange?: (width: number) => void;
 }
 
 export default function ResizablePanel({
@@ -26,6 +27,7 @@ export default function ResizablePanel({
   onInteractionChange = () => {},
   initialCollapsed = false,
   onCollapsedChange = () => {},
+  onWidthChange = () => {},
 }: ResizablePanelProps) {
   const [width, setWidth] = useState(defaultWidth);
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
@@ -43,6 +45,13 @@ export default function ResizablePanel({
   useEffect(() => {
     setIsCollapsed(initialCollapsed);
   }, [initialCollapsed]);
+
+  // Persist width changes when not resizing
+  useEffect(() => {
+    if (!isResizing && !isCollapsed) {
+      onWidthChange(width);
+    }
+  }, [width, isResizing, isCollapsed]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
@@ -83,6 +92,10 @@ export default function ResizablePanel({
   const handleMouseUp = () => {
     setIsResizing(false);
     onInteractionChange(null);
+    // Trigger width change callback when resizing is complete
+    if (!isCollapsed) {
+      onWidthChange(width);
+    }
   };
 
   const toggleCollapse = () => {
