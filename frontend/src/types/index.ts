@@ -8,7 +8,7 @@ export interface Notebook {
 }
 
 export interface Page {
-  id: number;
+  id: string; // Changed from number to string to preserve MongoDB ObjectId format
   title: string;
   createdAt: string;
   lastModified: string;

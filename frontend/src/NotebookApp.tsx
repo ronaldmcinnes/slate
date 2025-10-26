@@ -72,7 +72,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   const convertPageToFrontendType = (sharedPage: SharedPage): Page => {
     return {
-      id: parseInt(sharedPage.id, 10) || 0,
+      id: sharedPage.id, // Keep as string to preserve MongoDB ObjectId format
       title: sharedPage.title,
       createdAt: sharedPage.createdAt,
       lastModified: sharedPage.lastModified,
@@ -128,7 +128,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook && selectedPage) {
       try {
         const updatedPage = await api.updatePage(
-          selectedPage.id.toString(),
+          selectedPage.id, // No need to convert to string since it's already a string
           updates
         );
         // Update local state directly instead of refreshing all notebooks
@@ -156,7 +156,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   ): Promise<void> => {
     if (selectedNotebook) {
       try {
-        const updatedPage = await api.updatePage(page.id.toString(), {
+        const updatedPage = await api.updatePage(page.id, {
           title: newTitle,
         });
 
@@ -185,7 +185,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const handleDeletePage = async (): Promise<void> => {
     if (selectedNotebook && pageToEdit) {
       try {
-        await api.deletePage(pageToEdit.id.toString());
+        await api.deletePage(pageToEdit.id);
 
         // Reload pages after deletion
         await loadPagesForNotebook(selectedNotebook.id);

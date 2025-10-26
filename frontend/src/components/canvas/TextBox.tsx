@@ -24,8 +24,8 @@ export default function TextBox({
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [position, setPosition] = useState({
-    x: parseInt(textBox.x) || 100,
-    y: parseInt(textBox.y) || 100,
+    x: parseInt(textBox.x as string) || 100,
+    y: parseInt(textBox.y as string) || 100,
   });
   const [text, setText] = useState(textBox.text || "");
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
@@ -38,7 +38,7 @@ export default function TextBox({
   }, [isEditing]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target.closest(".drag-handle")) {
+    if ((e.target as HTMLElement)?.closest?.(".drag-handle")) {
       setIsDragging(true);
       dragRef.current = {
         startX: e.clientX,

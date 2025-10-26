@@ -219,7 +219,7 @@ Use standard math notation: x^2, sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x)
           { role: 'user', content: text }
         ],
         temperature: 0.1,
-        max_completion_tokens: 2000
+        max_completion_tokens: 5000
       }),
     });
     
@@ -230,6 +230,9 @@ Use standard math notation: x^2, sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x)
     
     const result = await response.json();
     const content = result.choices[0].message.content;
+    
+    console.log('📝 Raw response from model:');
+    console.log(content);
     
     // Clean the content to remove markdown code blocks if present
     let jsonContent = content.trim();
@@ -273,7 +276,10 @@ Use standard math notation: x^2, sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x)
       
       // Try parsing the fixed JSON
       try {
-        return JSON.parse(fixedJson);
+        const fixedParsedJson = JSON.parse(fixedJson);
+        console.log('🔧 Successfully parsed FIXED JSON from model:');
+        console.log(JSON.stringify(fixedParsedJson, null, 2));
+        return fixedParsedJson;
       } catch (secondError) {
         console.error('Failed to fix JSON:', secondError);
         
