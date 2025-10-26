@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Plus, BookOpen, User, Home, Settings, Users } from "lucide-react";
+import {
+  Plus,
+  BookOpen,
+  User,
+  Home,
+  Settings,
+  Users,
+  NotebookPen,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreateNotebookDialog from "@/components/dialogs/CreateNotebookDialog";
@@ -7,6 +15,7 @@ import ShareNotebookDialog from "@/components/dialogs/ShareNotebookDialog";
 import DeleteNotebookDialog from "@/components/dialogs/DeleteNotebookDialog";
 import NotebookActionsMenu from "@/components/dialogs/NotebookActionsMenu";
 import AccountSettings from "@/components/AccountSettings";
+import { InlineLoadingSpinner } from "@/components/ui/loading-spinner";
 import { useAuth } from "@/lib/authContext";
 import type { Notebook } from "@shared/types";
 
@@ -17,6 +26,8 @@ interface SidebarProps {
   onCreateNotebook: (title: string) => void;
   onNotebookChanged: () => void;
   onNavigateHome?: () => void;
+  isLoading?: boolean;
+  onLeaveNotebook?: (notebook: Notebook) => void;
 }
 
 export default function Sidebar({
@@ -26,6 +37,8 @@ export default function Sidebar({
   onCreateNotebook,
   onNotebookChanged,
   onNavigateHome,
+  isLoading = false,
+  onLeaveNotebook,
 }: SidebarProps) {
   const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -91,7 +104,11 @@ export default function Sidebar({
             </Button>
           </div>
 
-          {notebooks.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8 px-4">
+              <InlineLoadingSpinner text="Loading notebooks..." />
+            </div>
+          ) : notebooks.length === 0 ? (
             <div className="text-center py-8 px-4">
               <p className="text-sm text-muted-foreground mb-3">
                 No notebooks yet
@@ -106,56 +123,115 @@ export default function Sidebar({
               </Button>
             </div>
           ) : (
-            <div className="space-y-1">
-              {notebooks.map((notebook) => (
-                <div
-                  key={notebook.id}
-                  className={cn(
-                    "group relative w-full text-left px-3 py-2.5 rounded-md transition-all duration-150 cursor-pointer",
-                    selectedNotebook?.id === notebook.id
-                      ? "bg-accent text-accent-foreground font-medium"
-                      : "text-foreground hover:bg-muted"
-                  )}
-                  onClick={() => onSelectNotebook(notebook)}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <BookOpen
-                      size={16}
-                      className="mt-0.5 flex-shrink-0 text-muted-foreground"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm truncate flex-1">
-                          {notebook.title}
-                        </span>
-                        {!notebook.isOwner && (
-                          <Users
-                            size={12}
-                            className="flex-shrink-0 text-muted-foreground"
-                          />
-                        )}
-                      </div>
-                      {notebook.tags && notebook.tags.length > 0 && (
-                        <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {notebook.tags.join(", ")}
+            <div className="space-y-4">
+              {/* Personal Notebooks */}
+              {notebooks.filter((notebook) => notebook.isOwner).length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 px-2">
+                    Personal
+                  </h3>
+                  <div className="space-y-1">
+                    {notebooks
+                      .filter((notebook) => notebook.isOwner)
+                      .map((notebook) => (
+                        <div
+                          key={notebook.id}
+                          className={cn(
+                            "group relative w-full text-left px-3 py-2.5 rounded-md transition-all duration-150 cursor-pointer",
+                            selectedNotebook?.id === notebook.id
+                              ? "bg-accent text-accent-foreground font-medium"
+                              : "text-foreground hover:bg-muted"
+                          )}
+                          onClick={() => onSelectNotebook(notebook)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <NotebookPen
+                              size={16}
+                              className="flex-shrink-0 text-muted-foreground"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm truncate flex-1">
+                                  {notebook.title}
+                                </span>
+                              </div>
+                              {notebook.tags && notebook.tags.length > 0 && (
+                                <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                                  {notebook.tags.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 flex items-center">
+                              <NotebookActionsMenu
+                                notebook={notebook}
+                                onShare={handleShare}
+                                onDelete={handleDelete}
+                                onLeave={onLeaveNotebook}
+                              />
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      {notebook.permission === "view" && (
-                        <div className="text-xs text-orange-600 mt-0.5">
-                          View only
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0">
-                      <NotebookActionsMenu
-                        notebook={notebook}
-                        onShare={handleShare}
-                        onDelete={handleDelete}
-                      />
-                    </div>
+                      ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* Shared Notebooks */}
+              {notebooks.filter((notebook) => !notebook.isOwner).length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 px-2">
+                    Shared
+                  </h3>
+                  <div className="space-y-1">
+                    {notebooks
+                      .filter((notebook) => !notebook.isOwner)
+                      .map((notebook) => (
+                        <div
+                          key={notebook.id}
+                          className={cn(
+                            "group relative w-full text-left px-3 py-2.5 rounded-md transition-all duration-150 cursor-pointer",
+                            selectedNotebook?.id === notebook.id
+                              ? "bg-accent text-accent-foreground font-medium"
+                              : "text-foreground hover:bg-muted"
+                          )}
+                          onClick={() => onSelectNotebook(notebook)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Users
+                              size={16}
+                              className="flex-shrink-0 text-muted-foreground"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm truncate flex-1">
+                                  {notebook.title}
+                                </span>
+                              </div>
+                              {notebook.tags && notebook.tags.length > 0 && (
+                                <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                                  {notebook.tags.join(", ")}
+                                </div>
+                              )}
+                              {notebook.permission === "view" && (
+                                <div className="text-xs text-orange-600 mt-0.5">
+                                  View only
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 flex items-center">
+                              <NotebookActionsMenu
+                                notebook={notebook}
+                                onShare={handleShare}
+                                onDelete={handleDelete}
+                                onLeave={onLeaveNotebook}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

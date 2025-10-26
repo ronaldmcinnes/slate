@@ -4,6 +4,7 @@ import GraphRouter from "./GraphRouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AudioRecordingService } from "@/lib/audioService";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { GraphSpec } from "@/types";
 
 interface GraphData {
@@ -363,7 +364,12 @@ export default function DraggableGraph({
                   className="flex items-center gap-1"
                 >
                   {isRegenerating ? (
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current" />
+                    <LoadingSpinner
+                      size="sm"
+                      text=""
+                      showText={false}
+                      className="h-3 w-3"
+                    />
                   ) : (
                     <RefreshCw size={14} />
                   )}

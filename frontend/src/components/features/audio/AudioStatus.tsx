@@ -1,3 +1,5 @@
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
 interface AudioStatusProps {
   isRecording: boolean;
   isTranscribing: boolean;
@@ -26,7 +28,12 @@ export default function AudioStatus({
       {/* Transcribing Status */}
       {isTranscribing && (
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          <LoadingSpinner
+            size="sm"
+            text=""
+            showText={false}
+            className="text-white"
+          />
           <span className="text-sm font-medium">Transcribing...</span>
         </div>
       )}
@@ -34,7 +41,12 @@ export default function AudioStatus({
       {/* Interpreting Status */}
       {isInterpreting && (
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          <LoadingSpinner
+            size="sm"
+            text=""
+            showText={false}
+            className="text-white"
+          />
           <span className="text-sm font-medium">Interpreting...</span>
         </div>
       )}

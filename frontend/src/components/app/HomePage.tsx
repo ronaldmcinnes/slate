@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/authContext";
+import { FullScreenLoadingSpinner } from "@/components/ui/loading-spinner";
 
 import Header from "@/components/landing/Header";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -9,11 +10,7 @@ export default function HomePage() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="animate-pulse text-white">Loading...</div>
-      </div>
-    );
+    return <FullScreenLoadingSpinner />;
   }
 
   return (

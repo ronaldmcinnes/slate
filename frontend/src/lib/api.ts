@@ -164,6 +164,12 @@ class ApiClient {
     });
   }
 
+  async leaveNotebook(id: string): Promise<void> {
+    await this.request(`/api/notebooks/${id}/leave`, {
+      method: "DELETE",
+    });
+  }
+
   async getNotebookTags(): Promise<string[]> {
     const response = await this.request<string[]>("/api/notebooks/tags/list");
     return response.data!;

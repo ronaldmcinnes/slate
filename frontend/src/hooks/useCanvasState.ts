@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/lib/authContext";
 import { api } from "@/lib/api";
 import type { UpdateCanvasStateRequest } from "@shared/types";
@@ -10,6 +10,9 @@ export interface CanvasState {
 
   // Last accessed pages per notebook
   lastAccessedPages: Record<string, string>; // notebookId -> pageId
+
+  // Last accessed notebook
+  lastAccessedNotebook: string | null;
 
   // UI state
   expandedPanels: {
@@ -56,6 +59,7 @@ const DEFAULT_CANVAS_STATE: CanvasState = {
   currentNotebookId: null,
   currentPageId: null,
   lastAccessedPages: {},
+  lastAccessedNotebook: null,
   expandedPanels: {
     sidebar: true,
     pagesList: true,
@@ -90,47 +94,126 @@ export function useCanvasState() {
   const { user, updateCanvasState } = useAuth();
   const [state, setState] = useState<CanvasState>(DEFAULT_CANVAS_STATE);
   const [isInitialized, setIsInitialized] = useState(false);
+  const initializationRef = useRef<boolean>(false);
+  const lastAccessedPagesRef = useRef<Record<string, string>>({});
+  const currentNotebookIdRef = useRef<string | null>(null);
 
   // Initialize state from user's saved canvas state
   useEffect(() => {
-    if (user?.canvasState && !isInitialized) {
-      const savedState = user.canvasState;
-      setState((prevState) => ({
-        ...prevState,
-        currentNotebookId: savedState.currentNotebookId || null,
-        currentPageId: savedState.currentPageId || null,
-        lastAccessedPages: savedState.lastAccessedPages || {},
-        expandedPanels: {
-          ...prevState.expandedPanels,
-          ...savedState.expandedPanels,
-        },
-        canvasViewport: {
-          ...prevState.canvasViewport,
-          ...savedState.canvasViewport,
-        },
-        lastUsedTool: savedState.lastUsedTool || prevState.lastUsedTool,
-      }));
-      setIsInitialized(true);
+    console.log("🔄 useCanvasState useEffect triggered:", {
+      hasUser: !!user,
+      hasCanvasState: !!user?.canvasState,
+      isInitialized,
+      initializationRef: initializationRef.current,
+    });
+
+    // Only initialize once and never again - use early return to prevent any execution
+    if (initializationRef.current) {
+      console.log("⏭️ Skipping initialization - already done");
+      return;
     }
-  }, [user?.canvasState, isInitialized]);
+
+    if (user?.canvasState) {
+      const savedState = user.canvasState;
+      console.log("🚀 Initializing canvas state from saved data:", {
+        currentNotebookId: savedState.currentNotebookId,
+        currentPageId: savedState.currentPageId,
+        lastAccessedPages: savedState.lastAccessedPages,
+        lastUsedTool: savedState.lastUsedTool,
+      });
+      setState((prevState) => {
+        // Don't reset lastAccessedPages if it already has data
+        const preservedLastAccessedPages =
+          prevState.lastAccessedPages &&
+          Object.keys(prevState.lastAccessedPages).length > 0
+            ? prevState.lastAccessedPages
+            : savedState.lastAccessedPages || {};
+
+        console.log("🔧 Setting canvas state:", {
+          prevLastAccessedPages: prevState.lastAccessedPages,
+          savedLastAccessedPages: savedState.lastAccessedPages,
+          preservedLastAccessedPages,
+          currentNotebookId: savedState.currentNotebookId,
+          currentPageId: savedState.currentPageId,
+        });
+
+        // Store in ref for persistent access
+        lastAccessedPagesRef.current = preservedLastAccessedPages;
+        currentNotebookIdRef.current = savedState.currentNotebookId || null;
+        console.log(
+          "💾 Stored lastAccessedPages in ref:",
+          lastAccessedPagesRef.current
+        );
+        console.log(
+          "💾 Stored currentNotebookId in ref:",
+          currentNotebookIdRef.current
+        );
+
+        return {
+          ...prevState,
+          currentNotebookId: savedState.currentNotebookId || null,
+          currentPageId: savedState.currentPageId || null,
+          lastAccessedPages: preservedLastAccessedPages,
+          lastAccessedNotebook: savedState.lastAccessedNotebook || null,
+          expandedPanels: {
+            ...prevState.expandedPanels,
+            ...savedState.expandedPanels,
+          },
+          canvasViewport: {
+            ...prevState.canvasViewport,
+            ...savedState.canvasViewport,
+          },
+          lastUsedTool: savedState.lastUsedTool || prevState.lastUsedTool,
+        };
+      });
+      setIsInitialized(true);
+      initializationRef.current = true;
+    }
+  }, [user?.id]); // Only depend on user.id, use ref to prevent multiple initializations
 
   // Update state and persist to server
   const updateState = useCallback(
     async (updates: Partial<CanvasState>) => {
       setState((prevState) => {
-        const newState = { ...prevState, ...updates };
+        // Prevent lastAccessedPages from being reset to empty object
+        const safeUpdates = { ...updates };
+        if (updates.lastAccessedPages !== undefined) {
+          if (
+            Object.keys(updates.lastAccessedPages).length === 0 &&
+            Object.keys(prevState.lastAccessedPages).length > 0
+          ) {
+            console.log(
+              "🚫 Preventing lastAccessedPages reset to empty object"
+            );
+            delete safeUpdates.lastAccessedPages;
+          } else if (Object.keys(updates.lastAccessedPages).length > 0) {
+            console.log(
+              "✅ Updating lastAccessedPages with new data:",
+              updates.lastAccessedPages
+            );
+          }
+        }
+
+        const newState = { ...prevState, ...safeUpdates };
 
         // Persist to server (debounced)
         const persistUpdates: UpdateCanvasStateRequest = {};
 
         if (updates.currentNotebookId !== undefined) {
-          persistUpdates.currentNotebookId = updates.currentNotebookId;
+          persistUpdates.currentNotebookId =
+            updates.currentNotebookId || undefined;
         }
         if (updates.currentPageId !== undefined) {
-          persistUpdates.currentPageId = updates.currentPageId;
+          persistUpdates.currentPageId = updates.currentPageId || undefined;
         }
         if (updates.lastAccessedPages !== undefined) {
-          persistUpdates.lastAccessedPages = updates.lastAccessedPages;
+          // Don't persist empty lastAccessedPages if we already have data
+          if (
+            Object.keys(updates.lastAccessedPages).length > 0 ||
+            Object.keys(prevState.lastAccessedPages).length === 0
+          ) {
+            persistUpdates.lastAccessedPages = updates.lastAccessedPages;
+          }
         }
         if (updates.expandedPanels) {
           persistUpdates.expandedPanels = updates.expandedPanels;
@@ -170,19 +253,100 @@ export function useCanvasState() {
 
   const setLastAccessedPage = useCallback(
     (notebookId: string, pageId: string) => {
+      console.log(
+        `💾 Setting last accessed page for notebook ${notebookId} to page ${pageId}`
+      );
+      const newLastAccessedPages = {
+        ...state.lastAccessedPages,
+        [notebookId]: pageId,
+      };
+
+      // Update ref for persistent access
+      lastAccessedPagesRef.current = newLastAccessedPages;
+      console.log(
+        "💾 Updated lastAccessedPages in ref:",
+        lastAccessedPagesRef.current
+      );
+
       updateState({
-        lastAccessedPages: {
-          ...state.lastAccessedPages,
-          [notebookId]: pageId,
-        },
+        lastAccessedPages: newLastAccessedPages,
       });
     },
     [updateState, state.lastAccessedPages]
   );
 
+  const setLastAccessedNotebook = useCallback(
+    (notebookId: string) => {
+      console.log(`💾 Setting last accessed notebook to ${notebookId}`);
+      updateState({
+        lastAccessedNotebook: notebookId,
+      });
+    },
+    [updateState]
+  );
+
+  const getCurrentNotebookId = useCallback((): string | null => {
+    // Try state first, then fallback to lastAccessedNotebook
+    let notebookId = state.currentNotebookId;
+
+    if (!notebookId && state.lastAccessedNotebook) {
+      console.log("🔄 Using lastAccessedNotebook fallback");
+      notebookId = state.lastAccessedNotebook;
+    }
+
+    console.log(`🔍 Getting current notebook ID:`, notebookId);
+    console.log(`📊 State currentNotebookId:`, state.currentNotebookId);
+    console.log(`📊 State lastAccessedNotebook:`, state.lastAccessedNotebook);
+
+    return notebookId;
+  }, [state.currentNotebookId, state.lastAccessedNotebook]);
+
   const getLastAccessedPage = useCallback(
     (notebookId: string): string | null => {
-      return state.lastAccessedPages[notebookId] || null;
+      // Try state first, then fallback to ref
+      let pageId = state.lastAccessedPages[notebookId] || null;
+
+      // If state is empty but ref has data, use ref
+      if (
+        !pageId &&
+        Object.keys(state.lastAccessedPages).length === 0 &&
+        Object.keys(lastAccessedPagesRef.current).length > 0
+      ) {
+        console.log("🔄 Using ref fallback for lastAccessedPages");
+        pageId = lastAccessedPagesRef.current[notebookId] || null;
+      }
+
+      // Additional fallback: if we have currentPageId in state, use that for the current notebook
+      if (
+        !pageId &&
+        state.currentNotebookId === notebookId &&
+        state.currentPageId
+      ) {
+        console.log("🔄 Using currentPageId fallback for lastAccessedPages");
+        pageId = state.currentPageId;
+      }
+
+      console.log(
+        `🔍 Getting last accessed page for notebook ${notebookId}:`,
+        pageId
+      );
+      console.log(`📊 Current lastAccessedPages:`, state.lastAccessedPages);
+      console.log(`📊 Ref lastAccessedPages:`, lastAccessedPagesRef.current);
+      console.log(`📊 State currentNotebookId:`, state.currentNotebookId);
+      console.log(`📊 State currentPageId:`, state.currentPageId);
+
+      // If we have no data but should have data, log a warning
+      if (
+        !pageId &&
+        Object.keys(state.lastAccessedPages).length === 0 &&
+        Object.keys(lastAccessedPagesRef.current).length === 0
+      ) {
+        console.warn(
+          "⚠️ lastAccessedPages is empty in both state and ref - this might indicate a state reset issue"
+        );
+      }
+
+      return pageId;
     },
     [state.lastAccessedPages]
   );
@@ -279,7 +443,9 @@ export function useCanvasState() {
     setCurrentNotebook,
     setCurrentPage,
     setLastAccessedPage,
+    setLastAccessedNotebook,
     getLastAccessedPage,
+    getCurrentNotebookId,
     setExpandedPanel,
     setCanvasViewport,
     setLastUsedTool,

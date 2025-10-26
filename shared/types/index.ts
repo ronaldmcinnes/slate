@@ -24,6 +24,7 @@ export interface User {
     currentNotebookId?: string;
     currentPageId?: string;
     lastAccessedPages?: Record<string, string>; // notebookId -> pageId
+    lastAccessedNotebook?: string;
     canvasViewport?: {
       x?: number;
       y?: number;

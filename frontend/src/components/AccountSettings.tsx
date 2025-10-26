@@ -3,7 +3,8 @@ import { useAuth } from "@/lib/authContext";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, User, LogOut, Sun, Moon, Check } from "lucide-react";
+import { X, User, LogOut, Sun, Moon, Check, Monitor } from "lucide-react";
+import { resolveTheme, applyTheme, type Theme } from "@/lib/themeUtils";
 
 interface AccountSettingsProps {
   onClose: () => void;
@@ -12,8 +13,8 @@ interface AccountSettingsProps {
 export default function AccountSettings({ onClose }: AccountSettingsProps) {
   const { user, refreshUser, logout } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [theme, setTheme] = useState<"light" | "dark">(
-    (user?.settings?.theme as "light" | "dark") || "light"
+  const [theme, setTheme] = useState<Theme>(
+    (user?.settings?.theme as Theme) || "system"
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,23 +24,16 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
   useEffect(() => {
     if (user) {
       setDisplayName(user.displayName);
-      setTheme((user.settings?.theme as "light" | "dark") || "light");
+      setTheme((user.settings?.theme as Theme) || "system");
     }
   }, [user]);
 
-  const applyThemeClass = (value: "light" | "dark") => {
-    const root = document.documentElement;
-    // Use requestAnimationFrame to prevent flicker
-    requestAnimationFrame(() => {
-      if (value === "dark") {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-    });
+  const applyThemeClass = (value: Theme) => {
+    const resolvedTheme = resolveTheme(value);
+    applyTheme(resolvedTheme);
   };
 
-  const persistTheme = async (value: "light" | "dark") => {
+  const persistTheme = async (value: Theme) => {
     try {
       await api.updateSettings({ theme: value });
       await refreshUser();
@@ -49,7 +43,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
     }
   };
 
-  const handleThemeClick = (value: "light" | "dark") => {
+  const handleThemeClick = (value: Theme) => {
     setTheme(value);
     applyThemeClass(value);
     void persistTheme(value);
@@ -83,6 +77,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
   const themeOptions = [
     { value: "light" as const, label: "Light", icon: Sun },
     { value: "dark" as const, label: "Dark", icon: Moon },
+    { value: "system" as const, label: "System", icon: Monitor },
   ];
 
   return (
@@ -163,7 +158,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Theme Preference
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {themeOptions.map((option) => {
                 const Icon = option.icon;
                 return (

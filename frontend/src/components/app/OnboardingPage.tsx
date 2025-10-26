@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authContext";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -200,7 +201,12 @@ export default function OnboardingPage() {
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <LoadingSpinner
+                      size="sm"
+                      text=""
+                      showText={false}
+                      className="text-white"
+                    />
                     Setting up...
                   </span>
                 ) : (

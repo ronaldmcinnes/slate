@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface AudioRecordingButtonProps {
   isRecording: boolean;
@@ -40,7 +41,7 @@ export default function AudioRecordingButton({
       }
     >
       {isTranscribing || isInterpreting ? (
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+        <LoadingSpinner size="sm" text="" showText={false} />
       ) : isRecording ? (
         <svg
           xmlns="http://www.w3.org/2000/svg"

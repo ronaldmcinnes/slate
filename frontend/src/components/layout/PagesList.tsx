@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import CreatePageDialog from "@/components/dialogs/CreatePageDialog";
 import DropdownMenu from "@/components/menus/DropdownMenu";
+import { InlineLoadingSpinner } from "@/components/ui/loading-spinner";
 import type { Page } from "@/types";
 
 interface PagesListProps {
@@ -94,10 +95,7 @@ export default function PagesList({
             </div>
           ) : isLoading ? (
             <div className="text-center py-8 px-4">
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-sm text-muted-foreground">Loading pages...</p>
-              </div>
+              <InlineLoadingSpinner text="Loading pages..." />
             </div>
           ) : pages.length === 0 ? (
             <div className="text-center py-8 px-4">
