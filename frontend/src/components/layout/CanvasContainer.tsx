@@ -16,7 +16,7 @@ export default function CanvasContainer({
   canvasSize,
   onCanvasSizeChange,
   cursorStyle,
-  className = "flex-1 relative bg-muted/30 dark:bg-neutral-900 overflow-auto scrollbar-hide",
+  className = "flex-1 relative bg-[#FAFAFA] dark:bg-[#111111] overflow-auto scrollbar-hide",
   canvasContainerRef: externalRef,
   isReadOnly = false,
 }: CanvasContainerProps) {
@@ -79,8 +79,6 @@ export default function CanvasContainer({
       // Only start panning on left mouse button
       if (e.button !== 0) return;
 
-      console.log("Canvas panning started in view-only mode");
-
       // In view-only mode, always start panning regardless of what element was clicked
       setIsPanning(true);
       setPanStart({
@@ -105,12 +103,6 @@ export default function CanvasContainer({
       container.scrollLeft = panStart.scrollLeft - deltaX;
       container.scrollTop = panStart.scrollTop - deltaY;
 
-      console.log("Canvas scrolling:", {
-        deltaX,
-        deltaY,
-        scrollLeft: container.scrollLeft,
-        scrollTop: container.scrollTop,
-      });
       e.preventDefault();
     };
 

@@ -21,6 +21,12 @@ export interface CanvasState {
     toolbar: boolean;
   };
 
+  // Column widths
+  columnWidths: {
+    sidebar: number;
+    pagesList: number;
+  };
+
   // Canvas viewport state
   canvasViewport: {
     x: number;
@@ -50,8 +56,18 @@ export interface CanvasState {
     highlighter: boolean;
     fountainPen: boolean;
     text: boolean;
+    lasso: boolean;
     graph: boolean;
     microphone: boolean;
+  };
+
+  // Lasso selection state
+  lassoSelection: {
+    isActive: boolean;
+    points: Array<{ x: number; y: number }>;
+    selectedDrawings: string[];
+    selectedTexts: string[];
+    selectedGraphs: string[];
   };
 }
 
@@ -64,6 +80,10 @@ const DEFAULT_CANVAS_STATE: CanvasState = {
     sidebar: true,
     pagesList: true,
     toolbar: true,
+  },
+  columnWidths: {
+    sidebar: 256,
+    pagesList: 224,
   },
   canvasViewport: {
     x: 0,
@@ -85,8 +105,16 @@ const DEFAULT_CANVAS_STATE: CanvasState = {
     highlighter: true,
     fountainPen: true,
     text: true,
+    lasso: true,
     graph: true,
     microphone: true,
+  },
+  lassoSelection: {
+    isActive: false,
+    points: [],
+    selectedDrawings: [],
+    selectedTexts: [],
+    selectedGraphs: [],
   },
 };
 
@@ -100,27 +128,13 @@ export function useCanvasState() {
 
   // Initialize state from user's saved canvas state
   useEffect(() => {
-    console.log("🔄 useCanvasState useEffect triggered:", {
-      hasUser: !!user,
-      hasCanvasState: !!user?.canvasState,
-      isInitialized,
-      initializationRef: initializationRef.current,
-    });
-
     // Only initialize once and never again - use early return to prevent any execution
     if (initializationRef.current) {
-      console.log("⏭️ Skipping initialization - already done");
       return;
     }
 
     if (user?.canvasState) {
       const savedState = user.canvasState;
-      console.log("🚀 Initializing canvas state from saved data:", {
-        currentNotebookId: savedState.currentNotebookId,
-        currentPageId: savedState.currentPageId,
-        lastAccessedPages: savedState.lastAccessedPages,
-        lastUsedTool: savedState.lastUsedTool,
-      });
       setState((prevState) => {
         // Don't reset lastAccessedPages if it already has data
         const preservedLastAccessedPages =
@@ -129,25 +143,9 @@ export function useCanvasState() {
             ? prevState.lastAccessedPages
             : savedState.lastAccessedPages || {};
 
-        console.log("🔧 Setting canvas state:", {
-          prevLastAccessedPages: prevState.lastAccessedPages,
-          savedLastAccessedPages: savedState.lastAccessedPages,
-          preservedLastAccessedPages,
-          currentNotebookId: savedState.currentNotebookId,
-          currentPageId: savedState.currentPageId,
-        });
-
         // Store in ref for persistent access
         lastAccessedPagesRef.current = preservedLastAccessedPages;
         currentNotebookIdRef.current = savedState.currentNotebookId || null;
-        console.log(
-          "💾 Stored lastAccessedPages in ref:",
-          lastAccessedPagesRef.current
-        );
-        console.log(
-          "💾 Stored currentNotebookId in ref:",
-          currentNotebookIdRef.current
-        );
 
         return {
           ...prevState,
@@ -158,6 +156,10 @@ export function useCanvasState() {
           expandedPanels: {
             ...prevState.expandedPanels,
             ...savedState.expandedPanels,
+          },
+          columnWidths: {
+            ...prevState.columnWidths,
+            ...(savedState.columnWidths || {}),
           },
           canvasViewport: {
             ...prevState.canvasViewport,
@@ -182,15 +184,8 @@ export function useCanvasState() {
             Object.keys(updates.lastAccessedPages).length === 0 &&
             Object.keys(prevState.lastAccessedPages).length > 0
           ) {
-            console.log(
-              "🚫 Preventing lastAccessedPages reset to empty object"
-            );
             delete safeUpdates.lastAccessedPages;
           } else if (Object.keys(updates.lastAccessedPages).length > 0) {
-            console.log(
-              "✅ Updating lastAccessedPages with new data:",
-              updates.lastAccessedPages
-            );
           }
         }
 
@@ -272,7 +267,7 @@ export function useCanvasState() {
         lastAccessedPages: newLastAccessedPages,
       });
     },
-    [updateState, state.lastAccessedPages]
+    [updateState]
   );
 
   const setLastAccessedNotebook = useCallback(
@@ -312,7 +307,6 @@ export function useCanvasState() {
         Object.keys(state.lastAccessedPages).length === 0 &&
         Object.keys(lastAccessedPagesRef.current).length > 0
       ) {
-        console.log("🔄 Using ref fallback for lastAccessedPages");
         pageId = lastAccessedPagesRef.current[notebookId] || null;
       }
 
@@ -322,18 +316,8 @@ export function useCanvasState() {
         state.currentNotebookId === notebookId &&
         state.currentPageId
       ) {
-        console.log("🔄 Using currentPageId fallback for lastAccessedPages");
         pageId = state.currentPageId;
       }
-
-      console.log(
-        `🔍 Getting last accessed page for notebook ${notebookId}:`,
-        pageId
-      );
-      console.log(`📊 Current lastAccessedPages:`, state.lastAccessedPages);
-      console.log(`📊 Ref lastAccessedPages:`, lastAccessedPagesRef.current);
-      console.log(`📊 State currentNotebookId:`, state.currentNotebookId);
-      console.log(`📊 State currentPageId:`, state.currentPageId);
 
       // If we have no data but should have data, log a warning
       if (
@@ -360,7 +344,19 @@ export function useCanvasState() {
         },
       });
     },
-    [updateState, state.expandedPanels]
+    [updateState]
+  );
+
+  const setColumnWidth = useCallback(
+    (column: keyof CanvasState["columnWidths"], width: number) => {
+      updateState({
+        columnWidths: {
+          ...state.columnWidths,
+          [column]: width,
+        },
+      });
+    },
+    [updateState]
   );
 
   const setCanvasViewport = useCallback(
@@ -372,7 +368,7 @@ export function useCanvasState() {
         },
       });
     },
-    [updateState, state.canvasViewport]
+    [updateState]
   );
 
   const setLastUsedTool = useCallback(
@@ -424,6 +420,30 @@ export function useCanvasState() {
     [updateState]
   );
 
+  const setLassoSelection = useCallback(
+    (selection: Partial<CanvasState["lassoSelection"]>) => {
+      updateState({
+        lassoSelection: {
+          ...state.lassoSelection,
+          ...selection,
+        },
+      });
+    },
+    [updateState]
+  );
+
+  const clearLassoSelection = useCallback(() => {
+    updateState({
+      lassoSelection: {
+        isActive: false,
+        points: [],
+        selectedDrawings: [],
+        selectedTexts: [],
+        selectedGraphs: [],
+      },
+    });
+  }, [updateState]);
+
   // Reset to default state
   const resetState = useCallback(() => {
     setState(DEFAULT_CANVAS_STATE);
@@ -431,6 +451,7 @@ export function useCanvasState() {
       currentNotebookId: null,
       currentPageId: null,
       expandedPanels: DEFAULT_CANVAS_STATE.expandedPanels,
+      columnWidths: DEFAULT_CANVAS_STATE.columnWidths,
       canvasViewport: DEFAULT_CANVAS_STATE.canvasViewport,
       lastUsedTool: DEFAULT_CANVAS_STATE.lastUsedTool,
     }).catch(console.error);
@@ -447,6 +468,7 @@ export function useCanvasState() {
     getLastAccessedPage,
     getCurrentNotebookId,
     setExpandedPanel,
+    setColumnWidth,
     setCanvasViewport,
     setLastUsedTool,
     setStrokeColor,
@@ -455,6 +477,8 @@ export function useCanvasState() {
     setToolbarScrollPosition,
     setIsToolbarVisible,
     setVisibleTools,
+    setLassoSelection,
+    clearLassoSelection,
     resetState,
   };
 }

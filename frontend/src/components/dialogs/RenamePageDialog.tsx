@@ -32,15 +32,9 @@ export default function RenamePageDialog({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onOpenChange(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onKeyDown={handleKeyDown}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Rename Page</DialogTitle>
         </DialogHeader>

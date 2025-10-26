@@ -10,7 +10,11 @@ import {
 import { Input } from "@/components/ui/input";
 import type { CreateDialogProps } from "@/types";
 
-export default function CreateNotebookDialog({ open, onOpenChange, onCreate }: CreateDialogProps) {
+export default function CreateNotebookDialog({
+  open,
+  onOpenChange,
+  onCreate,
+}: CreateDialogProps) {
   const [title, setTitle] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -22,15 +26,9 @@ export default function CreateNotebookDialog({ open, onOpenChange, onCreate }: C
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onOpenChange(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onKeyDown={handleKeyDown}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Notebook</DialogTitle>
         </DialogHeader>

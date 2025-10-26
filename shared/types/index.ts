@@ -21,6 +21,10 @@ export interface User {
       pagesList?: boolean;
       toolbar?: boolean;
     };
+    columnWidths?: {
+      sidebar?: number;
+      pagesList?: number;
+    };
     currentNotebookId?: string;
     currentPageId?: string;
     lastAccessedPages?: Record<string, string>; // notebookId -> pageId
@@ -162,6 +166,10 @@ export interface UpdateCanvasStateRequest {
     sidebar?: boolean;
     pagesList?: boolean;
     toolbar?: boolean;
+  };
+  columnWidths?: {
+    sidebar?: number;
+    pagesList?: number;
   };
   currentNotebookId?: string;
   currentPageId?: string;

@@ -2,6 +2,12 @@ import { useState } from "react";
 import { X, Mail, UserPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import type { Notebook } from "@shared/types";
 
@@ -57,24 +63,15 @@ export default function ShareNotebookDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b dark:border-slate-700">
-          <div>
-            <h2 className="text-xl font-bold">Share Notebook</h2>
-            <p className="text-sm text-gray-500 mt-1">{notebook.title}</p>
-          </div>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Share Notebook</DialogTitle>
+          <p className="text-sm text-muted-foreground">{notebook.title}</p>
+        </DialogHeader>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           {/* Share Form */}
           <div className="space-y-4">
             <div>
@@ -189,7 +186,7 @@ export default function ShareNotebookDialog({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

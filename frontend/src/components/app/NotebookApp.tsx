@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import PagesList from "@/components/layout/PagesList";
 import Canvas from "@/components/canvas/Canvas";
@@ -33,6 +33,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     getLastAccessedPage,
     getCurrentNotebookId,
     setExpandedPanel,
+    setColumnWidth,
   } = useCanvasState();
 
   // Optimized data fetching
@@ -64,6 +65,8 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   // Dialog states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [notebookToLeave, setNotebookToLeave] = useState<Notebook | null>(null);
   const [pageToEdit, setPageToEdit] = useState<Page | null>(null);
 
   // Load notebooks from API on mount
@@ -73,30 +76,18 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   // Restore previous state when canvas state is initialized
   useEffect(() => {
-    console.log("🔄 NotebookApp useEffect triggered:", {
-      canvasStateInitialized,
-      currentNotebookId: canvasState.currentNotebookId,
-      notebooksLength: notebooks.length,
-      initialLoadRef: initialLoadRef.current,
-    });
-
     if (
       canvasStateInitialized &&
       notebooks.length > 0 &&
       !initialLoadRef.current
     ) {
       const currentNotebookId = getCurrentNotebookId();
-      console.log("🔍 Retrieved currentNotebookId:", currentNotebookId);
 
       if (currentNotebookId) {
         const previousNotebook = notebooks.find(
           (n) => n.id === currentNotebookId
         );
         if (previousNotebook) {
-          console.log(
-            "🎯 Loading initial notebook from saved state:",
-            previousNotebook.title
-          );
           initialLoadRef.current = true;
           setSelectedNotebook(previousNotebook);
           loadPagesForNotebook(previousNotebook.id, {
@@ -104,10 +95,8 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             preserveSelection: true,
           });
         } else {
-          console.log("❌ Previous notebook not found:", currentNotebookId);
         }
       } else {
-        console.log("❌ No currentNotebookId found");
       }
     }
   }, [canvasStateInitialized, getCurrentNotebookId, notebooks]);
@@ -147,7 +136,6 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
     // Prevent multiple simultaneous calls for the same notebook
     if (updateInProgressRef.current.has(notebookId)) {
-      console.log("⏳ Already loading pages for notebook:", notebookId);
       return;
     }
 
@@ -161,29 +149,17 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       if (autoSelectFirst) {
         // First, try to restore the last accessed page for this notebook
         const lastAccessedPageId = getLastAccessedPage(notebookId);
-        console.log(`🔍 Loading notebook ${notebookId}:`, {
-          lastAccessedPageId,
-          totalPages: convertedPages.length,
-          pageTitles: convertedPages.map((p) => p.title),
-        });
         if (lastAccessedPageId) {
           const lastAccessedPage = convertedPages.find(
             (p) => p.id === lastAccessedPageId
           );
           if (lastAccessedPage) {
-            console.log(
-              `✅ Found last accessed page: ${lastAccessedPage.title}`
-            );
             setSelectedPage(lastAccessedPage);
             setCurrentPage(lastAccessedPage.id);
             return; // Found and selected last accessed page
           } else {
-            console.log(
-              `❌ Last accessed page ${lastAccessedPageId} not found in current pages`
-            );
           }
         } else {
-          console.log(`ℹ️ No last accessed page for notebook ${notebookId}`);
         }
 
         // If no last accessed page or it doesn't exist, use preserveSelection logic
@@ -252,24 +228,29 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     }
   };
 
-  const handleLeaveNotebook = async (notebook: Notebook): Promise<void> => {
+  const handleLeaveNotebook = (notebook: Notebook): void => {
+    setNotebookToLeave(notebook);
+    setLeaveDialogOpen(true);
+  };
+
+  const handleConfirmLeaveNotebook = async (): Promise<void> => {
+    if (!notebookToLeave) return;
+
     try {
-      await api.leaveNotebook(notebook.id);
+      await api.leaveNotebook(notebookToLeave.id);
       await refreshNotebooks();
 
       // If we're leaving the currently selected notebook, clear the selection
-      if (selectedNotebook?.id === notebook.id) {
+      if (selectedNotebook?.id === notebookToLeave.id) {
         setSelectedNotebook(null);
         setSelectedPage(null);
         setCurrentNotebook(null);
         setCurrentPage(null);
       }
 
-      addToast({
-        message: "Left notebook",
-        itemName: notebook.title,
-        type: "leave-notebook",
-      });
+      // Close the dialog
+      setLeaveDialogOpen(false);
+      setNotebookToLeave(null);
     } catch (error) {
       console.error("Failed to leave notebook:", error);
       // For now, just log the error since we don't have an error toast type
@@ -360,7 +341,6 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook && selectedPage) {
       // Don't make API calls in view-only mode
       if (selectedNotebook.permission === "view") {
-        console.log("Skipping API call in view-only mode");
         return;
       }
 
@@ -511,11 +491,19 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     setExpandedPanel("pagesList", !collapsed);
   };
 
+  const handleSidebarWidthChange = (width: number) => {
+    setColumnWidth("sidebar", width);
+  };
+
+  const handlePagesListWidthChange = (width: number) => {
+    setColumnWidth("pagesList", width);
+  };
+
   return (
     <>
       <div className="flex h-screen overflow-hidden bg-background text-foreground">
         <ResizablePanel
-          defaultWidth={256}
+          defaultWidth={canvasState.columnWidths.sidebar}
           minWidth={200}
           maxWidth={400}
           side="left"
@@ -524,6 +512,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           onInteractionChange={setActivePanel}
           initialCollapsed={canvasState.expandedPanels.sidebar === false}
           onCollapsedChange={handleSidebarCollapsedChange}
+          onWidthChange={handleSidebarWidthChange}
         >
           <Sidebar
             notebooks={notebooks}
@@ -538,7 +527,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         </ResizablePanel>
 
         <ResizablePanel
-          defaultWidth={224}
+          defaultWidth={canvasState.columnWidths.pagesList}
           minWidth={180}
           maxWidth={400}
           side="left"
@@ -547,6 +536,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           onInteractionChange={setActivePanel}
           initialCollapsed={canvasState.expandedPanels.pagesList === false}
           onCollapsedChange={handlePagesListCollapsedChange}
+          onWidthChange={handlePagesListWidthChange}
         >
           <PagesList
             pages={pages}
@@ -581,6 +571,16 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         onConfirm={handleDeletePage}
         title="Delete Page"
         itemName={pageToEdit?.title}
+      />
+
+      <DeleteConfirmDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        onConfirm={handleConfirmLeaveNotebook}
+        title="Leave Notebook"
+        description={`Are you sure you want to leave "${notebookToLeave?.title}"? You will no longer have access to this notebook.`}
+        confirmButtonText="Leave"
+        confirmButtonVariant="destructive"
       />
       <ToastContainer />
     </>
