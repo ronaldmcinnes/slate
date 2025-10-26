@@ -159,6 +159,21 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     });
   };
 
+  const handleSelectPage = async (page: Page) => {
+    try {
+      // Load full page data including drawings, textBoxes, and graphs
+      console.log("Loading full page data for:", page.id);
+      const fullPageData = await api.getPage(page.id);
+      const convertedPage = convertPageToFrontendType(fullPageData);
+      console.log("Full page data loaded:", convertedPage);
+      setSelectedPage(convertedPage);
+    } catch (error) {
+      console.error("Failed to load full page data:", error);
+      // Fallback to the metadata page if full data fails to load
+      setSelectedPage(page);
+    }
+  };
+
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
     if (selectedNotebook && selectedPage) {
       try {
@@ -317,7 +332,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           <PagesList
             pages={pages}
             selectedPage={selectedPage}
-            onSelectPage={setSelectedPage}
+            onSelectPage={handleSelectPage}
             onCreatePage={handleCreatePage}
             onDeletePage={handleOpenDeleteDialog}
             onRenamePage={handleOpenRenameDialog}
