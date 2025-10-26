@@ -24,6 +24,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const userData = await api.getCurrentUser();
       setUser(userData);
+      // Apply theme class synchronously before any rendering
+      const theme =
+        (userData.settings?.theme as "light" | "dark" | undefined) || "light";
+      const root = document.documentElement;
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        if (theme === "dark") {
+          root.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+        }
+      });
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);

@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_COLORS = [
@@ -53,6 +53,33 @@ export default function ToolbarDrawingTools({
   const [marker3Color, setMarker3Color] = useState("#3B82F6");
   const [highlighterColor, setHighlighterColor] = useState("#FEF08A");
   const [fountainPenColor, setFountainPenColor] = useState("#000000");
+
+  // Update default colors when theme changes
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      const isDark = root.classList.contains("dark");
+      const defaultInk = isDark ? "#FFFFFF" : "#000000";
+
+      // Only update if user hasn't customized the first marker
+      setMarker1Color((prev) => {
+        if (prev === "#000000" || prev === "#FFFFFF") {
+          return defaultInk;
+        }
+        return prev;
+      });
+
+      setFountainPenColor((prev) => {
+        if (prev === "#000000" || prev === "#FFFFFF") {
+          return defaultInk;
+        }
+        return prev;
+      });
+    });
+
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   // Tool widths state
   const [marker1Width, setMarker1Width] = useState(3);
@@ -121,7 +148,11 @@ export default function ToolbarDrawingTools({
           </div>
         </Button>
         {isActive && (
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={false}>
+          <Popover
+            open={popoverOpen}
+            onOpenChange={setPopoverOpen}
+            modal={false}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="secondary"
@@ -212,7 +243,11 @@ export default function ToolbarDrawingTools({
           <Eraser size={18} />
         </Button>
         {isActive && (
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={false}>
+          <Popover
+            open={popoverOpen}
+            onOpenChange={setPopoverOpen}
+            modal={false}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="secondary"
