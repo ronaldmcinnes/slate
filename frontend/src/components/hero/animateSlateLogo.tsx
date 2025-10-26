@@ -1,0 +1,113 @@
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+
+export function AnimatedSlateLogo({
+  className = "",
+  autoPlay = true,
+  duration = 3000,
+  strokeWidth = 2,
+}: {
+  className?: string
+  autoPlay?: boolean
+  duration?: number
+  strokeWidth?: number
+}) {
+  const [isAnimating, setIsAnimating] = useState(autoPlay)
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  useEffect(() => {
+    if (!svgRef.current || !isAnimating) return
+
+    const paths = svgRef.current.querySelectorAll("path")
+
+    paths.forEach((path, index) => {
+      const length = path.getTotalLength()
+
+      // Set up the starting positions
+      path.style.strokeDasharray = length.toString()
+      path.style.strokeDashoffset = length.toString()
+      path.style.fillOpacity = "0"
+
+      // Trigger animation with slight delay for each letter
+      setTimeout(
+        () => {
+          path.style.transition = `stroke-dashoffset ${duration / paths.length}ms ease-in-out, fill-opacity ${duration / paths.length}ms ease-in-out`
+          path.style.strokeDashoffset = "0"
+          path.style.fillOpacity = "1"
+        },
+        (duration / paths.length) * index,
+      )
+    })
+
+    // Reset animation state after completion
+    const timer = setTimeout(() => {
+      setIsAnimating(false)
+    }, duration)
+
+    return () => clearTimeout(timer)
+  }, [isAnimating, duration])
+
+  const replay = () => {
+    if (!svgRef.current) return
+
+    // Reset all paths
+    const paths = svgRef.current.querySelectorAll("path")
+    paths.forEach((path) => {
+      const length = path.getTotalLength()
+      path.style.transition = "none"
+      path.style.strokeDashoffset = length.toString()
+      path.style.fillOpacity = "0"
+    })
+
+    // Trigger animation
+    setTimeout(() => setIsAnimating(true), 50)
+  }
+
+  return (
+    <div className="relative inline-block">
+      <svg ref={svgRef} id="slate-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 715 332" className={className}>
+        <defs>
+          <style>{`
+            .logo-path {
+              fill: #fff;
+              stroke: #fff;
+              stroke-width: ${strokeWidth};
+              stroke-linecap: round;
+              stroke-linejoin: round;
+            }
+          `}</style>
+        </defs>
+        {/* S */}
+        <path
+          className="logo-path"
+          d="M258.229,221.116c-6.527-14.543-20.264-26.515-32.099-36.445-27.165-22.792-65.531-37.76-89.366-60.016-19.712-18.405-22.029-50.874,5.21-62.237,32.322-13.484,109.627,1.97,140.62,18.969,7.778,4.266,22.271,14.586,8.154,21.141-14.493-2.65-28.619-7.135-43.179-9.457-24.091-3.842-56.806-6.48-80.823-3.342-9.74,1.272-18.837,1.061-8.524,11.127,11.603,11.325,35.331,22.007,49.684,31.066,26.373,16.647,82.719,56.71,85.318,91.859,3.086,41.747-51.632,30.667-74.206,24.592-37.446-10.078-71.033-26.639-110.297-31.476-13.847-1.706-37.745,3.028-35.485-20.682,1.575-16.523,18.717-15.076,30.488-14.292,53.645,3.574,101.65,32.795,154.506,39.193Z"
+        />
+        {/* l */}
+        <path
+          className="logo-path"
+          d="M347.38,217.127c18.368,3.103,12.029,23.935,7.03,35.823-4.907,11.67-17.593,16.036-27.078,6.724-6.118-6.007-9.882-35.452-10.976-45.024-5.009-43.827-1.783-95.183,15.697-136.057,2.656-6.211,10.77-20.845,17.059-8.698,4.567,8.822-2.48,36.087-3.751,47.006-3.868,33.249-2.852,67.174,2.019,100.227Z"
+        />
+        {/* a */}
+        <path
+          className="logo-path"
+          d="M499.234,198.273l-21.167,50.333c-17.432,22.551-37.254,4.108-47.355-14.311-4.408-8.038-6.892-16.852-10.983-25.017-6.776,13.056-15.118,37.34-34.317,32.312-20.685-5.418-16.373-46.455-11.209-61.847,5.267-15.699,22.276-36.871,41.013-29.954,4.438,1.638,6.794,4.653,7.025,9.487,9.832-2.374,13.216,2.244,15.499,10.992,4.762,18.245,5.672,32.309,15.321,49.679,1.07,1.927,6.743,11.708,8.598,11.292l3.988-4.048,26.58-42.91c-10.84-.74-28.45,9.358-35.191-3.309-4.922-9.248,1.587-17.638,11.142-19.25,11.194-1.889,23.744-.618,35.048-2.452,1.954-15.203,2.899-47.213,6.618-62.035.644-2.566,4.148-16.051,7.811-15.176,11.857,19.065,5.973,58.221,7.769,79.524,7.987,6.907,14.672,6.3,7.293,18.687-4.423-.128-1.049-5.566-1.489-5.988-8.021,1.592-5.01,4.384-4.948,9.454.221,17.956,2.646,43.039.826,59.915-.711,6.595-2.974,13.4-10.437,14.558-15.39,2.388-15.736-12.431-17.438-23.433v-36.5ZM417.233,165.282c-6.646,2.913-10.698,4.58-14.171,11.319-4.214,8.176-5.105,18.619-4.819,27.671,4.895-5.485,13.993-15.443,16.224-22.266,1.818-5.559-.567-11.487,2.766-16.724Z"
+        />
+        {/* t */}
+        <path
+          className="logo-path"
+          d="M581.963,125.508c7.33-1.357,14.566.532,17.781,7.755,8.297,18.638-9.225,51.819-26.335,61.597,1.708,9.329,4.071,18.98,10.325,26.395l19.452-20.531c10.237-8.503,24.078-.822,20.574,12.582-3.654,13.977-22.055,39.924-37.984,41.009-34.995,2.384-44.515-51.124-39.045-77.046,2.895-13.721,20.409-49.017,35.233-51.761ZM574.221,179.265c3.536-10.46,9.415-20.613,9.003-31.992-6.668,5.959-9.278,19.749-9.975,28.524-.087,1.099-.743,3.722.972,3.469Z"
+        />
+      </svg>
+
+      {!autoPlay && !isAnimating && (
+        <button
+          onClick={replay}
+          className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity"
+        >
+          <span className="text-white text-sm">Replay</span>
+        </button>
+      )}
+    </div>
+  )
+}
