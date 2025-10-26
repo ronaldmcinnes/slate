@@ -111,18 +111,22 @@ CRITICAL REQUIREMENTS:
 5. Do NOT include any text before or after the JSON
 6. The JSON must be complete and parseable
 
-Use this exact structure:
+DETERMINE GRAPH TYPE FIRST:
+- Mathematical functions/equations → use "mathematical" graphType
+- Data visualization (bar charts, line graphs, scatter plots) → use "chart" graphType  
+- Statistical analysis → use "statistical" graphType
+
+MATHEMATICAL GRAPHS (graphType: "mathematical"):
 {
   "version": "1.0",
+  "graphType": "mathematical",
   "plot": {
-    "kind": "2d_explicit" | "2d_parametric" | "2d_polar" | "2d_inequality" | "3d_surface" | "2d_integral" | "3d_integral",
+    "kind": "2d_explicit" | "2d_parametric" | "2d_polar" | "2d_inequality" | "3d_surface" | "2d_integral" | "3d_integral" | "cylindrical_integral" | "spherical_integral",
     "title": "Function title",
-    "xLabel": "x",
-    "yLabel": "y", 
-    "zLabel": "z" (for 3D),
+    "xLabel": "x", "yLabel": "y", "zLabel": "z" (for 3D),
     "domain": {
-      "x": [min, max],
-      "y": [min, max] (for 3D or inequalities),
+      "x": [min, max], "y": [min, max], "z": [min, max],
+      "r": [min, max], "theta": [min, max], "phi": [min, max] (for cylindrical/spherical),
       "t": [min, max] (for parametric)
     },
     "resolution": 200,
@@ -131,41 +135,76 @@ Use this exact structure:
       "xOfT": "cos(t)", "yOfT": "sin(t)" (for parametric),
       "rOfTheta": "cos(4*theta)" (for polar),
       "surfaceZ": "sin(x)*cos(y)" (for 3D),
-      "inequality": "y >= x^2" (for inequalities)
+      "cylindricalZ": "r^2" (for cylindrical coordinates),
+      "sphericalR": "1" (for spherical coordinates)
     },
     "integral": {
-      "function": "cos(x)" (the function being integrated),
-      "function2": "sin(x)" (second function for between-two-functions integrals),
-      "variable": "x" (integration variable),
-      "lowerBound": 1,
-      "upperBound": 5,
-      "showArea": true,
-      "areaColor": "#3b82f6",
-      "areaOpacity": 0.3,
-      "betweenFunctions": false (true for area between two functions)
+      "function": "cos(x)",
+      "function2": "sin(x)" (for between-functions integrals),
+      "variable": "x",
+      "lowerBound": 1, "upperBound": 5,
+      "showArea": true, "areaColor": "#3b82f6", "areaOpacity": 0.3,
+      "betweenFunctions": false,
+      "coordinateSystem": "cartesian" | "cylindrical" | "spherical",
+      "integrationOrder": ["dz", "dr", "dtheta"] (for cylindrical)
     },
-    "style": {
-      "lineWidth": 2,
-      "showGrid": true,
-      "theme": "light",
-      "color": "#3b82f6"
+    "style": { "lineWidth": 2, "showGrid": true, "theme": "light", "color": "#3b82f6" }
+  }
+}
+
+CHART GRAPHS (graphType: "chart"):
+{
+  "version": "1.0",
+  "graphType": "chart",
+  "chart": {
+    "kind": "bar" | "line" | "scatter" | "pie" | "area" | "histogram",
+    "title": "Chart title", "xLabel": "X Axis", "yLabel": "Y Axis",
+    "data": {
+      "labels": ["Label1", "Label2", "Label3"],
+      "datasets": [{
+        "label": "Dataset 1",
+        "data": [10, 20, 30] (for bar/pie) or [{"x": 1, "y": 2}, {"x": 2, "y": 4}] (for scatter),
+        "backgroundColor": "#3b82f6",
+        "borderColor": "#1d4ed8"
+      }]
+    },
+    "options": {
+      "responsive": true,
+      "scales": { "x": {"beginAtZero": true}, "y": {"beginAtZero": true} },
+      "plugins": { "legend": {"display": true}, "title": {"display": true} }
     }
   }
 }
 
-Supported function types:
-- 2d_explicit: y = f(x) functions
-- 2d_parametric: x = f(t), y = g(t) functions  
-- 2d_polar: r = f(θ) functions
-- 2d_inequality: regions defined by inequalities
-- 3d_surface: z = f(x,y) surfaces
-- 2d_integral: definite integrals ∫[a,b] f(x) dx with shaded area
-- 3d_integral: volume integrals with shaded volume
+STATISTICAL GRAPHS (graphType: "statistical"):
+{
+  "version": "1.0",
+  "graphType": "statistical",
+  "statistics": {
+    "kind": "distribution" | "correlation" | "regression" | "anova",
+    "title": "Statistical Analysis",
+    "data": [1, 2, 3, 4, 5] or [{"x": 1, "y": 2}, {"x": 2, "y": 4}],
+    "parameters": {
+      "mean": 3.0, "stdDev": 1.5, "correlation": 0.8,
+      "regression": {"slope": 2.0, "intercept": 1.0}
+    },
+    "visualization": {
+      "showHistogram": true, "showCurve": true, "showConfidence": true, "bins": 10
+    }
+  }
+}
 
-For integrals, use kind "2d_integral" and include the integral object with function, bounds, and shading options.
-For between-two-functions integrals (area between curves), set betweenFunctions: true and provide both function and function2.
-Use standard math notation: x^2, sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x)
-For domains, use reasonable ranges like [-5, 5] for 2D, [-3, 3] for 3D`;
+COORDINATE SYSTEMS:
+- Cartesian: x, y, z coordinates
+- Cylindrical: r (radius), theta (angle), z (height) - use for "cylindrical_integral"
+- Spherical: rho (radius), theta (azimuthal), phi (polar) - use for "spherical_integral"
+
+For cylindrical integrals like "∫∫∫ r dz dr dθ", use:
+- kind: "cylindrical_integral"
+- domain: {"r": [0, √2], "theta": [0, 2π], "z": [0, 2]}
+- integral: {"function": "r", "variable": "z", "lowerBound": "r^2", "upperBound": "2", "coordinateSystem": "cylindrical", "integrationOrder": ["dz", "dr", "dtheta"]}
+
+Use standard math notation: x^2, sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x), π, e`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -174,11 +213,12 @@ For domains, use reasonable ranges like [-5, 5] for 2D, [-3, 3] for 3D`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text }
         ],
+        temperature: 0.1,
         max_completion_tokens: 2000
       }),
     });

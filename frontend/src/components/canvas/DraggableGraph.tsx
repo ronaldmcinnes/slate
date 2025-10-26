@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { GripVertical, X, RefreshCw, Edit3, Move } from "lucide-react";
-import ThreeJSGraph from "./ThreeJSGraph";
+import GraphRouter from "./GraphRouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AudioRecordingService } from "@/lib/audioService";
@@ -205,7 +205,7 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
         <div className="pointer-events-auto p-4">
           {graph.graphSpec ? (
             <div style={{ width: `${size.width - 32}px`, height: `${size.height - 100}px` }}>
-              <ThreeJSGraph 
+              <GraphRouter 
                 graphSpec={graph.graphSpec} 
                 width={size.width - 32} 
                 height={size.height - 100} 
