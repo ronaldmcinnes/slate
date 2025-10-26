@@ -17,6 +17,7 @@ import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
 import { useGraphOptimization } from "@/hooks/useGraphOptimization";
 import { useGraphPerformance } from "@/hooks/useGraphPerformance";
+import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 
 interface CanvasProps {
@@ -277,27 +278,40 @@ export default function Canvas({
         console.log("Page graphs:", page.graphs);
 
         // Restore drawings if they exist
-        if (
-          page.drawings &&
-          page.drawings.paths &&
-          page.drawings.paths.length > 0
-        ) {
-          console.log("Loading drawing paths:", page.drawings.paths);
-          await refs.canvasRef.current.loadPaths(page.drawings.paths);
-          console.log("Drawing paths loaded successfully");
-        } else if (
-          page.drawings &&
-          Array.isArray(page.drawings) &&
-          page.drawings.length > 0
-        ) {
-          // Handle case where drawings is stored as array directly
-          console.log("Loading drawing paths (direct array):", page.drawings);
-          await refs.canvasRef.current.loadPaths(page.drawings);
-          console.log("Drawing paths loaded successfully");
+        if (page.drawings) {
+          let drawingData = null;
+
+          // Check if drawings is compressed (string) or uncompressed (object)
+          if (typeof page.drawings === "string") {
+            console.log("Decompressing drawing data...");
+            drawingData = decompressDrawingData(page.drawings);
+            if (drawingData && drawingData.paths) {
+              console.log(
+                "Loading decompressed drawing paths:",
+                drawingData.paths
+              );
+              await refs.canvasRef.current.loadPaths(drawingData.paths);
+              console.log("Drawing paths loaded successfully");
+            } else {
+              console.log("No valid drawing data after decompression");
+            }
+          } else if (page.drawings.paths && page.drawings.paths.length > 0) {
+            console.log(
+              "Loading drawing paths (uncompressed):",
+              page.drawings.paths
+            );
+            await refs.canvasRef.current.loadPaths(page.drawings.paths);
+            console.log("Drawing paths loaded successfully");
+          } else if (Array.isArray(page.drawings) && page.drawings.length > 0) {
+            // Handle case where drawings is stored as array directly
+            console.log("Loading drawing paths (direct array):", page.drawings);
+            await refs.canvasRef.current.loadPaths(page.drawings);
+            console.log("Drawing paths loaded successfully");
+          } else {
+            console.log("No valid drawing data found");
+          }
         } else {
-          console.log("No drawings to load, clearing canvas");
-          // Clear canvas if no drawings
-          await refs.canvasRef.current.clearCanvas();
+          console.log("No drawings to load, canvas already cleared");
         }
       } catch (error) {
         console.error("Failed to load page content:", error);
@@ -438,13 +452,20 @@ export default function Canvas({
               }}
             >
               <ReactSketchCanvas
+                key={`canvas-${page?.id || "no-page"}`}
                 ref={refs.canvasRef}
-                strokeWidth={state.strokeWidth}
+                strokeWidth={
+                  state.tool === "fountain-pen"
+                    ? Math.max(1, state.strokeWidth * 0.7) // Fountain pen has variable pressure
+                    : state.strokeWidth
+                }
                 strokeColor={
                   state.tool === "eraser"
                     ? document.documentElement.classList.contains("dark")
                       ? "#111111"
                       : "#FAFAFA"
+                    : state.tool === "highlighter"
+                    ? state.strokeColor + "80" // Add 50% opacity for highlighter
                     : state.strokeColor
                 }
                 eraserWidth={state.tool === "eraser" ? state.strokeWidth : 0}

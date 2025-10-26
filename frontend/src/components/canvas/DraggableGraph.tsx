@@ -276,13 +276,13 @@ export default function DraggableGraph({
           height: `${showFunctionInput ? size.height + 90 : size.height}px`,
         }}
       >
-        <div
-          className={`flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50 ${
-            isReadOnly ? "" : "drag-handle cursor-grab active:cursor-grabbing"
-          }`}
-          onMouseDown={handleMouseDown}
-        >
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50">
+          <div
+            className={`flex items-center gap-2 ${
+              isReadOnly ? "" : "drag-handle cursor-grab active:cursor-grabbing"
+            }`}
+            onMouseDown={handleMouseDown}
+          >
             {!isReadOnly && (
               <GripVertical size={14} className="text-muted-foreground" />
             )}
@@ -305,8 +305,20 @@ export default function DraggableGraph({
                 </button>
               )}
               <button
-                onClick={() => onRemove(graph.id)}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  console.log("X button clicked, removing graph:", graph.id);
+                  console.log("Graph object:", graph);
+                  console.log("onRemove function:", onRemove);
+                  if (onRemove) {
+                    onRemove(graph.id);
+                  } else {
+                    console.error("onRemove function is not defined!");
+                  }
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1 hover:bg-red-100 hover:text-red-600 rounded"
+                title="Remove graph"
               >
                 <X size={14} />
               </button>

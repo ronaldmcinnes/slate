@@ -36,6 +36,27 @@ const DEFAULT_COLORS = [
   "#C4B5FD",
 ];
 
+// Generate size presets based on min/max width
+const getSizePresets = (minWidth: number, maxWidth: number) => {
+  const range = maxWidth - minWidth;
+  const step = Math.max(1, Math.floor(range / 4)); // 5 presets max
+  const presets = [];
+
+  for (let i = 0; i < 5; i++) {
+    const size = minWidth + step * i;
+    if (size <= maxWidth) {
+      presets.push(size);
+    }
+  }
+
+  // Always include max width if not already included
+  if (!presets.includes(maxWidth)) {
+    presets.push(maxWidth);
+  }
+
+  return presets;
+};
+
 interface ToolbarDrawingToolsProps {
   tool: string;
   onToolChange: (toolType: string, color: string, width: number) => void;
@@ -217,26 +238,39 @@ export default function ToolbarDrawingTools({
                     </div>
                   </div>
 
-                  {/* Size Slider */}
+                  {/* Size Presets */}
                   <div className="space-y-2 pt-2 border-t">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">Size</p>
-                      <span className="text-xs text-muted-foreground">
-                        {width}px
-                      </span>
+                    <p className="text-sm font-medium">Size</p>
+                    <div className="flex gap-2">
+                      {getSizePresets(minWidth, maxWidth).map((size) => (
+                        <button
+                          key={size}
+                          className={cn(
+                            "w-8 h-8 rounded border-2 flex items-center justify-center hover:scale-110 transition-transform",
+                            width === size
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          )}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onWidthChange(size);
+                          }}
+                          title={`${size}px`}
+                        >
+                          <div
+                            className="rounded-full bg-current"
+                            style={{
+                              width: `${Math.max(2, (size / maxWidth) * 16)}px`,
+                              height: `${Math.max(
+                                2,
+                                (size / maxWidth) * 16
+                              )}px`,
+                            }}
+                          />
+                        </button>
+                      ))}
                     </div>
-                    <input
-                      type="range"
-                      min={minWidth}
-                      max={maxWidth}
-                      value={width}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        onWidthChange(Number(e.target.value));
-                      }}
-                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
                   </div>
                 </div>
               </PopoverContent>
@@ -322,31 +356,37 @@ export default function ToolbarDrawingTools({
                   </div>
                 </div>
 
-                {/* Size Slider */}
+                {/* Size Presets */}
                 <div className="space-y-2 pt-2 border-t">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Size</p>
-                    <span className="text-xs text-muted-foreground">
-                      {eraserWidth}px
-                    </span>
+                  <p className="text-sm font-medium">Size</p>
+                  <div className="flex gap-2">
+                    {getSizePresets(1, 40).map((size) => (
+                      <button
+                        key={size}
+                        className={cn(
+                          "w-8 h-8 rounded border-2 flex items-center justify-center hover:scale-110 transition-transform",
+                          eraserWidth === size
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
+                        )}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEraserWidth(size);
+                          handleToolSelect("eraser", "#FAFAFA", size);
+                        }}
+                        title={`${size}px`}
+                      >
+                        <div
+                          className="rounded-full bg-current"
+                          style={{
+                            width: `${Math.max(2, (size / 40) * 16)}px`,
+                            height: `${Math.max(2, (size / 40) * 16)}px`,
+                          }}
+                        />
+                      </button>
+                    ))}
                   </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={40}
-                    value={eraserWidth}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setEraserWidth(Number(e.target.value));
-                      handleToolSelect(
-                        "eraser",
-                        "#FAFAFA",
-                        Number(e.target.value)
-                      );
-                    }}
-                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
                 </div>
               </div>
             </PopoverContent>

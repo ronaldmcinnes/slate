@@ -50,11 +50,30 @@ export function useCanvasTools({
 
   const handleRemoveGraph = useCallback(
     (graphId: string) => {
-      if (!page) return;
+      console.log("handleRemoveGraph called with graphId:", graphId);
+      console.log("Graph ID type:", typeof graphId);
+      if (!page) {
+        console.log("No page found, cannot remove graph");
+        return;
+      }
 
-      const graphs = (page.graphs || []).filter((g) => g.id !== graphId);
+      console.log("Current graphs:", page.graphs);
+      console.log(
+        "Graph IDs in page:",
+        page.graphs?.map((g) => ({ id: g.id, type: typeof g.id }))
+      );
+      const graphs = (page.graphs || []).filter((g) => {
+        console.log(
+          `Comparing ${
+            g.id
+          } (${typeof g.id}) with ${graphId} (${typeof graphId})`
+        );
+        return g.id !== graphId;
+      });
+      console.log("Filtered graphs:", graphs);
       onUpdatePage({ graphs });
       markAsChanged();
+      console.log("Graph removal completed");
     },
     [page, onUpdatePage, markAsChanged]
   );

@@ -345,7 +345,7 @@ const OptimizedThreeJSGraph: React.FC<OptimizedThreeJSGraphProps> = ({
   viewport,
   graphCount = 1,
 }) => {
-  const { metrics } = useGraphPerformance();
+  const { metrics = { fps: 60 } } = useGraphPerformance();
 
   // Optimized Canvas settings for better performance
   const canvasSettings = useMemo(
