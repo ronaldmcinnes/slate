@@ -13,9 +13,9 @@ export function FeaturesSection() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 h-full">
         {/* Main heading */}
-        <div className="mb-16 flex flex-col gap-2">
-          <AnimatedCoreText className="w-[50%]" duration={2000} strokeWidth={1.5} />
-          <AnimatedFeaturesText className="w-full max-w-4xl h-auto" duration={2500} strokeWidth={1.5} />
+        <div className="mb-16 flex gap-2 ml-[8rem]">
+          <AnimatedCoreText className="w-[100%] mt-11" duration={2000} strokeWidth={1.5} />
+          <AnimatedFeaturesText className="mt-4 w-[160%] h-auto" duration={2500} strokeWidth={1.5} />
         </div>
 
         <div className="relative w-full h-[600px]">
@@ -23,42 +23,12 @@ export function FeaturesSection() {
           <div className="absolute left-[1%] top-[5%] w-[8%] aspect-square">
             <div className="w-full h-full bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 rounded-lg backdrop-blur-sm border border-cyan-500/30 flex items-center justify-center overflow-hidden">
               <svg viewBox="0 0 100 100" className="w-full h-full p-2">
-                <defs>
-                  <linearGradient id="grid1" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#06b6d4" />
-                    <stop offset="100%" stopColor="#0891b2" />
-                  </linearGradient>
-                </defs>
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <line
-                    key={`h${i}`}
-                    x1="0"
-                    y1={i * 10}
-                    x2="100"
-                    y2={i * 10}
-                    stroke="url(#grid1)"
-                    strokeWidth="0.5"
-                    opacity="0.6"
-                  />
-                ))}
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <line
-                    key={`v${i}`}
-                    x1={i * 10}
-                    y1="0"
-                    x2={i * 10}
-                    y2="100"
-                    stroke="url(#grid1)"
-                    strokeWidth="0.5"
-                    opacity="0.6"
-                  />
-                ))}
               </svg>
             </div>
           </div>
 
           {/* Gray feature card 1 - top center-left */}
-          <div className="absolute left-[11%] top-[18%] w-[18%] aspect-[3/4] bg-gray-200/90 rounded-lg backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-gray-100 hover:shadow-2xl hover:shadow-white/20 cursor-pointer group">
+          <div className="absolute left-[10%] top-[0%] w-[25%] aspect-[4/4] bg-gray-200/90 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-gray-100 hover:shadow-2xl hover:shadow-white/20 cursor-pointer group">
             <div className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <span className="text-black font-semibold">Feature 1</span>
             </div>
@@ -68,25 +38,6 @@ export function FeaturesSection() {
           <div className="absolute left-[33%] top-[28%] w-[18%] aspect-[4/3]">
             <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-fuchsia-600/20 rounded-lg backdrop-blur-sm border border-pink-500/30 flex items-center justify-center overflow-hidden">
               <svg viewBox="0 0 100 100" className="w-full h-full p-2">
-                <defs>
-                  <linearGradient id="grid2" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ec4899" />
-                    <stop offset="100%" stopColor="#c026d3" />
-                  </linearGradient>
-                </defs>
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <line
-                    key={`wave${i}`}
-                    x1="0"
-                    y1={10 + i * 6}
-                    x2="100"
-                    y2={10 + i * 6}
-                    stroke="url(#grid2)"
-                    strokeWidth="0.5"
-                    opacity="0.5"
-                  />
-                ))}
-                <path d="M 0 50 Q 25 30, 50 50 T 100 50" fill="none" stroke="url(#grid2)" strokeWidth="1" />
               </svg>
             </div>
           </div>
