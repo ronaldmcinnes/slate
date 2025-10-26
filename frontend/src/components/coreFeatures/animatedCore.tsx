@@ -17,14 +17,29 @@ export function AnimatedCoreText({
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!svgRef.current) return
+
+    const paths = svgRef.current.querySelectorAll("path")
+    paths.forEach((path) => {
+      const length = path.getTotalLength()
+      path.style.strokeDasharray = length.toString()
+      path.style.strokeDashoffset = length.toString()
+      path.style.fillOpacity = "0"
+      path.style.opacity = "0"
+    })
+  }, [])
+
+  useEffect(() => {
     if (!containerRef.current || hasAnimated) return
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasAnimated) {
-            setIsAnimating(true)
-            setHasAnimated(true)
+            setTimeout(() => {
+              setIsAnimating(true)
+              setHasAnimated(true)
+            }, 100)
           }
         })
       },
@@ -45,6 +60,7 @@ export function AnimatedCoreText({
     paths.forEach((path, index) => {
       const length = path.getTotalLength()
 
+      path.style.opacity = "1"
       path.style.strokeDasharray = length.toString()
       path.style.strokeDashoffset = length.toString()
       path.style.fillOpacity = "0"
