@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 interface CanvasContainerProps {
@@ -8,6 +8,7 @@ interface CanvasContainerProps {
   cursorStyle: string;
   className?: string;
   canvasContainerRef?: React.RefObject<HTMLDivElement | null>;
+  isReadOnly?: boolean;
 }
 
 export default function CanvasContainer({
@@ -17,9 +18,17 @@ export default function CanvasContainer({
   cursorStyle,
   className = "flex-1 relative bg-muted/30 dark:bg-neutral-900 overflow-auto scrollbar-hide",
   canvasContainerRef: externalRef,
+  isReadOnly = false,
 }: CanvasContainerProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = externalRef || internalRef;
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({
+    x: 0,
+    y: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+  });
 
   // Auto-expand canvas when scrolling near edges
   useEffect(() => {
@@ -61,11 +70,83 @@ export default function CanvasContainer({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [canvasSize, onCanvasSizeChange]);
 
+  // Panning functionality for view-only mode
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container || !isReadOnly) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // Only start panning on left mouse button
+      if (e.button !== 0) return;
+
+      console.log("Canvas panning started in view-only mode");
+
+      // In view-only mode, always start panning regardless of what element was clicked
+      setIsPanning(true);
+      setPanStart({
+        x: e.clientX,
+        y: e.clientY,
+        scrollLeft: container.scrollLeft,
+        scrollTop: container.scrollTop,
+      });
+
+      // Prevent text selection while panning
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPanning) return;
+
+      const deltaX = e.clientX - panStart.x;
+      const deltaY = e.clientY - panStart.y;
+
+      // Use normal scrolling for canvas navigation
+      container.scrollLeft = panStart.scrollLeft - deltaX;
+      container.scrollTop = panStart.scrollTop - deltaY;
+
+      console.log("Canvas scrolling:", {
+        deltaX,
+        deltaY,
+        scrollLeft: container.scrollLeft,
+        scrollTop: container.scrollTop,
+      });
+      e.preventDefault();
+    };
+
+    const handleMouseUp = () => {
+      setIsPanning(false);
+    };
+
+    const handleMouseLeave = () => {
+      setIsPanning(false);
+    };
+
+    // Add event listeners to document to capture events from overlay elements
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    container.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      container.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [isPanning, panStart, isReadOnly]);
+
   return (
     <div
       ref={canvasContainerRef}
       className={className}
-      style={{ cursor: cursorStyle }}
+      style={{
+        cursor: isPanning ? "grabbing" : cursorStyle,
+        userSelect: isReadOnly ? "none" : "auto",
+        // Ensure the container has scrollable content for view-only mode
+        minWidth: isReadOnly ? `${canvasSize.width}%` : undefined,
+        minHeight: isReadOnly ? `${canvasSize.height}%` : undefined,
+      }}
     >
       {children}
     </div>

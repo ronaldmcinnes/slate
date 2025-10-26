@@ -108,6 +108,9 @@ export default function Canvas({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable all shortcuts in view-only mode
+      if (isReadOnly) return;
+
       // Ignore if user is typing in an input/textarea
       if (
         (e.target && (e.target as HTMLElement).tagName === "INPUT") ||
@@ -145,11 +148,12 @@ export default function Canvas({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [savePageState, handleToolChange]);
+  }, [savePageState, handleToolChange, isReadOnly]);
 
   // Handle canvas click for text tool
   useEffect(() => {
     const handleCanvasClick = (e: MouseEvent) => {
+      if (isReadOnly) return; // Disable text tool in view-only mode
       if (state.tool === "text" && refs.canvasContainerRef.current) {
         // Check if click is on the canvas area (not on other elements)
         if (
@@ -168,11 +172,11 @@ export default function Canvas({
     };
 
     const container = refs.canvasContainerRef.current;
-    if (container && state.tool === "text") {
+    if (container && state.tool === "text" && !isReadOnly) {
       container.addEventListener("click", handleCanvasClick);
       return () => container.removeEventListener("click", handleCanvasClick);
     }
-  }, [state.tool, page, handleAddTextBoxAt]);
+  }, [state.tool, page, handleAddTextBoxAt, isReadOnly]);
 
   // Load and restore page content when page changes
   useEffect(() => {
@@ -235,6 +239,9 @@ export default function Canvas({
 
   // Get cursor style based on tool
   const getCursorStyle = () => {
+    // For view-only users, always show hand cursor to indicate panning/scrolling
+    if (isReadOnly) return "grab";
+
     if (state.tool === "text") return "text";
     if (state.tool === "select") return "default";
     if (state.tool === "lasso") return "crosshair";
@@ -256,57 +263,60 @@ export default function Canvas({
           onCanvasSizeChange={actions.setCanvasSize}
           cursorStyle={getCursorStyle()}
           canvasContainerRef={refs.canvasContainerRef}
+          isReadOnly={isReadOnly}
         >
-          {/* Floating Toolbar */}
-          <CanvasToolbar
-            isToolbarVisible={state.isToolbarVisible}
-            onToggleVisibility={() =>
-              actions.setIsToolbarVisible(!state.isToolbarVisible)
-            }
-            tool={state.tool}
-            onToolChange={(tool) =>
-              handleToolChange(tool, state.strokeColor, state.strokeWidth)
-            }
-            visibleTools={state.visibleTools}
-            onToggleTool={(toolId: string) =>
-              actions.setVisibleTools({
-                ...state.visibleTools,
-                [toolId]:
-                  !state.visibleTools[
-                    toolId as keyof typeof state.visibleTools
-                  ],
-              })
-            }
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            onSave={savePageState}
-            onClearCanvas={handleClearCanvas}
-            hasUnsavedChanges={state.hasUnsavedChanges}
-            isRecording={state.isRecording}
-            isTranscribing={state.isTranscribing}
-            isInterpreting={state.isInterpreting}
-            onStartRecording={handleStartRecording}
-            onStopRecording={handleStopRecording}
-            onAddGraph={() => setGraphDialogOpen(true)}
-            toolbarScrollRef={refs.toolbarScrollRef}
-            onScrollLeft={() => {
-              if (refs.toolbarScrollRef.current) {
-                refs.toolbarScrollRef.current.scrollBy({
-                  left: -52,
-                  behavior: "smooth",
-                });
+          {/* Floating Toolbar - Only show for edit mode */}
+          {!isReadOnly && (
+            <CanvasToolbar
+              isToolbarVisible={state.isToolbarVisible}
+              onToggleVisibility={() =>
+                actions.setIsToolbarVisible(!state.isToolbarVisible)
               }
-            }}
-            onScrollRight={() => {
-              if (refs.toolbarScrollRef.current) {
-                refs.toolbarScrollRef.current.scrollBy({
-                  left: 52,
-                  behavior: "smooth",
-                });
+              tool={state.tool}
+              onToolChange={(tool) =>
+                handleToolChange(tool, state.strokeColor, state.strokeWidth)
               }
-            }}
-            isReadOnly={isReadOnly}
-          />
+              visibleTools={state.visibleTools}
+              onToggleTool={(toolId: string) =>
+                actions.setVisibleTools({
+                  ...state.visibleTools,
+                  [toolId]:
+                    !state.visibleTools[
+                      toolId as keyof typeof state.visibleTools
+                    ],
+                })
+              }
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onSave={savePageState}
+              onClearCanvas={handleClearCanvas}
+              hasUnsavedChanges={state.hasUnsavedChanges}
+              isRecording={state.isRecording}
+              isTranscribing={state.isTranscribing}
+              isInterpreting={state.isInterpreting}
+              onStartRecording={handleStartRecording}
+              onStopRecording={handleStopRecording}
+              onAddGraph={() => setGraphDialogOpen(true)}
+              toolbarScrollRef={refs.toolbarScrollRef}
+              onScrollLeft={() => {
+                if (refs.toolbarScrollRef.current) {
+                  refs.toolbarScrollRef.current.scrollBy({
+                    left: -52,
+                    behavior: "smooth",
+                  });
+                }
+              }}
+              onScrollRight={() => {
+                if (refs.toolbarScrollRef.current) {
+                  refs.toolbarScrollRef.current.scrollBy({
+                    left: 52,
+                    behavior: "smooth",
+                  });
+                }
+              }}
+              isReadOnly={isReadOnly}
+            />
+          )}
 
           {/* Page Title */}
           <CanvasTitle
@@ -329,42 +339,44 @@ export default function Canvas({
             isReadOnly={isReadOnly}
           />
 
-          {/* Drawing Canvas */}
-          <div
-            className="canvas-clickable absolute inset-0"
-            style={{
-              minWidth: `${state.canvasSize.width}%`,
-              minHeight: `${state.canvasSize.height}%`,
-            }}
-          >
-            <ReactSketchCanvas
-              ref={refs.canvasRef}
-              strokeWidth={state.strokeWidth}
-              strokeColor={
-                state.tool === "eraser"
-                  ? document.documentElement.classList.contains("dark")
+          {/* Drawing Canvas - Only show for edit mode */}
+          {!isReadOnly && (
+            <div
+              className="canvas-clickable absolute inset-0"
+              style={{
+                minWidth: `${state.canvasSize.width}%`,
+                minHeight: `${state.canvasSize.height}%`,
+              }}
+            >
+              <ReactSketchCanvas
+                ref={refs.canvasRef}
+                strokeWidth={state.strokeWidth}
+                strokeColor={
+                  state.tool === "eraser"
+                    ? document.documentElement.classList.contains("dark")
+                      ? "#111111"
+                      : "#FAFAFA"
+                    : state.strokeColor
+                }
+                eraserWidth={state.tool === "eraser" ? state.strokeWidth : 0}
+                canvasColor={
+                  document.documentElement.classList.contains("dark")
                     ? "#111111"
                     : "#FAFAFA"
-                  : state.strokeColor
-              }
-              eraserWidth={state.tool === "eraser" ? state.strokeWidth : 0}
-              canvasColor={
-                document.documentElement.classList.contains("dark")
-                  ? "#111111"
-                  : "#FAFAFA"
-              }
-              style={{
-                width: "100%",
-                height: "100%",
-                pointerEvents: isDrawingTool ? "auto" : "none",
-              }}
-              svgStyle={{
-                width: "100%",
-                height: "100%",
-              }}
-              onChange={handleSaveDrawing}
-            />
-          </div>
+                }
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  pointerEvents: isDrawingTool ? "auto" : "none",
+                }}
+                svgStyle={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                onChange={handleSaveDrawing}
+              />
+            </div>
+          )}
 
           {/* Text Boxes and Graphs Overlay */}
           <CanvasOverlays
@@ -377,6 +389,7 @@ export default function Canvas({
             onUpdateGraph={handleUpdateGraph}
             onSizeChange={handleSizeChange}
             onCameraChange={handleCameraChange}
+            isReadOnly={isReadOnly}
           />
 
           {/* Status Indicators */}

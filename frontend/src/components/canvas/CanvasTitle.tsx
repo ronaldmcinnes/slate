@@ -92,7 +92,7 @@ export default function CanvasTitle({
                 day: "numeric",
               })}
             </p>
-            {hasUnsavedChanges && (
+            {hasUnsavedChanges && !isReadOnly && (
               <span className="text-xs text-orange-500 font-medium">
                 • Unsaved changes
               </span>

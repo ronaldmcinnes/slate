@@ -1,9 +1,9 @@
-import CoreFeaturesGrid from "./coreFeatures/grid";
+import CoreFeaturesGrid from "@/components/landing/coreFeatures/grid";
 import CoreText from "@/assets/core.svg";
 import FeaturesText from "@/assets/features.svg";
 
-import { AnimatedCoreText } from "./coreFeatures/animatedCore";
-import { AnimatedFeaturesText } from "./coreFeatures/animatedFeatures";
+import { AnimatedCoreText } from "@/components/landing/coreFeatures/animatedCore";
+import { AnimatedFeaturesText } from "@/components/landing/coreFeatures/animatedFeatures";
 
 export function FeaturesSection() {
   return (

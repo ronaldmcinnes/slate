@@ -19,6 +19,7 @@ interface CanvasOverlaysProps {
       zoom: number;
     }
   ) => void;
+  isReadOnly?: boolean;
 }
 
 export default function CanvasOverlays({
@@ -31,6 +32,7 @@ export default function CanvasOverlays({
   onUpdateGraph,
   onSizeChange,
   onCameraChange,
+  isReadOnly = false,
 }: CanvasOverlaysProps) {
   // Adapter functions to convert between main types and component interfaces
   const convertTextBoxForComponent = (textBox: any) => ({
@@ -69,6 +71,7 @@ export default function CanvasOverlays({
                     onPositionChange={onUpdateTextBoxPosition}
                     onTextChange={onUpdateTextBoxText}
                     onRemove={onRemoveTextBox}
+                    isReadOnly={isReadOnly}
                   />
                 )
             )}
@@ -91,6 +94,7 @@ export default function CanvasOverlays({
                     onUpdateGraph={onUpdateGraph}
                     onSizeChange={onSizeChange}
                     onCameraChange={onCameraChange}
+                    isReadOnly={isReadOnly}
                   />
                 )
             )}

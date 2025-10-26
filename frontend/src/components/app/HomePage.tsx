@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/authContext";
 
-import Header from "../landing/Header";
-import { FeaturesSection } from "../landing/FeaturesSection";
-import HeroSection from "../landing/HeroSection";
+import Header from "@/components/landing/Header";
+import { FeaturesSection } from "@/components/landing/FeaturesSection";
+import HeroSection from "@/components/landing/HeroSection";
 
 export default function HomePage() {
   const { user, loading } = useAuth();

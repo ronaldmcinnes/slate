@@ -26,7 +26,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const [pages, setPages] = useState<Page[]>([]); // Add pages state
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  
+
   // Cache for page data to avoid repeated API calls
   const [pageCache, setPageCache] = useState<Map<string, Page>>(new Map());
 
@@ -147,10 +147,10 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           autoSelectFirst: false,
           preserveSelection: true,
         });
-        
+
         // Cache the new page immediately
         const convertedPage = convertPageToFrontendType(newPage);
-        setPageCache(prev => new Map(prev.set(newPage.id, convertedPage)));
+        setPageCache((prev) => new Map(prev.set(newPage.id, convertedPage)));
         setSelectedPage(convertedPage);
       } catch (error) {
         // Handle error silently
@@ -160,10 +160,10 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   const handleSelectNotebook = async (notebook: Notebook): Promise<void> => {
     setSelectedNotebook(notebook);
-    
+
     // Clear page cache when switching notebooks to avoid stale data
     setPageCache(new Map());
-    
+
     await loadPagesForNotebook(notebook.id, {
       autoSelectFirst: true,
       preserveSelection: false,
@@ -185,9 +185,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       const fullPageData = await api.getPage(page.id);
       const convertedPage = convertPageToFrontendType(fullPageData);
       console.log("Full page data loaded:", convertedPage);
-      
+
       // Cache the page data
-      setPageCache(prev => new Map(prev.set(page.id, convertedPage)));
+      setPageCache((prev) => new Map(prev.set(page.id, convertedPage)));
       setSelectedPage(convertedPage);
     } catch (error) {
       console.error("Failed to load full page data:", error);
@@ -198,6 +198,12 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
     if (selectedNotebook && selectedPage) {
+      // Don't make API calls in view-only mode
+      if (selectedNotebook.permission === "view") {
+        console.log("Skipping API call in view-only mode");
+        return;
+      }
+
       try {
         const updatedPage = await api.updatePage(selectedPage.id, updates);
         // Update local state directly instead of refreshing all notebooks
@@ -210,7 +216,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         );
 
         // Update the cache with the latest page data
-        setPageCache(prev => new Map(prev.set(selectedPage.id, convertedPage)));
+        setPageCache(
+          (prev) => new Map(prev.set(selectedPage.id, convertedPage))
+        );
       } catch (error) {
         // Handle error silently
       }
@@ -243,7 +251,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         }
 
         // Update the cache with the renamed page
-        setPageCache(prev => new Map(prev.set(page.id, convertedPage)));
+        setPageCache((prev) => new Map(prev.set(page.id, convertedPage)));
 
         setRenameDialogOpen(false);
       } catch (error) {
@@ -279,7 +287,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         }
 
         // Remove the deleted page from cache
-        setPageCache(prev => {
+        setPageCache((prev) => {
           const newCache = new Map(prev);
           newCache.delete(pageToEdit.id);
           return newCache;
@@ -304,7 +312,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
             // Cache the restored page
             const convertedPage = convertPageToFrontendType(restoredPage);
-            setPageCache(prev => new Map(prev.set(restoredPage.id, convertedPage)));
+            setPageCache(
+              (prev) => new Map(prev.set(restoredPage.id, convertedPage))
+            );
           },
         });
       } catch (error) {

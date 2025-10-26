@@ -13,6 +13,7 @@ interface TextBoxProps {
   onPositionChange: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
   onRemove: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
 export default function TextBox({
@@ -20,6 +21,7 @@ export default function TextBox({
   onPositionChange,
   onTextChange,
   onRemove,
+  isReadOnly = false,
 }: TextBoxProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -38,6 +40,7 @@ export default function TextBox({
   }, [isEditing]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isReadOnly) return;
     if ((e.target as HTMLElement)?.closest?.(".drag-handle")) {
       setIsDragging(true);
       dragRef.current = {
@@ -77,6 +80,7 @@ export default function TextBox({
   };
 
   const handleDoubleClick = () => {
+    if (isReadOnly) return;
     setIsEditing(true);
   };
 
@@ -93,19 +97,21 @@ export default function TextBox({
       onMouseLeave={handleMouseUp}
     >
       <div className="bg-transparent border-2 border-dashed border-transparent group-hover:border-border rounded-lg min-w-[200px]">
-        <div
-          className="flex items-center justify-between px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity drag-handle cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-        >
-          <GripVertical size={12} className="text-muted-foreground" />
-          <button
-            onClick={() => onRemove(textBox.id)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+        {!isReadOnly && (
+          <div
+            className="flex items-center justify-between px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity drag-handle cursor-grab active:cursor-grabbing"
+            onMouseDown={handleMouseDown}
           >
-            <X size={12} />
-          </button>
-        </div>
-        {isEditing ? (
+            <GripVertical size={12} className="text-muted-foreground" />
+            <button
+              onClick={() => onRemove(textBox.id)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+        {isEditing && !isReadOnly ? (
           <textarea
             ref={textareaRef}
             value={text}
@@ -117,9 +123,11 @@ export default function TextBox({
         ) : (
           <div
             onDoubleClick={handleDoubleClick}
-            className="p-2 min-h-[60px] cursor-text text-foreground whitespace-pre-wrap"
+            className={`p-2 min-h-[60px] text-foreground whitespace-pre-wrap ${
+              isReadOnly ? "cursor-grab" : "cursor-text"
+            }`}
           >
-            {text || "Double-click to edit"}
+            {text || (isReadOnly ? "" : "Double-click to edit")}
           </div>
         )}
       </div>

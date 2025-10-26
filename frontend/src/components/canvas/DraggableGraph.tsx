@@ -28,53 +28,77 @@ interface DraggableGraphProps {
   onRemove: (id: string) => void;
   onUpdateGraph?: (id: string, newGraphSpec: GraphSpec) => void;
   onSizeChange?: (id: string, width: number, height: number) => void;
-  onCameraChange?: (id: string, cameraState: {
-    position: [number, number, number];
-    rotation: [number, number, number];
-    zoom: number;
-  }) => void;
+  onCameraChange?: (
+    id: string,
+    cameraState: {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      zoom: number;
+    }
+  ) => void;
+  isReadOnly?: boolean;
 }
 
 // Helper function to get chart type display name
 const getChartTypeDisplay = (graph: GraphData): string => {
   if (graph.graphSpec) {
     switch (graph.graphSpec.graphType) {
-      case 'chart':
+      case "chart":
         if (graph.graphSpec.chart) {
           const chartKind = graph.graphSpec.chart.kind;
           switch (chartKind) {
-            case 'bar': return 'Bar Chart';
-            case 'line': return 'Line Chart';
-            case 'scatter': return 'Scatter Plot';
-            case 'pie': return 'Pie Chart';
-            case 'area': return 'Area Chart';
-            case 'histogram': return 'Histogram';
-            default: return 'Chart';
+            case "bar":
+              return "Bar Chart";
+            case "line":
+              return "Line Chart";
+            case "scatter":
+              return "Scatter Plot";
+            case "pie":
+              return "Pie Chart";
+            case "area":
+              return "Area Chart";
+            case "histogram":
+              return "Histogram";
+            default:
+              return "Chart";
           }
         }
-        return 'Chart';
-      case 'statistical':
+        return "Chart";
+      case "statistical":
         if (graph.graphSpec.statistics) {
           const statsKind = graph.graphSpec.statistics.kind;
           switch (statsKind) {
-            case 'distribution': return 'Distribution Analysis';
-            case 'correlation': return 'Correlation Analysis';
-            case 'regression': return 'Regression Analysis';
-            case 'anova': return 'ANOVA Box Plot';
-            default: return 'Statistical Analysis';
+            case "distribution":
+              return "Distribution Analysis";
+            case "correlation":
+              return "Correlation Analysis";
+            case "regression":
+              return "Regression Analysis";
+            case "anova":
+              return "ANOVA Box Plot";
+            default:
+              return "Statistical Analysis";
           }
         }
-        return 'Statistical Analysis';
-      case 'mathematical':
-        return 'Mathematical Graph';
+        return "Statistical Analysis";
+      case "mathematical":
+        return "Mathematical Graph";
       default:
-        return 'Graph';
+        return "Graph";
     }
   }
-  return 'Graph';
+  return "Graph";
 };
 
-export default function DraggableGraph({ graph, onPositionChange, onRemove, onUpdateGraph, onSizeChange, onCameraChange }: DraggableGraphProps) {
+export default function DraggableGraph({
+  graph,
+  onPositionChange,
+  onRemove,
+  onUpdateGraph,
+  onSizeChange,
+  onCameraChange,
+  isReadOnly = false,
+}: DraggableGraphProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState("");
@@ -90,10 +114,19 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showFunctionInput, setShowFunctionInput] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
-  const resizeRef = useRef({ startX: 0, startY: 0, initialWidth: 0, initialHeight: 0, initialX: 0, initialY: 0 });
+  const resizeRef = useRef({
+    startX: 0,
+    startY: 0,
+    initialWidth: 0,
+    initialHeight: 0,
+    initialX: 0,
+    initialY: 0,
+  });
   const audioService = useRef(new AudioRecordingService());
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isReadOnly) return;
+
     // Check if clicking on resize handle
     const resizeHandle = (e.target as Element).closest(".resize-handle");
     if (resizeHandle) {
@@ -135,7 +168,7 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
     } else if (isResizing) {
       const deltaX = e.clientX - resizeRef.current.startX;
       const deltaY = e.clientY - resizeRef.current.startY;
-      
+
       let newWidth = resizeRef.current.initialWidth;
       let newHeight = resizeRef.current.initialHeight;
       let newX = resizeRef.current.initialX;
@@ -177,10 +210,12 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
 
   const handleRegenerateGraph = async () => {
     if (!functionInput.trim() || !onUpdateGraph) return;
-    
+
     try {
       setIsRegenerating(true);
-      const newGraphSpec = await audioService.current.interpretTranscription(functionInput.trim());
+      const newGraphSpec = await audioService.current.interpretTranscription(
+        functionInput.trim()
+      );
       onUpdateGraph(graph.id, newGraphSpec);
       setShowFunctionInput(false);
       setFunctionInput("");
@@ -207,65 +242,87 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        cursor: isDragging ? "grabbing" : isResizing ? "grabbing" : "default",
+        cursor: isReadOnly
+          ? "grab"
+          : isDragging
+          ? "grabbing"
+          : isResizing
+          ? "grabbing"
+          : "default",
       }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div 
+      <div
         className="bg-card border-2 border-border rounded-lg shadow-lg overflow-hidden relative"
-        style={{ 
-          width: `${size.width}px`, 
-          height: `${showFunctionInput ? size.height + 90 : size.height}px` 
+        style={{
+          width: `${size.width}px`,
+          height: `${showFunctionInput ? size.height + 90 : size.height}px`,
         }}
       >
         <div
-          className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50 drag-handle cursor-grab active:cursor-grabbing"
+          className={`flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50 ${
+            isReadOnly ? "" : "drag-handle cursor-grab active:cursor-grabbing"
+          }`}
           onMouseDown={handleMouseDown}
         >
           <div className="flex items-center gap-2">
-            <GripVertical size={14} className="text-muted-foreground" />
+            {!isReadOnly && (
+              <GripVertical size={14} className="text-muted-foreground" />
+            )}
             <span className="text-xs font-medium select-none">
               {getChartTypeDisplay(graph)}
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            {onUpdateGraph && (
+          {!isReadOnly && (
+            <div className="flex items-center gap-1">
+              {onUpdateGraph && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFunctionInput(!showFunctionInput);
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                  title="Edit function definition"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowFunctionInput(!showFunctionInput);
-                }}
+                onClick={() => onRemove(graph.id)}
                 className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                title="Edit function definition"
               >
-                <Edit3 size={14} />
+                <X size={14} />
               </button>
-            )}
-            <button
-              onClick={() => onRemove(graph.id)}
-              className="text-muted-foreground hover:text-foreground transition-colors p-1"
-            >
-              <X size={14} />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
         <div className="pointer-events-auto p-4">
           {graph.graphSpec ? (
-            <div style={{ width: `${size.width - 32}px`, height: `${size.height - 100}px` }}>
-              <GraphRouter 
-                graphSpec={graph.graphSpec} 
-                width={size.width - 32} 
+            <div
+              style={{
+                width: `${size.width - 32}px`,
+                height: `${size.height - 100}px`,
+              }}
+            >
+              <GraphRouter
+                graphSpec={graph.graphSpec}
+                width={size.width - 32}
                 height={size.height - 100}
                 cameraState={graph.cameraState}
-                onCameraChange={(cameraState) => onCameraChange?.(graph.id, cameraState)}
+                onCameraChange={(cameraState) =>
+                  onCameraChange?.(graph.id, cameraState)
+                }
               />
             </div>
           ) : (
-            <div 
+            <div
               className="bg-muted/50 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center"
-              style={{ width: `${size.width - 32}px`, height: `${size.height - 100}px` }}
+              style={{
+                width: `${size.width - 32}px`,
+                height: `${size.height - 100}px`,
+              }}
             >
               <div className="text-center text-muted-foreground">
                 <div className="text-4xl mb-2">📊</div>
@@ -277,7 +334,7 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
             </div>
           )}
         </div>
-        
+
         {/* Function Definition Input */}
         {showFunctionInput && onUpdateGraph && (
           <div className="border-t border-border p-3 bg-muted/30">
@@ -319,18 +376,50 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
             </div>
           </div>
         )}
-        
-        {/* Resize Handles - Only show when not in function input mode */}
-        {!showFunctionInput && (
+
+        {/* Resize Handles - Only show when not in function input mode and not read-only */}
+        {!showFunctionInput && !isReadOnly && (
           <>
-            <div className="resize-handle absolute top-0 left-0 w-2 h-2 cursor-nw-resize" data-direction="top-left" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute top-0 right-0 w-2 h-2 cursor-ne-resize" data-direction="top-right" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute bottom-0 left-0 w-2 h-2 cursor-sw-resize" data-direction="bottom-left" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute bottom-0 right-0 w-2 h-2 cursor-se-resize" data-direction="bottom-right" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-2 cursor-n-resize" data-direction="top" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-2 cursor-s-resize" data-direction="bottom" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute left-0 top-1/2 transform -translate-y-1/2 w-2 h-2 cursor-w-resize" data-direction="left" onMouseDown={handleMouseDown}></div>
-            <div className="resize-handle absolute right-0 top-1/2 transform -translate-y-1/2 w-2 h-2 cursor-e-resize" data-direction="right" onMouseDown={handleMouseDown}></div>
+            <div
+              className="resize-handle absolute top-0 left-0 w-2 h-2 cursor-nw-resize"
+              data-direction="top-left"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute top-0 right-0 w-2 h-2 cursor-ne-resize"
+              data-direction="top-right"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute bottom-0 left-0 w-2 h-2 cursor-sw-resize"
+              data-direction="bottom-left"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute bottom-0 right-0 w-2 h-2 cursor-se-resize"
+              data-direction="bottom-right"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-2 cursor-n-resize"
+              data-direction="top"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-2 cursor-s-resize"
+              data-direction="bottom"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute left-0 top-1/2 transform -translate-y-1/2 w-2 h-2 cursor-w-resize"
+              data-direction="left"
+              onMouseDown={handleMouseDown}
+            ></div>
+            <div
+              className="resize-handle absolute right-0 top-1/2 transform -translate-y-1/2 w-2 h-2 cursor-e-resize"
+              data-direction="right"
+              onMouseDown={handleMouseDown}
+            ></div>
           </>
         )}
       </div>
