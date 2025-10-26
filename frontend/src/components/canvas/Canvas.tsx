@@ -27,6 +27,8 @@ export default function Canvas({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isInterpreting, setIsInterpreting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [error, setError] = useState("");
   // Initialize stroke color based on current theme
@@ -244,16 +246,8 @@ export default function Canvas({
   const handleSaveDrawing = async () => {
     if (!canvasRef.current || isReadOnly) return;
 
-    // Clear any pending saves
-    if (saveDrawingTimeoutRef.current) {
-      clearTimeout(saveDrawingTimeoutRef.current);
-    }
-
-    // Debounce the save - wait 500ms after drawing stops
-    saveDrawingTimeoutRef.current = setTimeout(async () => {
-      const paths = await canvasRef.current.exportPaths();
-      onUpdatePage({ drawings: paths });
-    }, 500);
+    // Mark that drawing changes have been made
+    markAsChanged();
   };
 
   // Load and restore page content when page changes
@@ -262,10 +256,18 @@ export default function Canvas({
 
     const loadPageContent = async () => {
       try {
+        console.log("Loading page content for page:", page.id);
+        console.log("Page drawings:", page.drawings);
+        console.log("Page textBoxes:", page.textBoxes);
+        console.log("Page graphs:", page.graphs);
+        
         // Restore drawings if they exist
         if (page.drawings && page.drawings.paths && page.drawings.paths.length > 0) {
+          console.log("Loading drawing paths:", page.drawings.paths);
           await canvasRef.current.loadPaths(page.drawings.paths);
+          console.log("Drawing paths loaded successfully");
         } else {
+          console.log("No drawings to load, clearing canvas");
           // Clear canvas if no drawings
           await canvasRef.current.clearCanvas();
         }
@@ -277,17 +279,13 @@ export default function Canvas({
     loadPageContent();
   }, [page?.id]); // Only reload when page ID changes
 
-  // Auto-save page state when content changes
-  useEffect(() => {
-    if (!page) return;
+  // Mark that changes have been made
+  const markAsChanged = () => {
+    setHasUnsavedChanges(true);
+  };
 
-    // Debounced save - wait 1 second after any change
-    const saveTimeout = setTimeout(() => {
-      savePageState();
-    }, 1000);
-
-    return () => clearTimeout(saveTimeout);
-  }, [page?.drawings, page?.textBoxes, page?.graphs, page?.title]);
+  // Removed auto-save to prevent state conflicts and blinking
+  // Saves will now only happen on manual button press or specific user actions
 
   const handleAddGraph = (graphData: any) => {
     if (!page) return;
@@ -298,6 +296,7 @@ export default function Canvas({
       ...graphData,
     });
     onUpdatePage({ graphs });
+    markAsChanged();
   };
 
   // Manual save function for immediate saving
@@ -306,8 +305,7 @@ export default function Canvas({
     
     try {
       await savePageState();
-      // Show a brief success indicator
-      console.log("Page saved successfully");
+      console.log("Manual save completed");
     } catch (error) {
       console.error("Failed to save page:", error);
     }
@@ -318,6 +316,7 @@ export default function Canvas({
     
     const graphs = (page.graphs || []).filter((g) => g.id !== graphId);
     onUpdatePage({ graphs });
+    markAsChanged();
   };
 
   const handleUpdateGraphPosition = (graphId: string, x: number, y: number) => {
@@ -327,6 +326,7 @@ export default function Canvas({
       g.id === graphId ? { ...g, x, y } : g
     );
     onUpdatePage({ graphs });
+    markAsChanged();
   };
 
   const handleUpdateGraph = (graphId: string, newGraphSpec: any) => {
@@ -338,6 +338,7 @@ export default function Canvas({
         : g
     );
     onUpdatePage({ graphs });
+    markAsChanged();
   };
 
   const handleSizeChange = (graphId: string, width: number, height: number) => {
@@ -347,6 +348,7 @@ export default function Canvas({
       g.id === graphId ? { ...g, size: { width, height } } : g
     );
     onUpdatePage({ graphs });
+    markAsChanged();
   };
 
   const handleAddTextBoxAt = (x: number, y: number) => {
@@ -364,6 +366,7 @@ export default function Canvas({
     };
     textBoxes.push(newTextBox);
     onUpdatePage({ textBoxes });
+    markAsChanged();
 
     // Switch back to select tool after placing text
     setTool("select");
@@ -374,6 +377,7 @@ export default function Canvas({
     
     const textBoxes = (page.textBoxes || []).filter((t) => t.id !== textBoxId);
     onUpdatePage({ textBoxes });
+    markAsChanged();
   };
 
   const handleUpdateTextBoxPosition = (
@@ -387,6 +391,7 @@ export default function Canvas({
       t.id === textBoxId ? { ...t, position: { x, y } } : t
     );
     onUpdatePage({ textBoxes });
+    markAsChanged();
   };
 
   const handleUpdateTextBoxText = (textBoxId: string, text: string) => {
@@ -396,17 +401,23 @@ export default function Canvas({
       t.id === textBoxId ? { ...t, text } : t
     );
     onUpdatePage({ textBoxes });
+    markAsChanged();
   };
 
-  // Save complete page state when any content changes
+  // Save complete page state when manually triggered
   const savePageState = async () => {
-    if (!page || isReadOnly) return;
+    if (!page || isReadOnly) {
+      console.log("Cannot save: no page or read-only mode");
+      return;
+    }
 
     try {
       setIsSaving(true);
+      console.log("Starting to save page state...");
       
       // Get current drawing paths
       const paths = canvasRef.current ? await canvasRef.current.exportPaths() : null;
+      console.log("Drawing paths:", paths);
       
       // Prepare the complete page state
       const pageState = {
@@ -415,8 +426,16 @@ export default function Canvas({
         graphs: page.graphs || [],
       };
 
+      console.log("Saving page state:", pageState);
+
       // Save to database
       await onUpdatePage(pageState);
+      setHasUnsavedChanges(false);
+      setSaveSuccess(true);
+      console.log("Page saved successfully to database");
+      
+      // Hide success message after 2 seconds
+      setTimeout(() => setSaveSuccess(false), 2000);
     } catch (error) {
       console.error("Failed to save page state:", error);
     } finally {
@@ -594,11 +613,11 @@ export default function Canvas({
 
                   {/* Save Button */}
                   <Button
-                    variant="ghost"
+                    variant={hasUnsavedChanges ? "default" : "ghost"}
                     size="icon"
-                    className="h-9 w-9 hover:bg-muted"
+                    className={`h-9 w-9 ${hasUnsavedChanges ? "bg-blue-500 hover:bg-blue-600 text-white" : "hover:bg-muted"}`}
                     onClick={handleManualSave}
-                    title="Save Page (Ctrl+S)"
+                    title={hasUnsavedChanges ? "Save Page (Ctrl+S) - Unsaved Changes" : "Save Page (Ctrl+S)"}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -914,14 +933,21 @@ export default function Canvas({
                 </h1>
               )}
               {page.createdAt && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {new Date(page.createdAt).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(page.createdAt).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                  {hasUnsavedChanges && (
+                    <span className="text-xs text-orange-500 font-medium">
+                      • Unsaved changes
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1017,6 +1043,25 @@ export default function Canvas({
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               <span className="text-sm font-medium">Saving...</span>
+            </div>
+          )}
+
+          {saveSuccess && (
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              <span className="text-sm font-medium">Saved!</span>
             </div>
           )}
 
