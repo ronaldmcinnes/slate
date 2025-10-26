@@ -91,6 +91,11 @@ export interface Graph {
   config?: any;
   position: { x: number; y: number };
   size: { width: number; height: number };
+  cameraState?: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  };
 }
 
 export interface TextBox {

@@ -52,6 +52,16 @@ interface ThreeJSGraphProps {
   graphSpec: GraphSpec;
   width?: number;
   height?: number;
+  cameraState?: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  };
+  onCameraChange?: (cameraState: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  }) => void;
 }
 
 // Validate GraphSpec to prevent Canvas errors
@@ -877,7 +887,9 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
 const ThreeJSGraph: React.FC<ThreeJSGraphProps> = ({ 
   graphSpec, 
   width = 400, 
-  height = 300 
+  height = 300,
+  cameraState,
+  onCameraChange
 }) => {
   // Validate GraphSpec before rendering
   if (!validateGraphSpec(graphSpec)) {
@@ -899,7 +911,12 @@ const ThreeJSGraph: React.FC<ThreeJSGraphProps> = ({
     <div style={{ width, height }} className="border border-gray-300 rounded-lg overflow-hidden">
       <ThreeJSErrorBoundary>
         <Canvas 
-          camera={{ position: [0, 0, 15], fov: 50 }}
+          camera={{ 
+            position: cameraState?.position || [0, 0, 15], 
+            fov: 50,
+            rotation: cameraState?.rotation || [0, 0, 0],
+            zoom: cameraState?.zoom || 1
+          }}
           gl={{ 
             antialias: true, 
             alpha: true, 
@@ -996,6 +1013,16 @@ const ThreeJSGraph: React.FC<ThreeJSGraphProps> = ({
           enableRotate={true}
           minDistance={5}
           maxDistance={50}
+          onChange={(e) => {
+            if (onCameraChange && e?.target) {
+              const camera = e.target.object;
+              onCameraChange({
+                position: [camera.position.x, camera.position.y, camera.position.z],
+                rotation: [camera.rotation.x, camera.rotation.y, camera.rotation.z],
+                zoom: camera.zoom
+              });
+            }
+          }}
         />
         </Canvas>
       </ThreeJSErrorBoundary>

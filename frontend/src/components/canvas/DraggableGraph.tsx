@@ -15,6 +15,11 @@ interface GraphData {
   layout?: any;
   graphSpec?: GraphSpec; // For Three.js mathematical graphs
   size?: { width: number; height: number };
+  cameraState?: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  };
 }
 
 interface DraggableGraphProps {
@@ -23,6 +28,11 @@ interface DraggableGraphProps {
   onRemove: (id: string) => void;
   onUpdateGraph?: (id: string, newGraphSpec: GraphSpec) => void;
   onSizeChange?: (id: string, width: number, height: number) => void;
+  onCameraChange?: (id: string, cameraState: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  }) => void;
 }
 
 // Helper function to get chart type display name
@@ -64,7 +74,7 @@ const getChartTypeDisplay = (graph: GraphData): string => {
   return 'Graph';
 };
 
-export default function DraggableGraph({ graph, onPositionChange, onRemove, onUpdateGraph, onSizeChange }: DraggableGraphProps) {
+export default function DraggableGraph({ graph, onPositionChange, onRemove, onUpdateGraph, onSizeChange, onCameraChange }: DraggableGraphProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState("");
@@ -247,7 +257,9 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
               <GraphRouter 
                 graphSpec={graph.graphSpec} 
                 width={size.width - 32} 
-                height={size.height - 100} 
+                height={size.height - 100}
+                cameraState={graph.cameraState}
+                onCameraChange={(cameraState) => onCameraChange?.(graph.id, cameraState)}
               />
             </div>
           ) : (
