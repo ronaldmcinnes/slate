@@ -122,24 +122,6 @@ export default function LoginPage() {
                   Collaborate with others in real-time
                 </p>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mt-0.5">
-                  <svg
-                    className="w-3 h-3 text-blue-600 dark:text-blue-400"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path d="M5 13l4 4L19 7"></path>
-                  </svg>
-                </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Organize with tags and full-text search
-                </p>
-              </div>
             </div>
           </div>
         </div>
