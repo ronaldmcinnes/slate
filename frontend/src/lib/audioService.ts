@@ -218,7 +218,7 @@ Use standard math notation: x^2, sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x)
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text }
         ],
-        temperature: 0.1,
+        temperature: 0.7,
         max_completion_tokens: 5000
       }),
     });

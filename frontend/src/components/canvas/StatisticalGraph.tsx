@@ -22,6 +22,20 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Get device pixel ratio for crisp rendering on high-DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set the actual canvas size in memory (scaled to account for extra pixel density)
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    
+    // Scale the canvas back down using CSS
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    
+    // Scale the drawing context so everything will work at the higher ratio
+    ctx.scale(dpr, dpr);
+
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
@@ -32,23 +46,23 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     // Draw statistical visualization based on type
     switch (statistics.kind) {
       case 'distribution':
-        drawDistribution(ctx, statistics, width, height);
+        drawDistribution(ctx, statistics, width, height, statistics.title);
         break;
       case 'correlation':
-        drawCorrelation(ctx, statistics, width, height);
+        drawCorrelation(ctx, statistics, width, height, statistics.title);
         break;
       case 'regression':
-        drawRegression(ctx, statistics, width, height);
+        drawRegression(ctx, statistics, width, height, statistics.title);
         break;
       case 'anova':
-        drawANOVA(ctx, statistics, width, height);
+        drawANOVA(ctx, statistics, width, height, statistics.title);
         break;
       default:
         console.warn('Unsupported statistical type:', statistics.kind);
     }
   }, [graphSpec, width, height]);
 
-  const drawDistribution = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number) => {
+  const drawDistribution = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number, title?: string) => {
     const data = stats.data as number[];
     const { mean, stdDev } = stats.parameters || {};
     const { showHistogram = true, showCurve = true, bins = 10 } = stats.visualization || {};
@@ -61,7 +75,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.fillStyle = '#333';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Distribution Analysis', width / 2, 25);
+    ctx.fillText(title || 'Distribution Analysis', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -184,7 +198,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     }
   };
 
-  const drawCorrelation = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number) => {
+  const drawCorrelation = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number, title?: string) => {
     const data = stats.data as { x: number; y: number }[];
     const { correlation } = stats.parameters || {};
     
@@ -205,7 +219,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.fillStyle = '#333';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Correlation Analysis', width / 2, 25);
+    ctx.fillText(title || 'Correlation Analysis', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -296,7 +310,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     }
   };
 
-  const drawRegression = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number) => {
+  const drawRegression = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number, title?: string) => {
     const data = stats.data as { x: number; y: number }[];
     const { regression } = stats.parameters || {};
     
@@ -317,7 +331,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.fillStyle = '#333';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Regression Analysis', width / 2, 25);
+    ctx.fillText(title || 'Regression Analysis', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -423,7 +437,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     }
   };
 
-  const drawANOVA = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number) => {
+  const drawANOVA = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number, title?: string) => {
     const data = stats.data as number[];
     
     const margin = 60;
@@ -434,7 +448,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.fillStyle = '#333';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('ANOVA Box Plot', width / 2, 25);
+    ctx.fillText(title || 'ANOVA Box Plot', width / 2, 25);
     
     // Create box plot
     const sortedData = [...data].sort((a, b) => a - b);

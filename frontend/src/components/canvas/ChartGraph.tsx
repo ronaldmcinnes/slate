@@ -35,6 +35,20 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Get device pixel ratio for crisp rendering on high-DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set the actual canvas size in memory (scaled to account for extra pixel density)
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    
+    // Scale the canvas back down using CSS
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    
+    // Scale the drawing context so everything will work at the higher ratio
+    ctx.scale(dpr, dpr);
+
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
