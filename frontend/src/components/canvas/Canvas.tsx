@@ -463,6 +463,8 @@ export default function Canvas({
                   height: "100%",
                 }}
                 onChange={handleSaveDrawing}
+                allowOnlyPointerType="all"
+                preserveBackgroundImageAspectRatio="none"
               />
             </div>
           )}

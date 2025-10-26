@@ -77,4 +77,14 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  @keyframes bounceX {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(4px);
+    }
+  }
 }

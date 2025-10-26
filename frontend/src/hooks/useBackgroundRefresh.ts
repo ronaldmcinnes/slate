@@ -29,8 +29,9 @@ export function useBackgroundRefresh({
   const refreshNotebooks = useCallback(async () => {
     if (onNotebooksUpdated) {
       try {
-        const notebooks = await getNotebooks(true);
-        onNotebooksUpdated(notebooks);
+        const { owned, shared } = await getNotebooks(true);
+        const allNotebooks = [...owned, ...shared];
+        onNotebooksUpdated(allNotebooks);
       } catch (error) {
         console.error("Background refresh failed for notebooks:", error);
       }

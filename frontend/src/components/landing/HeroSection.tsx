@@ -5,16 +5,16 @@ import { AnimatedSlateLogo } from "./hero/animateSlateLogo";
 
 export default function HeroSection() {
   return (
-    <section className="relative w-full min-h-screen overflow-hidden">
+    <section className="relative w-full min-h-screen overflow-hidden bg-black">
       {/* Hero Background */}
       <div className="absolute inset-0 z-0 flex flex-col">
-        <div className="flex-1 bg-background"></div>
+        <div className="flex-1 bg-black"></div>
         <HeroTopo />
       </div>
 
       {/* Hero Content */}
       <div className="relative z-10 flex justify-center min-h-screen pointer-events-none">
-        <div className="justify-center text-center px-4 max-w-4xl pt-[5%]">
+        <div className="justify-center text-center px-4 max-w-4xl pt-[7%]">
           <div className="flex justify-center text-6xl md:text-[10rem] font-bold text-foreground mb-none leading-tight drop-shadow-2xl">
             <AnimatedSlateLogo
               className="w-[200%] -ml-[50%]"
@@ -22,17 +22,20 @@ export default function HeroSection() {
               duration={3000}
             />
           </div>
-          <p className="-mt-[5%] text-xl md:text-2xl text-foreground/90 mb-24 max-w-2xl mx-auto drop-shadow-lg">
+          <p className="-mt-[5%] text-xl md:text-2xl text-foreground/90 mb-8 max-w-2xl mx-auto drop-shadow-lg">
             Draw, graph, and write – all in one beautiful workspace.
           </p>
           <div className="flex items-center justify-center gap-4 pointer-events-auto">
-            {/*             <Button
+            <Button
               size="lg"
               onClick={() => (window.location.href = "/login")}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 text-lg font-semibold shadow-2xl"
+              className="bg-white hover:bg-gray-100 text-black px-8 h-14 text-lg font-semibold shadow-2xl"
             >
-              Start for Free →
-            </Button> */}
+              Fill your blank Slate now
+              <span className="ml-2 inline-block animate-[bounceX_1s_ease-in-out_infinite]">
+                →
+              </span>
+            </Button>
           </div>
         </div>
       </div>
