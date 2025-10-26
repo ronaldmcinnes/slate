@@ -277,6 +277,9 @@ export default function Canvas({
         console.log("Page textBoxes:", page.textBoxes);
         console.log("Page graphs:", page.graphs);
 
+        // Wait a bit to ensure the canvas is fully mounted and ready
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // Restore drawings if they exist
         if (page.drawings) {
           let drawingData = null;
@@ -319,7 +322,7 @@ export default function Canvas({
     };
 
     loadPageContent();
-  }, [page?.id]);
+  }, [page?.id, page?.drawings, page?.textBoxes, page?.graphs]);
 
   // Focus input when editing title
   useEffect(() => {

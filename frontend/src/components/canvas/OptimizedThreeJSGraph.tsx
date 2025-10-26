@@ -76,10 +76,10 @@ const OptimizedGraphMesh: React.FC<{
       viewport || { x: 0, y: 0, width: 800, height: 600, zoom: 1 }
     );
 
-    // Adjust resolution based on LOD
+    // Adjust resolution based on LOD - less aggressive reduction
     const finalResolution = Math.floor(
       optimalResolution *
-        (lodLevel === "low" ? 0.3 : lodLevel === "medium" ? 0.6 : 1.0)
+        (lodLevel === "low" ? 0.6 : lodLevel === "medium" ? 0.8 : 1.0)
     );
 
     // Clear existing children
@@ -122,9 +122,9 @@ const OptimizedGraphMesh: React.FC<{
     // Create optimized geometry
     geometry = new THREE.BufferGeometry().setFromPoints(points);
 
-    // Optimize geometry based on performance requirements
+    // Optimize geometry based on performance requirements - increased limits
     const maxTriangles =
-      lodLevel === "low" ? 5000 : lodLevel === "medium" ? 15000 : 50000;
+      lodLevel === "low" ? 15000 : lodLevel === "medium" ? 30000 : 100000;
     geometry = optimizeGeometry(geometry, maxTriangles);
 
     // Use shared materials
