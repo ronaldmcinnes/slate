@@ -26,6 +26,7 @@ export default function Canvas({
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isInterpreting, setIsInterpreting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [error, setError] = useState("");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -148,6 +149,11 @@ export default function Canvas({
         e.preventDefault();
         handleRedo();
       }
+      // Ctrl+S - Save
+      else if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+        handleManualSave();
+      }
       // T - Text tool
       else if (
         (e.key === "t" || e.key === "T") &&
@@ -190,23 +196,9 @@ export default function Canvas({
     }
   }, [tool, page]);
 
-  if (!page) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-muted/30">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">📓</div>
-          <h3 className="text-xl font-medium text-foreground mb-2">
-            No page selected
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Select a page from your notebook to start drawing
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const handleExport = async () => {
+    if (!page) return;
+    
     const image = await canvasRef.current?.exportImage("png");
     if (image) {
       const link = document.createElement("a");
@@ -231,7 +223,42 @@ export default function Canvas({
     }, 500);
   };
 
+  // Load and restore page content when page changes
+  useEffect(() => {
+    if (!page || !canvasRef.current) return;
+
+    const loadPageContent = async () => {
+      try {
+        // Restore drawings if they exist
+        if (page.drawings && page.drawings.paths && page.drawings.paths.length > 0) {
+          await canvasRef.current.loadPaths(page.drawings.paths);
+        } else {
+          // Clear canvas if no drawings
+          await canvasRef.current.clearCanvas();
+        }
+      } catch (error) {
+        console.error("Failed to load page content:", error);
+      }
+    };
+
+    loadPageContent();
+  }, [page?.id]); // Only reload when page ID changes
+
+  // Auto-save page state when content changes
+  useEffect(() => {
+    if (!page) return;
+
+    // Debounced save - wait 1 second after any change
+    const saveTimeout = setTimeout(() => {
+      savePageState();
+    }, 1000);
+
+    return () => clearTimeout(saveTimeout);
+  }, [page?.drawings, page?.textBoxes, page?.graphs, page?.title]);
+
   const handleAddGraph = (graphData: any) => {
+    if (!page) return;
+    
     const graphs = page.graphs || [];
     graphs.push({
       id: Date.now(),
@@ -240,12 +267,29 @@ export default function Canvas({
     onUpdatePage({ graphs });
   };
 
+  // Manual save function for immediate saving
+  const handleManualSave = async () => {
+    if (!page || isReadOnly) return;
+    
+    try {
+      await savePageState();
+      // Show a brief success indicator
+      console.log("Page saved successfully");
+    } catch (error) {
+      console.error("Failed to save page:", error);
+    }
+  };
+
   const handleRemoveGraph = (graphId: string) => {
+    if (!page) return;
+    
     const graphs = (page.graphs || []).filter((g) => g.id !== graphId);
     onUpdatePage({ graphs });
   };
 
   const handleUpdateGraphPosition = (graphId: string, x: number, y: number) => {
+    if (!page) return;
+    
     const graphs = page.graphs.map((g) =>
       g.id === graphId ? { ...g, x, y } : g
     );
@@ -253,6 +297,8 @@ export default function Canvas({
   };
 
   const handleUpdateGraph = (graphId: string, newGraphSpec: any) => {
+    if (!page) return;
+    
     const graphs = page.graphs.map((g) =>
       g.id === graphId
         ? { ...g, graphSpec: newGraphSpec, data: newGraphSpec }
@@ -262,6 +308,8 @@ export default function Canvas({
   };
 
   const handleSizeChange = (graphId: string, width: number, height: number) => {
+    if (!page) return;
+    
     const graphs = page.graphs.map((g) =>
       g.id === graphId ? { ...g, size: { width, height } } : g
     );
@@ -269,6 +317,8 @@ export default function Canvas({
   };
 
   const handleAddTextBoxAt = (x: number, y: number) => {
+    if (!page) return;
+    
     const textBoxes = page.textBoxes || [];
     const newTextBox = {
       id: Date.now().toString(),
@@ -287,6 +337,8 @@ export default function Canvas({
   };
 
   const handleRemoveTextBox = (textBoxId: string) => {
+    if (!page) return;
+    
     const textBoxes = (page.textBoxes || []).filter((t) => t.id !== textBoxId);
     onUpdatePage({ textBoxes });
   };
@@ -296,6 +348,8 @@ export default function Canvas({
     x: number,
     y: number
   ) => {
+    if (!page) return;
+    
     const textBoxes = (page.textBoxes || []).map((t) =>
       t.id === textBoxId ? { ...t, position: { x, y } } : t
     );
@@ -303,10 +357,38 @@ export default function Canvas({
   };
 
   const handleUpdateTextBoxText = (textBoxId: string, text: string) => {
+    if (!page) return;
+    
     const textBoxes = (page.textBoxes || []).map((t) =>
       t.id === textBoxId ? { ...t, text } : t
     );
     onUpdatePage({ textBoxes });
+  };
+
+  // Save complete page state when any content changes
+  const savePageState = async () => {
+    if (!page || isReadOnly) return;
+
+    try {
+      setIsSaving(true);
+      
+      // Get current drawing paths
+      const paths = canvasRef.current ? await canvasRef.current.exportPaths() : null;
+      
+      // Prepare the complete page state
+      const pageState = {
+        drawings: paths,
+        textBoxes: page.textBoxes || [],
+        graphs: page.graphs || [],
+      };
+
+      // Save to database
+      await onUpdatePage(pageState);
+    } catch (error) {
+      console.error("Failed to save page state:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGenerate = () => {
@@ -397,6 +479,23 @@ export default function Canvas({
     return "crosshair";
   };
 
+  // Early return for no page selected - must be after all hooks
+  if (!page) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-muted/30">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">📓</div>
+          <h3 className="text-xl font-medium text-foreground mb-2">
+            No page selected
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Select a page from your notebook to start drawing
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="flex-1 flex flex-col bg-background">
@@ -455,6 +554,33 @@ export default function Canvas({
                     >
                       <path d="M21 7v6h-6" />
                       <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+                    </svg>
+                  </Button>
+
+                  <div className="w-px h-6 bg-border mx-1" />
+
+                  {/* Save Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 hover:bg-muted"
+                    onClick={handleManualSave}
+                    title="Save Page (Ctrl+S)"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                      <polyline points="17,21 17,13 7,13 7,21" />
+                      <polyline points="7,3 7,8 15,8" />
                     </svg>
                   </Button>
 
@@ -816,7 +942,7 @@ export default function Canvas({
 
           {/* Interactive Graphs Overlay */}
           {page.graphs && page.graphs.length > 0 && (
-            <div className="absolute inset-0 pointer-events-auto">
+            <div className="absolute inset-0 pointer-events-none">
               <div className="relative w-full h-full">
                 {page.graphs.map(
                   (graph) =>
@@ -840,6 +966,13 @@ export default function Canvas({
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-pulse z-50">
               <div className="w-2 h-2 bg-destructive-foreground rounded-full"></div>
               <span className="text-sm font-medium">Recording...</span>
+            </div>
+          )}
+
+          {isSaving && (
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span className="text-sm font-medium">Saving...</span>
             </div>
           )}
 
