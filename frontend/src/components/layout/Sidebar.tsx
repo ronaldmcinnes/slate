@@ -71,10 +71,10 @@ export default function Sidebar({
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-center relative">
             <div
-              className="flex items-center justify-center gap-3 cursor-pointer"
+              className="flex items-center justify-center cursor-pointer"
               onClick={() => navigate("/")}
             >
-              <img src={slateLogo} alt="Slate Logo" className="w-8 h-8" />
+              <img src={slateLogo} alt="Slate Logo" className="w-10 h-10" />
               <img
                 src={slateHandwrittenLogo}
                 alt="Slate Handwritten"
