@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Lasso } from "lucide-react";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import ToolbarSettings from "./ToolbarSettings";
@@ -215,15 +214,6 @@ export default function CanvasToolbar({
               <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
               <path d="M13 13l6 6" />
             </svg>
-          </Button>
-          <Button
-            variant={tool === "lasso" ? "secondary" : "ghost"}
-            size="icon"
-            className={`h-9 w-9 ${tool === "lasso" ? "bg-muted" : ""}`}
-            onClick={() => onToolChange("lasso")}
-            title="Lasso Tool"
-          >
-            <Lasso size={18} />
           </Button>
 
           {/* Audio Recording */}

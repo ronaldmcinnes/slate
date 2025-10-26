@@ -16,6 +16,7 @@ import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
 import { useGraphOptimization } from "@/hooks/useGraphOptimization";
+import { useGraphPerformance } from "@/hooks/useGraphPerformance";
 import type { Page } from "@/types";
 
 interface CanvasProps {
@@ -320,8 +321,7 @@ export default function Canvas({
   }, [state.isEditingTitle]);
 
   // Determine if canvas should be interactive for drawing
-  const isDrawingTool =
-    state.tool !== "select" && state.tool !== "text" && state.tool !== "lasso";
+  const isDrawingTool = state.tool !== "select" && state.tool !== "text";
 
   // Get cursor style based on tool
   const getCursorStyle = () => {
@@ -330,7 +330,6 @@ export default function Canvas({
 
     if (state.tool === "text") return "text";
     if (state.tool === "select") return "default";
-    if (state.tool === "lasso") return "crosshair";
     if (state.tool === "eraser") return "default";
     return "crosshair";
   };
@@ -480,6 +479,13 @@ export default function Canvas({
             onSizeChange={handleSizeChange}
             onCameraChange={handleCameraChange}
             isReadOnly={isReadOnly}
+            viewport={{
+              x: 0,
+              y: 0,
+              width: state.canvasSize.width,
+              height: state.canvasSize.height,
+              zoom: 1,
+            }}
           />
 
           {/* Status Indicators */}

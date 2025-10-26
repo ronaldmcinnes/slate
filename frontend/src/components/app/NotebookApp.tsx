@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/authContext";
 import { useToast } from "@/lib/toastContext";
 import { useCanvasState } from "@/hooks/useCanvasState";
 import { useOptimizedData } from "@/hooks/useOptimizedData";
+import { useBackgroundRefresh } from "@/hooks/useBackgroundRefresh";
+import { ClipboardProvider } from "@/lib/clipboardContext";
 import type { Notebook, Page as SharedPage } from "@shared/types";
 import type { Page } from "@/types";
 
@@ -223,6 +225,8 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       setCurrentNotebook(newNotebook.id);
       setSelectedPage(null);
       setCurrentPage(null);
+      // Clear pages list when creating a new notebook
+      setPages([]);
     } catch (error) {
       console.error("Failed to create notebook:", error);
     }
@@ -499,8 +503,32 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     setColumnWidth("pagesList", width);
   };
 
+  const handlePageAdded = (newPage: Page) => {
+    // Add the new page to the current pages list
+    setPages((prevPages) => [...prevPages, newPage]);
+    // Select the new page
+    setSelectedPage(newPage);
+  };
+
+  const handlePageDeleted = (pageId: string) => {
+    // Remove the deleted page from the current pages list
+    setPages((prevPages) => prevPages.filter((page) => page.id !== pageId));
+    // If the deleted page was selected, clear selection
+    if (selectedPage?.id === pageId) {
+      setSelectedPage(null);
+      setCurrentPage(null);
+    }
+  };
+
+  // Set up background refresh for optimal user experience
+  useBackgroundRefresh({
+    selectedNotebook,
+    onPagesUpdated: setPages,
+    onNotebooksUpdated: setNotebooks,
+  });
+
   return (
-    <>
+    <ClipboardProvider>
       <div className="flex h-screen overflow-hidden bg-background text-foreground">
         <ResizablePanel
           defaultWidth={canvasState.columnWidths.sidebar}
@@ -545,7 +573,10 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             onCreatePage={handleCreatePage}
             onDeletePage={handleOpenDeleteDialog}
             onRenamePage={handleOpenRenameDialog}
+            onPageAdded={handlePageAdded}
+            onPageDeleted={handlePageDeleted}
             notebookSelected={!!selectedNotebook}
+            notebookId={selectedNotebook?.id}
             isLoading={loadingStates.pages}
           />
         </ResizablePanel>
@@ -583,6 +614,6 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         confirmButtonVariant="destructive"
       />
       <ToastContainer />
-    </>
+    </ClipboardProvider>
   );
 }

@@ -25,7 +25,6 @@ export interface CanvasState {
     highlighter: boolean;
     fountainPen: boolean;
     text: boolean;
-    lasso: boolean;
     graph: boolean;
     microphone: boolean;
   };
@@ -62,7 +61,6 @@ export function useCanvas(
       highlighter: boolean;
       fountainPen: boolean;
       text: boolean;
-      lasso: boolean;
       graph: boolean;
       microphone: boolean;
     };
@@ -111,7 +109,6 @@ export function useCanvas(
       highlighter: true,
       fountainPen: true,
       text: true,
-      lasso: true,
       graph: true,
       microphone: true,
     }

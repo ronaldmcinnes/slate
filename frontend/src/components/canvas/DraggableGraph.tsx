@@ -38,6 +38,15 @@ interface DraggableGraphProps {
     }
   ) => void;
   isReadOnly?: boolean;
+  isSelected?: boolean;
+  viewport?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    zoom: number;
+  };
+  graphCount?: number;
 }
 
 // Helper function to get chart type display name
@@ -99,6 +108,9 @@ export default function DraggableGraph({
   onSizeChange,
   onCameraChange,
   isReadOnly = false,
+  isSelected = false,
+  viewport,
+  graphCount = 1,
 }: DraggableGraphProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -256,7 +268,9 @@ export default function DraggableGraph({
       onMouseLeave={handleMouseUp}
     >
       <div
-        className="bg-card border-2 border-border rounded-lg shadow-lg overflow-hidden relative"
+        className={`bg-card border-2 rounded-lg shadow-lg overflow-hidden relative ${
+          isSelected ? "border-blue-500 bg-blue-50/20" : "border-border"
+        }`}
         style={{
           width: `${size.width}px`,
           height: `${showFunctionInput ? size.height + 90 : size.height}px`,
@@ -315,6 +329,8 @@ export default function DraggableGraph({
                 onCameraChange={(cameraState) =>
                   onCameraChange?.(graph.id, cameraState)
                 }
+                viewport={viewport}
+                graphCount={graphCount}
               />
             </div>
           ) : (

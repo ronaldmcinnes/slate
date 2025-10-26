@@ -13,6 +13,9 @@ import { cn } from "@/lib/utils";
 import CreatePageDialog from "@/components/dialogs/CreatePageDialog";
 import DropdownMenu from "@/components/menus/DropdownMenu";
 import { InlineLoadingSpinner } from "@/components/ui/loading-spinner";
+import { useClipboard } from "@/lib/clipboardContext";
+import { useToast } from "@/lib/toastContext";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { Page } from "@/types";
 
 interface PagesListProps {
@@ -22,7 +25,10 @@ interface PagesListProps {
   onCreatePage: (title: string) => void;
   onDeletePage: (page: Page) => void;
   onRenamePage: (page: Page) => void;
+  onPageAdded?: (page: Page) => void;
+  onPageDeleted?: (pageId: string) => void;
   notebookSelected: boolean;
+  notebookId?: string;
   isLoading?: boolean;
 }
 
@@ -33,10 +39,71 @@ export default function PagesList({
   onCreatePage,
   onDeletePage,
   onRenamePage,
+  onPageAdded,
+  onPageDeleted,
   notebookSelected,
+  notebookId,
   isLoading = false,
 }: PagesListProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const { addToast } = useToast();
+  const { copyPage, cutPageAction, pastePage, hasCopiedPage, hasCutPage } =
+    useClipboard();
+
+  // Add keyboard shortcuts
+  useKeyboardShortcuts({
+    selectedPage,
+    notebookId,
+    onPageAdded,
+    onDeletePage,
+  });
+
+  const handleCopyPage = (page: Page) => {
+    copyPage(page);
+    addToast({
+      title: "Page Copied",
+      description: `"${page.title}" has been copied to clipboard`,
+      type: "success",
+    });
+  };
+
+  const handleCutPage = (page: Page) => {
+    cutPageAction(page);
+    addToast({
+      title: "Page Cut",
+      description: `"${page.title}" has been cut and ready to paste`,
+      type: "success",
+    });
+  };
+
+  const handlePastePage = async () => {
+    if (!notebookId) {
+      addToast({
+        title: "Cannot Paste",
+        description: "No notebook selected",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      const newPage = await pastePage(notebookId, onPageDeleted);
+      if (newPage && onPageAdded) {
+        onPageAdded(newPage);
+        addToast({
+          title: "Page Pasted",
+          description: `"${newPage.title}" has been pasted`,
+          type: "success",
+        });
+      }
+    } catch (error) {
+      addToast({
+        title: "Paste Failed",
+        description: "Failed to paste page",
+        type: "error",
+      });
+    }
+  };
 
   const getPageMenuItems = (page: Page) => [
     {
@@ -54,17 +121,18 @@ export default function PagesList({
     {
       icon: Scissors,
       label: "Cut",
-      disabled: true,
+      onClick: () => handleCutPage(page),
     },
     {
       icon: Copy,
       label: "Copy",
-      disabled: true,
+      onClick: () => handleCopyPage(page),
     },
     {
       icon: ClipboardPaste,
       label: "Paste",
-      disabled: true,
+      onClick: handlePastePage,
+      disabled: !hasCopiedPage && !hasCutPage,
     },
   ];
 

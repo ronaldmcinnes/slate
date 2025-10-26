@@ -56,18 +56,8 @@ export interface CanvasState {
     highlighter: boolean;
     fountainPen: boolean;
     text: boolean;
-    lasso: boolean;
     graph: boolean;
     microphone: boolean;
-  };
-
-  // Lasso selection state
-  lassoSelection: {
-    isActive: boolean;
-    points: Array<{ x: number; y: number }>;
-    selectedDrawings: string[];
-    selectedTexts: string[];
-    selectedGraphs: string[];
   };
 }
 
@@ -105,16 +95,8 @@ const DEFAULT_CANVAS_STATE: CanvasState = {
     highlighter: true,
     fountainPen: true,
     text: true,
-    lasso: true,
     graph: true,
     microphone: true,
-  },
-  lassoSelection: {
-    isActive: false,
-    points: [],
-    selectedDrawings: [],
-    selectedTexts: [],
-    selectedGraphs: [],
   },
 };
 
@@ -420,30 +402,6 @@ export function useCanvasState() {
     [updateState]
   );
 
-  const setLassoSelection = useCallback(
-    (selection: Partial<CanvasState["lassoSelection"]>) => {
-      updateState({
-        lassoSelection: {
-          ...state.lassoSelection,
-          ...selection,
-        },
-      });
-    },
-    [updateState]
-  );
-
-  const clearLassoSelection = useCallback(() => {
-    updateState({
-      lassoSelection: {
-        isActive: false,
-        points: [],
-        selectedDrawings: [],
-        selectedTexts: [],
-        selectedGraphs: [],
-      },
-    });
-  }, [updateState]);
-
   // Reset to default state
   const resetState = useCallback(() => {
     setState(DEFAULT_CANVAS_STATE);
@@ -477,8 +435,6 @@ export function useCanvasState() {
     setToolbarScrollPosition,
     setIsToolbarVisible,
     setVisibleTools,
-    setLassoSelection,
-    clearLassoSelection,
     resetState,
   };
 }

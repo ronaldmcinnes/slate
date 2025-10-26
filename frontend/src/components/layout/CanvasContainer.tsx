@@ -16,7 +16,7 @@ export default function CanvasContainer({
   canvasSize,
   onCanvasSizeChange,
   cursorStyle,
-  className = "flex-1 relative bg-[#FAFAFA] dark:bg-[#111111] overflow-auto scrollbar-hide",
+  className = "flex-1 relative bg-background overflow-auto scrollbar-hide",
   canvasContainerRef: externalRef,
   isReadOnly = false,
 }: CanvasContainerProps) {

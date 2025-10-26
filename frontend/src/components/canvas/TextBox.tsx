@@ -14,6 +14,7 @@ interface TextBoxProps {
   onTextChange: (id: string, text: string) => void;
   onRemove: (id: string) => void;
   isReadOnly?: boolean;
+  isSelected?: boolean;
 }
 
 export default function TextBox({
@@ -22,6 +23,7 @@ export default function TextBox({
   onTextChange,
   onRemove,
   isReadOnly = false,
+  isSelected = false,
 }: TextBoxProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -96,7 +98,13 @@ export default function TextBox({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div className="bg-transparent border-2 border-dashed border-transparent group-hover:border-border rounded-lg min-w-[200px]">
+      <div
+        className={`bg-transparent border-2 border-dashed rounded-lg min-w-[200px] ${
+          isSelected
+            ? "border-blue-500 bg-blue-50/20"
+            : "border-transparent group-hover:border-border"
+        }`}
+      >
         {!isReadOnly && (
           <div
             className="flex items-center justify-between px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity drag-handle cursor-grab active:cursor-grabbing"

@@ -2,7 +2,7 @@
  * Theme utilities for detecting and applying theme preferences
  */
 
-export type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark";
 
 /**
  * Detects the system theme preference

@@ -8,7 +8,7 @@ export default function Header() {
   const navigate = useNavigate();
 
   return (
-    <nav className="absolute top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-sm border-b border-white/10">
+    <nav className="absolute top-0 left-0 right-0 z-50 bg-background/20 backdrop-blur-sm border-b border-border/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
@@ -20,12 +20,12 @@ export default function Header() {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <span className="text-white/80 text-sm">
+                <span className="text-foreground/80 text-sm">
                   {user.displayName}
                 </span>
                 <Button
                   onClick={() => navigate("/app")}
-                  className="bg-[#4b73b3] hover:bg-white text-black font-semibold"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
                   Go to App →
                 </Button>
@@ -35,13 +35,13 @@ export default function Header() {
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/login")}
-                  className="text-white hover:bg-white/20"
+                  className="text-foreground hover:bg-accent"
                 >
                   Sign In
                 </Button>
                 <Button
                   onClick={() => navigate("/login")}
-                  className="bg-[#4b73b3] hover:bg-white text-white font-semibold"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
                   Get Started
                 </Button>

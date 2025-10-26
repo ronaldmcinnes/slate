@@ -213,6 +213,10 @@ class ApiClient {
     await this.request(`/api/pages/${id}`, { method: "DELETE" });
   }
 
+  async deletePageSilently(id: string): Promise<void> {
+    await this.request(`/api/pages/${id}`, { method: "DELETE" });
+  }
+
   async restorePage(id: string): Promise<Page> {
     const response = await this.request<Page>(`/api/pages/${id}/restore`, {
       method: "POST",

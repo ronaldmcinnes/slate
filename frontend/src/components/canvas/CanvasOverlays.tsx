@@ -20,6 +20,13 @@ interface CanvasOverlaysProps {
     }
   ) => void;
   isReadOnly?: boolean;
+  viewport?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    zoom: number;
+  };
 }
 
 export default function CanvasOverlays({
@@ -33,6 +40,7 @@ export default function CanvasOverlays({
   onSizeChange,
   onCameraChange,
   isReadOnly = false,
+  viewport,
 }: CanvasOverlaysProps) {
   // Adapter functions to convert between main types and component interfaces
   const convertTextBoxForComponent = (textBox: any) => ({
@@ -95,6 +103,8 @@ export default function CanvasOverlays({
                     onSizeChange={onSizeChange}
                     onCameraChange={onCameraChange}
                     isReadOnly={isReadOnly}
+                    viewport={viewport}
+                    graphCount={page.graphs?.length || 0}
                   />
                 )
             )}

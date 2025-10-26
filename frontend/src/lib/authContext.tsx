@@ -27,20 +27,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Apply system theme immediately on app load to prevent white flash
+  // Apply light theme immediately on app load to prevent white flash
   useEffect(() => {
-    const systemTheme = getSystemTheme();
-    applyTheme(systemTheme);
+    applyTheme("light");
   }, []);
 
   const fetchUser = async () => {
     try {
       const userData = await api.getCurrentUser();
       setUser(userData);
-      // Apply user's theme preference, resolving "system" to actual system preference
-      const userTheme = (userData.settings?.theme as Theme) || "system";
-      const resolvedTheme = resolveTheme(userTheme);
-      applyTheme(resolvedTheme);
+      // Apply user's theme preference
+      const userTheme = (userData.settings?.theme as Theme) || "light";
+      applyTheme(userTheme);
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);
@@ -58,20 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(false);
     }
   }, []);
-
-  // Watch for system theme changes and update if user has "system" preference
-  useEffect(() => {
-    if (!user) return;
-
-    const userTheme = (user.settings?.theme as Theme) || "system";
-    if (userTheme !== "system") return;
-
-    const cleanup = watchSystemTheme((systemTheme) => {
-      applyTheme(systemTheme);
-    });
-
-    return cleanup;
-  }, [user]);
 
   const login = () => {
     // Redirect to Google OAuth
