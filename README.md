@@ -1,4 +1,4 @@
-# Slate - Collaborative Notebook Application
+# Slate - Notebook Application
 
 A modern, collaborative notebook application with real-time canvas drawing, mathematical graphs, and AI-powered features.
 
