@@ -17,11 +17,11 @@ const DEFAULT_CONFIG: PerformanceConfig = {
   enableAdaptiveQuality: true,
   enableFrustumCulling: true,
   enableLOD: true,
-  maxTriangles: 50000, // Maximum triangles per graph
+  maxTriangles: 100000, // Increased maximum triangles per graph
   qualityLevels: {
-    low: { resolution: 50, maxTriangles: 10000 },
-    medium: { resolution: 100, maxTriangles: 25000 },
-    high: { resolution: 200, maxTriangles: 50000 },
+    low: { resolution: 150, maxTriangles: 25000 }, // Increased minimum resolution
+    medium: { resolution: 300, maxTriangles: 50000 }, // Increased medium resolution
+    high: { resolution: 500, maxTriangles: 100000 }, // Increased high resolution
   },
 };
 
@@ -36,18 +36,18 @@ export function useGraphPerformance(
     (baseResolution: number, zoom: number, graphCount: number): number => {
       if (!finalConfig.enableAdaptiveQuality) return baseResolution;
 
-      // Reduce resolution based on zoom level
-      const zoomFactor = Math.max(0.1, Math.min(1, 1 / zoom));
+      // Less aggressive zoom reduction - maintain better quality when zoomed out
+      const zoomFactor = Math.max(0.5, Math.min(1, 1 / Math.sqrt(zoom)));
 
-      // Reduce resolution based on number of graphs
-      const graphFactor = Math.max(0.3, Math.min(1, 3 / graphCount));
+      // Less aggressive graph count reduction
+      const graphFactor = Math.max(0.6, Math.min(1, 5 / graphCount));
 
-      // Apply quality level
+      // Apply quality level with higher base resolution
       const qualityFactor =
-        finalConfig.qualityLevels[qualityLevel].resolution / 200;
+        finalConfig.qualityLevels[qualityLevel].resolution / 300;
 
       return Math.max(
-        20,
+        100, // Increased minimum resolution from 20 to 100
         Math.floor(baseResolution * zoomFactor * graphFactor * qualityFactor)
       );
     },
@@ -106,11 +106,11 @@ export function useGraphPerformance(
           Math.pow(graphCenterY - viewportCenterY, 2)
       );
 
-      // Scale distance by zoom
+      // Scale distance by zoom - less aggressive LOD switching
       const scaledDistance = distance / viewport.zoom;
 
-      if (scaledDistance > 1000) return "low";
-      if (scaledDistance > 500) return "medium";
+      if (scaledDistance > 2000) return "low"; // Increased threshold
+      if (scaledDistance > 1000) return "medium"; // Increased threshold
       return "high";
     },
     [finalConfig.enableLOD]
@@ -171,17 +171,22 @@ export function useGraphPerformance(
   // Create shared materials for better performance
   const createSharedMaterials = useCallback(() => {
     const materials = {
-      line: new THREE.LineBasicMaterial({ color: 0x3b82f6 }),
+      line: new THREE.LineBasicMaterial({
+        color: 0x3b82f6,
+        linewidth: 2, // Increased line width for better visibility
+        transparent: false,
+        opacity: 1.0,
+      }),
       surface: new THREE.MeshLambertMaterial({
         color: 0x3b82f6,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.9, // Increased opacity for better visibility
         side: THREE.DoubleSide,
       }),
       area: new THREE.MeshBasicMaterial({
         color: 0x8b5cf6,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.6, // Increased opacity for better visibility
         side: THREE.DoubleSide,
       }),
     };

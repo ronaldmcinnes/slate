@@ -46,21 +46,7 @@ const GraphRouter: React.FC<GraphRouterProps> = ({
   // Route to appropriate component based on graph type
   switch (graphSpec.graphType as string) {
     case "mathematical":
-      // Use optimized version for better performance with multiple graphs
-      if (graphCount > 1) {
-        return (
-          <OptimizedThreeJSGraph
-            graphSpec={graphSpec as MathematicalGraphSpec}
-            width={width}
-            height={height}
-            cameraState={cameraState}
-            onCameraChange={onCameraChange}
-            viewport={viewport}
-            graphCount={graphCount}
-          />
-        );
-      }
-
+      // Always use unoptimized version for best quality
       return (
         <ThreeJSGraph
           graphSpec={graphSpec as MathematicalGraphSpec}

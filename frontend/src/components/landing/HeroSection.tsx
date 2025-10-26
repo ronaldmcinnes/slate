@@ -22,8 +22,8 @@ export default function HeroSection() {
               duration={3000}
             />
           </div>
-          <p className="-mt-[5%] text-xl md:text-2xl text-foreground/90 mb-8 max-w-2xl mx-auto drop-shadow-lg">
-            Draw, graph, and write – all in one beautiful workspace.
+          <p className="text-white -mt-[8%] text-xl md:text-2xl text-foreground/90 mb-4 max-w-2xl mx-auto drop-shadow-lg">
+            Reimaginng learning for everyone.
           </p>
           <div className="flex items-center justify-center gap-4 pointer-events-auto">
             <Button

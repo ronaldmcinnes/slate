@@ -38,7 +38,7 @@ export default function Header() {
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/login")}
-                  className="text-foreground hover:bg-accent"
+                  className="text-foreground hover:bg-accent text-white"
                 >
                   Sign In
                 </Button>

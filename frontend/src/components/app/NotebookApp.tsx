@@ -156,8 +156,24 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             (p) => p.id === lastAccessedPageId
           );
           if (lastAccessedPage) {
-            setSelectedPage(lastAccessedPage);
-            setCurrentPage(lastAccessedPage.id);
+            // Load full page data for the last accessed page
+            try {
+              const fullPageData = await getPage(lastAccessedPage.id);
+              if (fullPageData) {
+                setSelectedPage(fullPageData);
+                setCurrentPage(fullPageData.id);
+              } else {
+                setSelectedPage(lastAccessedPage);
+                setCurrentPage(lastAccessedPage.id);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to load full page data for last accessed page:",
+                error
+              );
+              setSelectedPage(lastAccessedPage);
+              setCurrentPage(lastAccessedPage.id);
+            }
             return; // Found and selected last accessed page
           } else {
           }
@@ -171,21 +187,67 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             (p) => p.id === canvasState.currentPageId
           );
           if (previousPage) {
-            setSelectedPage(previousPage);
-            setCurrentPage(previousPage.id);
+            // Load full page data for the previous page
+            try {
+              const fullPageData = await getPage(previousPage.id);
+              if (fullPageData) {
+                setSelectedPage(fullPageData);
+                setCurrentPage(fullPageData.id);
+              } else {
+                setSelectedPage(previousPage);
+                setCurrentPage(previousPage.id);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to load full page data for previous page:",
+                error
+              );
+              setSelectedPage(previousPage);
+              setCurrentPage(previousPage.id);
+            }
           } else if (convertedPages.length > 0) {
-            // Previous page not found, select first
-            setSelectedPage(convertedPages[0]);
-            setCurrentPage(convertedPages[0].id);
+            // Previous page not found, select first and load full data
+            try {
+              const fullPageData = await getPage(convertedPages[0].id);
+              if (fullPageData) {
+                setSelectedPage(fullPageData);
+                setCurrentPage(fullPageData.id);
+              } else {
+                setSelectedPage(convertedPages[0]);
+                setCurrentPage(convertedPages[0].id);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to load full page data for first page:",
+                error
+              );
+              setSelectedPage(convertedPages[0]);
+              setCurrentPage(convertedPages[0].id);
+            }
           } else {
             setSelectedPage(null);
             setCurrentPage(null);
           }
         } else {
-          // Don't preserve selection, select first page
+          // Don't preserve selection, select first page and load full data
           if (convertedPages.length > 0) {
-            setSelectedPage(convertedPages[0]);
-            setCurrentPage(convertedPages[0].id);
+            try {
+              const fullPageData = await getPage(convertedPages[0].id);
+              if (fullPageData) {
+                setSelectedPage(fullPageData);
+                setCurrentPage(fullPageData.id);
+              } else {
+                setSelectedPage(convertedPages[0]);
+                setCurrentPage(convertedPages[0].id);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to load full page data for first page:",
+                error
+              );
+              setSelectedPage(convertedPages[0]);
+              setCurrentPage(convertedPages[0].id);
+            }
           } else {
             setSelectedPage(null);
             setCurrentPage(null);
@@ -449,8 +511,24 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         // If we deleted the currently selected page, select the first remaining page
         if (selectedPage?.id === pageToEdit.id) {
           if (convertedPages.length > 0) {
-            setSelectedPage(convertedPages[0]);
-            setCurrentPage(convertedPages[0].id);
+            // Load full page data for the first remaining page
+            try {
+              const fullPageData = await getPage(convertedPages[0].id);
+              if (fullPageData) {
+                setSelectedPage(fullPageData);
+                setCurrentPage(fullPageData.id);
+              } else {
+                setSelectedPage(convertedPages[0]);
+                setCurrentPage(convertedPages[0].id);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to load full page data after deletion:",
+                error
+              );
+              setSelectedPage(convertedPages[0]);
+              setCurrentPage(convertedPages[0].id);
+            }
           } else {
             setSelectedPage(null);
             setCurrentPage(null);

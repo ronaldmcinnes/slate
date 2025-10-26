@@ -15,7 +15,6 @@ import type {
   ChartGraphSpec,
   StatisticalGraphSpec,
 } from "@/types";
-import { useGraphPerformance } from "@/hooks/useGraphPerformance";
 
 // Error boundary for Three.js Canvas
 interface ErrorBoundaryState {
@@ -312,7 +311,7 @@ const evaluateExpression = (
 
 // Generate points for 2D explicit functions
 const generate2DPoints = (spec: MathematicalGraphSpec): THREE.Vector3[] => {
-  const { domain, expressions, resolution = 500 } = spec.plot; // Increased resolution for smoother curves
+  const { domain, expressions, resolution = 1500 } = spec.plot; // High resolution for smooth curves
   const points: THREE.Vector3[] = [];
 
   if (!domain.x || !expressions.yOfX) return points;
@@ -463,7 +462,7 @@ const generate3DVolume = (spec: MathematicalGraphSpec): THREE.Vector3[] => {
 const generateParametricPoints = (
   spec: MathematicalGraphSpec
 ): THREE.Vector3[] => {
-  const { domain, expressions, resolution = 500 } = spec.plot; // Increased resolution for smoother curves
+  const { domain, expressions, resolution = 1500 } = spec.plot; // High resolution for smooth curves
   const points: THREE.Vector3[] = [];
 
   if (!domain.t || !expressions.xOfT || !expressions.yOfT) return points;
@@ -489,7 +488,7 @@ const generateParametricPoints = (
 
 // Generate points for polar functions
 const generatePolarPoints = (spec: MathematicalGraphSpec): THREE.Vector3[] => {
-  const { domain, expressions, resolution = 500 } = spec.plot; // Increased resolution for smoother curves
+  const { domain, expressions, resolution = 1500 } = spec.plot; // High resolution for smooth curves
   const points: THREE.Vector3[] = [];
 
   if (!domain.x || !expressions.rOfTheta) return points;
@@ -516,7 +515,7 @@ const generatePolarPoints = (spec: MathematicalGraphSpec): THREE.Vector3[] => {
 
 // Generate surface points for 3D functions
 const generate3DSurface = (spec: MathematicalGraphSpec): THREE.Vector3[] => {
-  const { domain, expressions, resolution = 100 } = spec.plot; // Increased resolution for smoother surfaces
+  const { domain, expressions, resolution = 300 } = spec.plot; // High resolution for smooth surfaces
   const points: THREE.Vector3[] = [];
 
   if (!domain.x || !domain.y || !expressions.surfaceZ) return points;
@@ -771,19 +770,31 @@ const calculateOptimalDomain = (
   };
 };
 
-// Function component to render the graph with performance optimizations
+// Function component to render the graph with high quality
 const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
   const meshRef = useRef<THREE.Group>(null);
-  const {
-    calculateOptimalResolution,
-    optimizeGeometry,
-    createSharedMaterials,
-  } = useGraphPerformance();
 
-  // Shared materials for better performance
+  // High-quality materials for best visibility
   const materials = useMemo(
-    () => createSharedMaterials(),
-    [createSharedMaterials]
+    () => ({
+      line: new THREE.LineBasicMaterial({
+        color: 0x3b82f6,
+        linewidth: 3, // Thicker lines for better visibility
+      }),
+      surface: new THREE.MeshLambertMaterial({
+        color: 0x3b82f6,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+      }),
+      area: new THREE.MeshBasicMaterial({
+        color: 0x8b5cf6,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+      }),
+    }),
+    []
   );
 
   useEffect(() => {
@@ -816,47 +827,40 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
         },
       };
 
-      // Calculate optimal resolution for performance
-      const baseResolution = mathSpec.plot.resolution || 200;
-      const optimalResolution = calculateOptimalResolution(
-        baseResolution,
-        1,
-        1
-      );
-
-      // Update spec with optimal resolution
-      const optimizedSpec = {
+      // Use high resolution for best quality
+      const baseResolution = mathSpec.plot.resolution || 1000; // High default resolution
+      const highQualitySpec = {
         ...extendedGraphSpec,
         plot: {
           ...extendedGraphSpec.plot,
-          resolution: optimalResolution,
+          resolution: baseResolution,
         },
       };
 
       let points: THREE.Vector3[] = [];
 
-      // Generate points based on graph type using optimized spec
+      // Generate points based on graph type using high quality spec
       switch (mathSpec.plot.kind) {
         case "2d_explicit":
-          points = generate2DPoints(optimizedSpec);
+          points = generate2DPoints(highQualitySpec);
           break;
         case "2d_parametric":
-          points = generateParametricPoints(optimizedSpec);
+          points = generateParametricPoints(highQualitySpec);
           break;
         case "2d_polar":
-          points = generatePolarPoints(optimizedSpec);
+          points = generatePolarPoints(highQualitySpec);
           break;
         case "2d_integral":
-          points = generate2DPoints(optimizedSpec);
+          points = generate2DPoints(highQualitySpec);
           break;
         case "3d_surface":
-          points = generate3DSurface(optimizedSpec);
+          points = generate3DSurface(highQualitySpec);
           break;
         case "3d_integral":
-          points = generate3DSurface(optimizedSpec);
+          points = generate3DSurface(highQualitySpec);
           break;
         case "cylindrical_integral":
-          points = generateCylindricalIntegral(optimizedSpec);
+          points = generateCylindricalIntegral(highQualitySpec);
           break;
         case "spherical_integral":
           // TODO: Implement spherical coordinates
@@ -869,17 +873,16 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
 
       if (points.length === 0) return;
 
-      // Create geometry and optimize it
+      // Create geometry without optimization for best quality
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const optimizedGeometry = optimizeGeometry(geometry, 20000); // Limit to 20k triangles
 
       // For 3D surfaces, create a proper mesh with lighting
       if (
         mathSpec.plot.kind === "3d_surface" ||
         mathSpec.plot.kind === "3d_integral"
       ) {
-        // Generate triangulated mesh with normals using optimized spec
-        const meshData = generate3DSurfaceMesh(optimizedSpec);
+        // Generate triangulated mesh with normals using high quality spec
+        const meshData = generate3DSurfaceMesh(highQualitySpec);
 
         if (meshData.vertices.length > 0) {
           const surfaceGeometry = new THREE.BufferGeometry();
@@ -908,7 +911,7 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
           mathSpec.plot.kind === "3d_integral" &&
           mathSpec.plot.integral?.showArea
         ) {
-          const volumePoints = generate3DVolume(optimizedSpec);
+          const volumePoints = generate3DVolume(highQualitySpec);
           if (volumePoints.length > 0) {
             // Create volume geometry using triangles
             const volumeGeometry = new THREE.BufferGeometry();
@@ -1003,12 +1006,12 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
           }
         }
       } else {
-        // Create line for 2D functions using shared material
+        // Create line for 2D functions using high quality material
         const lineMaterial = materials.line.clone();
         lineMaterial.color.setHex(
           parseInt(mathSpec.style?.color?.replace("#", "") || "3b82f6", 16)
         );
-        const line = new THREE.Line(optimizedGeometry, lineMaterial);
+        const line = new THREE.Line(geometry, lineMaterial);
         meshRef.current.add(line);
 
         // For integrals, add area shading
@@ -1016,7 +1019,7 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
           mathSpec.plot.kind === "2d_integral" &&
           mathSpec.plot.integral?.showArea
         ) {
-          const areaPoints = generateIntegralArea(optimizedSpec);
+          const areaPoints = generateIntegralArea(highQualitySpec);
           if (areaPoints.length > 0) {
             // Create area geometry using triangles
             const areaGeometry = new THREE.BufferGeometry();
@@ -1118,7 +1121,7 @@ const GraphMesh: React.FC<{ graphSpec: GraphSpec }> = ({ graphSpec }) => {
         meshRef.current.clear();
       }
     }
-  }, [graphSpec, calculateOptimalResolution, optimizeGeometry, materials]);
+  }, [graphSpec, materials]);
 
   return <group ref={meshRef} />;
 };
