@@ -233,13 +233,25 @@ export default function Canvas({
 
   const handleExport = async () => {
     if (!page) return;
-    
+
     const image = await canvasRef.current?.exportImage("png");
     if (image) {
       const link = document.createElement("a");
       link.download = `${page.title}.png`;
       link.href = image;
       link.click();
+    }
+  };
+
+  const handleClearCanvas = async () => {
+    if (!canvasRef.current) return;
+
+    try {
+      await canvasRef.current.clearCanvas();
+      markAsChanged();
+      console.log("Canvas cleared successfully");
+    } catch (error) {
+      console.error("Failed to clear canvas:", error);
     }
   };
 
@@ -260,13 +272,21 @@ export default function Canvas({
         console.log("Page drawings:", page.drawings);
         console.log("Page textBoxes:", page.textBoxes);
         console.log("Page graphs:", page.graphs);
-        
+
         // Restore drawings if they exist
-        if (page.drawings && page.drawings.paths && page.drawings.paths.length > 0) {
+        if (
+          page.drawings &&
+          page.drawings.paths &&
+          page.drawings.paths.length > 0
+        ) {
           console.log("Loading drawing paths:", page.drawings.paths);
           await canvasRef.current.loadPaths(page.drawings.paths);
           console.log("Drawing paths loaded successfully");
-        } else if (page.drawings && Array.isArray(page.drawings) && page.drawings.length > 0) {
+        } else if (
+          page.drawings &&
+          Array.isArray(page.drawings) &&
+          page.drawings.length > 0
+        ) {
           // Handle case where drawings is stored as array directly
           console.log("Loading drawing paths (direct array):", page.drawings);
           await canvasRef.current.loadPaths(page.drawings);
@@ -294,7 +314,7 @@ export default function Canvas({
 
   const handleAddGraph = (graphData: any) => {
     if (!page) return;
-    
+
     const graphs = page.graphs || [];
     const newGraph = {
       id: Date.now().toString(),
@@ -313,7 +333,7 @@ export default function Canvas({
   // Manual save function for immediate saving
   const handleManualSave = async () => {
     if (!page || isReadOnly) return;
-    
+
     try {
       await savePageState();
       console.log("Manual save completed");
@@ -324,7 +344,7 @@ export default function Canvas({
 
   const handleRemoveGraph = (graphId: string) => {
     if (!page) return;
-    
+
     const graphs = (page.graphs || []).filter((g) => g.id !== graphId);
     onUpdatePage({ graphs });
     markAsChanged();
@@ -332,7 +352,7 @@ export default function Canvas({
 
   const handleUpdateGraphPosition = (graphId: string, x: number, y: number) => {
     if (!page) return;
-    
+
     const graphs = page.graphs.map((g) =>
       g.id === graphId ? { ...g, position: { x, y } } : g
     );
@@ -342,7 +362,7 @@ export default function Canvas({
 
   const handleUpdateGraph = (graphId: string, newGraphSpec: any) => {
     if (!page) return;
-    
+
     const graphs = page.graphs.map((g) =>
       g.id === graphId
         ? { ...g, graphSpec: newGraphSpec, data: newGraphSpec }
@@ -352,11 +372,14 @@ export default function Canvas({
     markAsChanged();
   };
 
-  const handleCameraChange = (graphId: string, cameraState: {
-    position: [number, number, number];
-    rotation: [number, number, number];
-    zoom: number;
-  }) => {
+  const handleCameraChange = (
+    graphId: string,
+    cameraState: {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      zoom: number;
+    }
+  ) => {
     if (!page) return;
 
     const graphs = page.graphs.map((g) =>
@@ -368,7 +391,7 @@ export default function Canvas({
 
   const handleSizeChange = (graphId: string, width: number, height: number) => {
     if (!page) return;
-    
+
     const graphs = page.graphs.map((g) =>
       g.id === graphId ? { ...g, size: { width, height } } : g
     );
@@ -378,7 +401,7 @@ export default function Canvas({
 
   const handleAddTextBoxAt = (x: number, y: number) => {
     if (!page) return;
-    
+
     const textBoxes = page.textBoxes || [];
     const newTextBox = {
       id: Date.now().toString(),
@@ -399,7 +422,7 @@ export default function Canvas({
 
   const handleRemoveTextBox = (textBoxId: string) => {
     if (!page) return;
-    
+
     const textBoxes = (page.textBoxes || []).filter((t) => t.id !== textBoxId);
     onUpdatePage({ textBoxes });
     markAsChanged();
@@ -411,7 +434,7 @@ export default function Canvas({
     y: number
   ) => {
     if (!page) return;
-    
+
     const textBoxes = (page.textBoxes || []).map((t) =>
       t.id === textBoxId ? { ...t, position: { x, y } } : t
     );
@@ -421,7 +444,7 @@ export default function Canvas({
 
   const handleUpdateTextBoxText = (textBoxId: string, text: string) => {
     if (!page) return;
-    
+
     const textBoxes = (page.textBoxes || []).map((t) =>
       t.id === textBoxId ? { ...t, text } : t
     );
@@ -438,33 +461,150 @@ export default function Canvas({
 
     try {
       setIsSaving(true);
+      const startTime = performance.now();
       console.log("Starting to save page state...");
-      
-      // Get current drawing paths
-      const paths = canvasRef.current ? await canvasRef.current.exportPaths() : null;
-      console.log("Drawing paths:", paths);
-      
-      // Prepare the complete page state with proper drawing data structure
-      const pageState = {
-        drawings: paths ? { paths } : null,
-        textBoxes: page.textBoxes || [],
-        graphs: page.graphs || [],
+
+      // Set up timeout to prevent infinite hanging
+      const SAVE_TIMEOUT = 30000; // 30 seconds
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Save operation timed out after 30 seconds")),
+          SAVE_TIMEOUT
+        );
+      });
+
+      const saveOperation = async () => {
+        // Step 1: Get current drawing paths with performance monitoring
+        let paths = null;
+        const pathsStartTime = performance.now();
+
+        if (canvasRef.current) {
+          console.log("Exporting drawing paths...");
+          try {
+            // Add timeout specifically for exportPaths
+            const exportPathsPromise = canvasRef.current.exportPaths();
+            const exportTimeoutPromise = new Promise((_, reject) => {
+              setTimeout(
+                () =>
+                  reject(new Error("exportPaths timed out after 10 seconds")),
+                10000
+              );
+            });
+
+            paths = await Promise.race([
+              exportPathsPromise,
+              exportTimeoutPromise,
+            ]);
+            const pathsEndTime = performance.now();
+            console.log(
+              `Drawing paths exported in ${(
+                pathsEndTime - pathsStartTime
+              ).toFixed(2)}ms`
+            );
+
+            // Log path data size for debugging
+            if (paths && Array.isArray(paths)) {
+              const pathCount = paths.length;
+              const pathDataSize = JSON.stringify(paths).length;
+              console.log(
+                `Path data: ${pathCount} paths, ${(pathDataSize / 1024).toFixed(
+                  2
+                )}KB`
+              );
+
+              // Warn if data is unusually large
+              if (pathDataSize > 1024 * 1024) {
+                // > 1MB
+                console.warn(
+                  `⚠️ Large drawing data detected: ${(
+                    pathDataSize /
+                    1024 /
+                    1024
+                  ).toFixed(2)}MB`
+                );
+                console.warn(
+                  "Consider clearing the canvas to improve performance"
+                );
+              }
+
+              // If data is extremely large (>5MB), offer to clear canvas
+              if (pathDataSize > 5 * 1024 * 1024) {
+                console.error(
+                  `🚨 Extremely large drawing data: ${(
+                    pathDataSize /
+                    1024 /
+                    1024
+                  ).toFixed(2)}MB`
+                );
+                console.error(
+                  "This may cause performance issues. Consider clearing the canvas."
+                );
+              }
+            }
+          } catch (pathsError) {
+            console.error("Failed to export drawing paths:", pathsError);
+            // Continue with null paths rather than failing completely
+          }
+        }
+
+        // Step 2: Prepare page state with performance monitoring
+        const stateStartTime = performance.now();
+        const pageState = {
+          drawings: paths ? { paths } : null,
+          textBoxes: page.textBoxes || [],
+          graphs: page.graphs || [],
+        };
+        const stateEndTime = performance.now();
+        console.log(
+          `Page state prepared in ${(stateEndTime - stateStartTime).toFixed(
+            2
+          )}ms`
+        );
+
+        // Log total data size being sent
+        const totalDataSize = JSON.stringify(pageState).length;
+        console.log(`Total data size: ${(totalDataSize / 1024).toFixed(2)}KB`);
+        console.log("Saving page state:", {
+          hasDrawings: !!pageState.drawings,
+          textBoxCount: pageState.textBoxes.length,
+          graphCount: pageState.graphs.length,
+          dataSize: `${(totalDataSize / 1024).toFixed(2)}KB`,
+        });
+
+        // Step 3: Save to database with performance monitoring
+        const saveStartTime = performance.now();
+        console.log("Sending data to database...");
+
+        await onUpdatePage(pageState);
+
+        const saveEndTime = performance.now();
+        const totalTime = performance.now() - startTime;
+
+        console.log(
+          `Database save completed in ${(saveEndTime - saveStartTime).toFixed(
+            2
+          )}ms`
+        );
+        console.log(`Total save time: ${totalTime.toFixed(2)}ms`);
+
+        setHasUnsavedChanges(false);
+        setSaveSuccess(true);
+        console.log("Page saved successfully to database");
+
+        // Hide success message after 2 seconds
+        setTimeout(() => setSaveSuccess(false), 2000);
       };
 
-      console.log("Saving page state:", pageState);
-      console.log("Text boxes with positions:", pageState.textBoxes.map(tb => ({ id: tb.id, position: tb.position })));
-      console.log("Graphs with positions:", pageState.graphs.map(g => ({ id: g.id, position: g.position })));
-
-      // Save to database
-      await onUpdatePage(pageState);
-      setHasUnsavedChanges(false);
-      setSaveSuccess(true);
-      console.log("Page saved successfully to database");
-      
-      // Hide success message after 2 seconds
-      setTimeout(() => setSaveSuccess(false), 2000);
+      // Race between save operation and timeout
+      await Promise.race([saveOperation(), timeoutPromise]);
     } catch (error) {
       console.error("Failed to save page state:", error);
+      // Show error to user
+      setError(
+        `Save failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsSaving(false);
     }
@@ -643,9 +783,17 @@ export default function Canvas({
                   <Button
                     variant={hasUnsavedChanges ? "default" : "ghost"}
                     size="icon"
-                    className={`h-9 w-9 ${hasUnsavedChanges ? "bg-blue-500 hover:bg-blue-600 text-white" : "hover:bg-muted"}`}
+                    className={`h-9 w-9 ${
+                      hasUnsavedChanges
+                        ? "bg-blue-500 hover:bg-blue-600 text-white"
+                        : "hover:bg-muted"
+                    }`}
                     onClick={handleManualSave}
-                    title={hasUnsavedChanges ? "Save Page (Ctrl+S) - Unsaved Changes" : "Save Page (Ctrl+S)"}
+                    title={
+                      hasUnsavedChanges
+                        ? "Save Page (Ctrl+S) - Unsaved Changes"
+                        : "Save Page (Ctrl+S)"
+                    }
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -661,6 +809,29 @@ export default function Canvas({
                       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                       <polyline points="17,21 17,13 7,13 7,21" />
                       <polyline points="7,3 7,8 15,8" />
+                    </svg>
+                  </Button>
+
+                  {/* Clear Canvas Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 hover:bg-muted"
+                    onClick={handleClearCanvas}
+                    title="Clear Canvas"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />
                     </svg>
                   </Button>
 
