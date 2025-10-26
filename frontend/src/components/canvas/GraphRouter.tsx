@@ -8,12 +8,24 @@ interface GraphRouterProps {
   graphSpec: GraphSpec;
   width?: number;
   height?: number;
+  cameraState?: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  };
+  onCameraChange?: (cameraState: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  }) => void;
 }
 
 const GraphRouter: React.FC<GraphRouterProps> = ({ 
   graphSpec, 
   width = 400, 
-  height = 300 
+  height = 300,
+  cameraState,
+  onCameraChange
 }) => {
   // Route to appropriate component based on graph type
   switch (graphSpec.graphType as string) {
@@ -22,7 +34,9 @@ const GraphRouter: React.FC<GraphRouterProps> = ({
         <ThreeJSGraph 
           graphSpec={graphSpec as MathematicalGraphSpec} 
           width={width} 
-          height={height} 
+          height={height}
+          cameraState={cameraState}
+          onCameraChange={onCameraChange}
         />
       );
     

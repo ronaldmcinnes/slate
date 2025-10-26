@@ -352,6 +352,20 @@ export default function Canvas({
     markAsChanged();
   };
 
+  const handleCameraChange = (graphId: string, cameraState: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    zoom: number;
+  }) => {
+    if (!page) return;
+
+    const graphs = page.graphs.map((g) =>
+      g.id === graphId ? { ...g, cameraState } : g
+    );
+    onUpdatePage({ graphs });
+    markAsChanged();
+  };
+
   const handleSizeChange = (graphId: string, width: number, height: number) => {
     if (!page) return;
     
@@ -528,6 +542,7 @@ export default function Canvas({
       layout: graph.layout || {},
       graphSpec: graph.graphSpec,
       size: graph.size || { width: 500, height: 400 },
+      cameraState: graph.cameraState,
     };
   };
 
@@ -1037,6 +1052,7 @@ export default function Canvas({
                         onRemove={handleRemoveGraph}
                         onUpdateGraph={handleUpdateGraph}
                         onSizeChange={handleSizeChange}
+                        onCameraChange={handleCameraChange}
                       />
                     )
                 )}
