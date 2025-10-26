@@ -39,8 +39,10 @@ router.get(
       // Redirect to frontend with token in URL (as backup)
       res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
     } catch (error) {
-      console.error("Auth callback error:", error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=callback_failed`);
+      res.status(500).json({
+        success: false,
+        error: "Auth callback failed",
+      });
     }
   }
 );
@@ -178,7 +180,6 @@ router.patch("/canvas-state", authenticate, async (req: AuthRequest, res) => {
       },
     });
   } catch (error) {
-    console.error("Error updating canvas state:", error);
     res.status(500).json({
       success: false,
       error: "Error updating canvas state",

@@ -101,10 +101,9 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
       total: results.length,
     });
   } catch (error) {
-    console.error("Search error:", error);
     res.status(500).json({
       success: false,
-      error: "Error performing search",
+      error: "Search error",
     });
   }
 });

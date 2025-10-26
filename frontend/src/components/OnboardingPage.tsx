@@ -22,32 +22,23 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      console.log("Starting onboarding...");
-
       // Update user name and mark tutorial as completed
-      console.log("Updating settings...");
       await api.updateSettings({
         displayName: formData.displayName,
         tutorialCompleted: true,
       });
-      console.log("Settings updated successfully");
 
       // Create first notebook
-      console.log("Creating notebook with title:", formData.notebookName);
       const notebook = await api.createNotebook({
         title: formData.notebookName,
         description: "My first notebook in Slate",
         tags: ["Getting Started"],
       });
-      console.log("Notebook created successfully:", notebook);
 
       // Refresh user data
-      console.log("Refreshing user data...");
       await refreshUser();
-      console.log("User data refreshed");
 
       // Navigate to app
-      console.log("Navigating to app...");
       navigate("/app");
     } catch (err: any) {
       console.error("Onboarding error details:", err);
