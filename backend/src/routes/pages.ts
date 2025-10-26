@@ -55,6 +55,75 @@ router.get(
   }
 );
 
+// Bulk get pages with full content (optimized for multiple pages)
+router.post("/bulk", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { pageIds } = req.body;
+
+    if (!Array.isArray(pageIds) || pageIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "pageIds must be a non-empty array",
+      });
+    }
+
+    // Limit bulk requests to prevent abuse
+    if (pageIds.length > 50) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot request more than 50 pages at once",
+      });
+    }
+
+    const pages = await Page.find({
+      _id: { $in: pageIds },
+      isDeleted: false,
+    });
+
+    // Check permissions for each page
+    const accessiblePages = [];
+    for (const page of pages) {
+      const notebook = await Notebook.findById(page.notebookId);
+      if (
+        notebook &&
+        (notebook.userId.toString() === req.user!.id ||
+          notebook.sharedWith.some(
+            (share) =>
+              share.userId === req.user!.id &&
+              ["view", "edit"].includes(share.permission)
+          ))
+      ) {
+        accessiblePages.push(page);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: accessiblePages.map((p) => ({
+        id: p._id,
+        title: p.title,
+        createdAt: p.createdAt,
+        lastModified: p.lastModified,
+        lastModifiedBy: p.lastModifiedBy,
+        order: p.order,
+        tags: p.tags,
+        notebookId: p.notebookId,
+        userId: p.userId,
+        content: p.content,
+        drawings: p.drawings,
+        graphs: p.graphs,
+        textBoxes: p.textBoxes,
+        isDeleted: false,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch pages",
+    });
+  }
+});
+
 // Get single page
 router.get(
   "/:id",

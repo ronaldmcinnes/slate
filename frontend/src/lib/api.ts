@@ -219,6 +219,14 @@ class ApiClient {
     return response.data!;
   }
 
+  async getPagesBulk(pageIds: string[]): Promise<Page[]> {
+    const response = await this.request<Page[]>("/api/pages/bulk", {
+      method: "POST",
+      body: JSON.stringify({ pageIds }),
+    });
+    return response.data!;
+  }
+
   // ============================================
   // SEARCH
   // ============================================

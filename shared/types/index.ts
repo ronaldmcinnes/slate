@@ -23,6 +23,7 @@ export interface User {
     };
     currentNotebookId?: string;
     currentPageId?: string;
+    lastAccessedPages?: Record<string, string>; // notebookId -> pageId
     canvasViewport?: {
       x?: number;
       y?: number;
@@ -163,6 +164,7 @@ export interface UpdateCanvasStateRequest {
   };
   currentNotebookId?: string;
   currentPageId?: string;
+  lastAccessedPages?: Record<string, string>; // notebookId -> pageId
   canvasViewport?: {
     x?: number;
     y?: number;

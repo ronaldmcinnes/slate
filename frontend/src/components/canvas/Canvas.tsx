@@ -14,6 +14,8 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useCanvasSave } from "@/hooks/useCanvasSave";
 import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
+import { useCanvasState } from "@/hooks/useCanvasState";
+import { useGraphOptimization } from "@/hooks/useGraphOptimization";
 import type { Page } from "@/types";
 
 interface CanvasProps {
@@ -30,8 +32,35 @@ export default function Canvas({
   const isReadOnly = permission === "view";
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
 
-  // Main canvas hook
-  const { state, actions, refs, setters } = useCanvas(page, onUpdatePage);
+  // Canvas state management with persistence
+  const {
+    state: canvasState,
+    setLastUsedTool,
+    setStrokeColor,
+    setStrokeWidth,
+    setCanvasSize,
+    setToolbarScrollPosition,
+    setIsToolbarVisible,
+    setVisibleTools,
+  } = useCanvasState();
+
+  // Graph optimization
+  const {
+    optimizeGraphsForViewport,
+    preloadAdjacentGraphs,
+    shouldRenderGraph,
+  } = useGraphOptimization();
+
+  // Main canvas hook with persistent state
+  const { state, actions, refs, setters } = useCanvas(page, onUpdatePage, {
+    strokeColor: canvasState.strokeColor,
+    strokeWidth: canvasState.strokeWidth,
+    tool: canvasState.lastUsedTool,
+    canvasSize: canvasState.canvasSize,
+    toolbarScrollPosition: canvasState.toolbarScrollPosition,
+    isToolbarVisible: canvasState.isToolbarVisible,
+    visibleTools: canvasState.visibleTools,
+  });
 
   // Save functionality
   const { savePageState } = useCanvasSave({
@@ -78,6 +107,63 @@ export default function Canvas({
     setTranscription: setters.setTranscription,
     setError: setters.setError,
   });
+
+  // Sync canvas state changes to persistent state
+  useEffect(() => {
+    if (state.tool !== canvasState.lastUsedTool) {
+      setLastUsedTool(state.tool);
+    }
+  }, [state.tool, canvasState.lastUsedTool, setLastUsedTool]);
+
+  useEffect(() => {
+    if (state.strokeColor !== canvasState.strokeColor) {
+      setStrokeColor(state.strokeColor);
+    }
+  }, [state.strokeColor, canvasState.strokeColor, setStrokeColor]);
+
+  useEffect(() => {
+    if (state.strokeWidth !== canvasState.strokeWidth) {
+      setStrokeWidth(state.strokeWidth);
+    }
+  }, [state.strokeWidth, canvasState.strokeWidth, setStrokeWidth]);
+
+  useEffect(() => {
+    if (
+      JSON.stringify(state.canvasSize) !==
+      JSON.stringify(canvasState.canvasSize)
+    ) {
+      setCanvasSize(state.canvasSize);
+    }
+  }, [state.canvasSize, canvasState.canvasSize, setCanvasSize]);
+
+  useEffect(() => {
+    if (state.toolbarScrollPosition !== canvasState.toolbarScrollPosition) {
+      setToolbarScrollPosition(state.toolbarScrollPosition);
+    }
+  }, [
+    state.toolbarScrollPosition,
+    canvasState.toolbarScrollPosition,
+    setToolbarScrollPosition,
+  ]);
+
+  useEffect(() => {
+    if (state.isToolbarVisible !== canvasState.isToolbarVisible) {
+      setIsToolbarVisible(state.isToolbarVisible);
+    }
+  }, [
+    state.isToolbarVisible,
+    canvasState.isToolbarVisible,
+    setIsToolbarVisible,
+  ]);
+
+  useEffect(() => {
+    if (
+      JSON.stringify(state.visibleTools) !==
+      JSON.stringify(canvasState.visibleTools)
+    ) {
+      setVisibleTools(state.visibleTools);
+    }
+  }, [state.visibleTools, canvasState.visibleTools, setVisibleTools]);
 
   // Canvas operations
   const handleUndo = () => {
@@ -273,8 +359,12 @@ export default function Canvas({
                 actions.setIsToolbarVisible(!state.isToolbarVisible)
               }
               tool={state.tool}
-              onToolChange={(tool) =>
-                handleToolChange(tool, state.strokeColor, state.strokeWidth)
+              onToolChange={(tool, color, width) =>
+                handleToolChange(
+                  tool,
+                  color || state.strokeColor,
+                  width || state.strokeWidth
+                )
               }
               visibleTools={state.visibleTools}
               onToggleTool={(toolId: string) =>

@@ -22,6 +22,7 @@ interface PagesListProps {
   onDeletePage: (page: Page) => void;
   onRenamePage: (page: Page) => void;
   notebookSelected: boolean;
+  isLoading?: boolean;
 }
 
 export default function PagesList({
@@ -32,6 +33,7 @@ export default function PagesList({
   onDeletePage,
   onRenamePage,
   notebookSelected,
+  isLoading = false,
 }: PagesListProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -89,6 +91,13 @@ export default function PagesList({
           {!notebookSelected ? (
             <div className="text-center py-8 px-4">
               <p className="text-sm text-muted-foreground">Select a notebook</p>
+            </div>
+          ) : isLoading ? (
+            <div className="text-center py-8 px-4">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm text-muted-foreground">Loading pages...</p>
+              </div>
             </div>
           ) : pages.length === 0 ? (
             <div className="text-center py-8 px-4">

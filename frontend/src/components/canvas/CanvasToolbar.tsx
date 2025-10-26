@@ -8,7 +8,7 @@ interface CanvasToolbarProps {
   isToolbarVisible: boolean;
   onToggleVisibility: () => void;
   tool: string;
-  onToolChange: (tool: string) => void;
+  onToolChange: (tool: string, color?: string, width?: number) => void;
   onUndo: () => void;
   onRedo: () => void;
   onSave: () => void;
