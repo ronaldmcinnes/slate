@@ -1,9 +1,9 @@
-import CoreFeaturesGrid from "@/components/coreFeatures/grid"
-import CoreText from "@/assets/core.svg"
-import FeaturesText from "@/assets/features.svg"
+import CoreFeaturesGrid from "@/components/landing/coreFeatures/grid";
+import CoreText from "@/assets/core.svg";
+import FeaturesText from "@/assets/features.svg";
 
-import { AnimatedCoreText } from "@/components/coreFeatures/animatedCore"
-import { AnimatedFeaturesText } from "@/components/coreFeatures/animatedFeatures"
+import { AnimatedCoreText } from "@/components/landing/coreFeatures/animatedCore";
+import { AnimatedFeaturesText } from "@/components/landing/coreFeatures/animatedFeatures";
 
 export function FeaturesSection() {
   return (
@@ -14,16 +14,23 @@ export function FeaturesSection() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 h-full">
         {/* Main heading */}
         <div className="mb-16 flex gap-2 ml-[8rem]">
-          <AnimatedCoreText className="w-[100%] mt-11" duration={2000} strokeWidth={1.5} />
-          <AnimatedFeaturesText className="mt-4 w-[160%] h-auto" duration={2500} strokeWidth={1.5} />
+          <AnimatedCoreText
+            className="w-[100%] mt-11"
+            duration={2000}
+            strokeWidth={1.5}
+          />
+          <AnimatedFeaturesText
+            className="mt-4 w-[160%] h-auto"
+            duration={2500}
+            strokeWidth={1.5}
+          />
         </div>
 
         <div className="relative w-full h-[600px]">
           {/* Wireframe graphic 1 - top left (cyan) */}
           <div className="absolute left-[1%] top-[5%] w-[8%] aspect-square">
             <div className="w-full h-full bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 rounded-lg backdrop-blur-sm border border-cyan-500/30 flex items-center justify-center overflow-hidden">
-              <svg viewBox="0 0 100 100" className="w-full h-full p-2">
-              </svg>
+              <svg viewBox="0 0 100 100" className="w-full h-full p-2"></svg>
             </div>
           </div>
 
@@ -37,8 +44,7 @@ export function FeaturesSection() {
           {/* Wireframe graphic 2 - center (pink/magenta) */}
           <div className="absolute left-[33%] top-[28%] w-[18%] aspect-[4/3]">
             <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-fuchsia-600/20 rounded-lg backdrop-blur-sm border border-pink-500/30 flex items-center justify-center overflow-hidden">
-              <svg viewBox="0 0 100 100" className="w-full h-full p-2">
-              </svg>
+              <svg viewBox="0 0 100 100" className="w-full h-full p-2"></svg>
             </div>
           </div>
 
@@ -54,7 +60,13 @@ export function FeaturesSection() {
             <div className="w-full h-full bg-gradient-to-br from-orange-500/20 to-amber-600/20 rounded-lg backdrop-blur-sm border border-orange-500/30 flex items-center justify-center overflow-hidden">
               <svg viewBox="0 0 100 100" className="w-full h-full p-2">
                 <defs>
-                  <linearGradient id="grid3" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient
+                    id="grid3"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
                     <stop offset="0%" stopColor="#f97316" />
                     <stop offset="100%" stopColor="#d97706" />
                   </linearGradient>
@@ -80,7 +92,13 @@ export function FeaturesSection() {
             <div className="w-full h-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-lg backdrop-blur-sm border border-cyan-500/30 flex items-center justify-center overflow-hidden">
               <svg viewBox="0 0 100 100" className="w-full h-full p-2">
                 <defs>
-                  <linearGradient id="grid4" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient
+                    id="grid4"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
                     <stop offset="0%" stopColor="#06b6d4" />
                     <stop offset="100%" stopColor="#2563eb" />
                   </linearGradient>
@@ -125,7 +143,13 @@ export function FeaturesSection() {
             <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-violet-600/20 rounded-lg backdrop-blur-sm border border-purple-500/30 flex items-center justify-center overflow-hidden">
               <svg viewBox="0 0 100 100" className="w-full h-full p-2">
                 <defs>
-                  <linearGradient id="grid5" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient
+                    id="grid5"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
                     <stop offset="0%" stopColor="#a855f7" />
                     <stop offset="100%" stopColor="#7c3aed" />
                   </linearGradient>
@@ -142,12 +166,17 @@ export function FeaturesSection() {
                     opacity="0.4"
                   />
                 ))}
-                <path d="M 0 40 Q 20 20, 40 40 T 80 40" fill="none" stroke="url(#grid5)" strokeWidth="1.5" />
+                <path
+                  d="M 0 40 Q 20 20, 40 40 T 80 40"
+                  fill="none"
+                  stroke="url(#grid5)"
+                  strokeWidth="1.5"
+                />
               </svg>
             </div>
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }

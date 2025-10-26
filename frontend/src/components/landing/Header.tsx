@@ -20,7 +20,9 @@ export default function Header() {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <span className="text-white/80 text-sm">{user.displayName}</span>
+                <span className="text-white/80 text-sm">
+                  {user.displayName}
+                </span>
                 <Button
                   onClick={() => navigate("/app")}
                   className="bg-[#4b73b3] hover:bg-white text-black font-semibold"

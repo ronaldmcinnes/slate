@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import HeroTopo from "@/components/hero/HeroTopo";
+import HeroTopo from "@/components/landing/hero/HeroTopo";
 import slateHandwrittenLogo from "@/assets/slatehandwritten.svg";
 import { AnimatedSlateLogo } from "./hero/animateSlateLogo";
 
@@ -16,17 +16,17 @@ export default function HeroSection() {
       <div className="relative z-10 flex justify-center min-h-screen pointer-events-none">
         <div className="justify-center text-center px-4 max-w-4xl pt-[5%]">
           <div className="flex justify-center text-6xl md:text-[10rem] font-bold text-white mb-none leading-tight drop-shadow-2xl">
-         <AnimatedSlateLogo
-            className="w-[200%] -ml-[50%]"
-            autoPlay={true}
-            duration={3000}
+            <AnimatedSlateLogo
+              className="w-[200%] -ml-[50%]"
+              autoPlay={true}
+              duration={3000}
             />
           </div>
           <p className="-mt-[5%] text-xl md:text-2xl text-white/90 mb-24 max-w-2xl mx-auto drop-shadow-lg">
             Draw, graph, and write – all in one beautiful workspace.
           </p>
           <div className="flex items-center justify-center gap-4 pointer-events-auto">
-{/*             <Button
+            {/*             <Button
               size="lg"
               onClick={() => (window.location.href = "/login")}
               className="bg-[#4b73b3] hover:bg-white text-white px-8 h-14 text-lg font-semibold shadow-2xl"

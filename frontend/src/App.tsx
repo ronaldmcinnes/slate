@@ -6,13 +6,13 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "@/lib/authContext";
 import { ToastProvider } from "@/lib/toastContext";
-import HomePage from "@/components/HomePage";
-import LoginPage from "@/components/LoginPage";
-import AuthCallback from "@/components/AuthCallback";
-import OnboardingPage from "@/components/OnboardingPage";
-import NotFoundPage from "@/components/NotFoundPage";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import NotebookApp from "./NotebookApp";
+import HomePage from "@/components/app/HomePage";
+import LoginPage from "@/components/app/LoginPage";
+import AuthCallback from "@/components/app/AuthCallback";
+import OnboardingPage from "@/components/app/OnboardingPage";
+import NotFoundPage from "@/components/app/NotFoundPage";
+import ProtectedRoute from "@/components/app/ProtectedRoute";
+import NotebookApp from "./components/app/NotebookApp";
 
 function App() {
   return (

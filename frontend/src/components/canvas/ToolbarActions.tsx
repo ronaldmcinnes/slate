@@ -6,9 +6,9 @@ interface ToolbarActionsProps {
   visibleTools?: Record<string, boolean>;
 }
 
-export default function ToolbarActions({ 
-  onAddGraph, 
-  visibleTools = {} 
+export default function ToolbarActions({
+  onAddGraph,
+  visibleTools = {},
 }: ToolbarActionsProps) {
   return (
     <div className="flex items-center gap-1">
@@ -23,7 +23,6 @@ export default function ToolbarActions({
           <LineChart size={18} />
         </Button>
       )}
-      
     </div>
   );
 }

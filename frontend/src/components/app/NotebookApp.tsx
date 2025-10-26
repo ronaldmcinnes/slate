@@ -27,6 +27,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
+  // Cache for page data to avoid repeated API calls
+  const [pageCache, setPageCache] = useState<Map<string, Page>>(new Map());
+
   // Dialog states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -144,7 +147,11 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           autoSelectFirst: false,
           preserveSelection: true,
         });
-        setSelectedPage(convertPageToFrontendType(newPage));
+
+        // Cache the new page immediately
+        const convertedPage = convertPageToFrontendType(newPage);
+        setPageCache((prev) => new Map(prev.set(newPage.id, convertedPage)));
+        setSelectedPage(convertedPage);
       } catch (error) {
         // Handle error silently
       }
@@ -153,14 +160,50 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
   const handleSelectNotebook = async (notebook: Notebook): Promise<void> => {
     setSelectedNotebook(notebook);
+
+    // Clear page cache when switching notebooks to avoid stale data
+    setPageCache(new Map());
+
     await loadPagesForNotebook(notebook.id, {
       autoSelectFirst: true,
       preserveSelection: false,
     });
   };
 
+  const handleSelectPage = async (page: Page) => {
+    try {
+      // Check if page is already cached
+      const cachedPage = pageCache.get(page.id);
+      if (cachedPage) {
+        console.log("Using cached page data for:", page.id);
+        setSelectedPage(cachedPage);
+        return;
+      }
+
+      // Load full page data including drawings, textBoxes, and graphs
+      console.log("Loading full page data for:", page.id);
+      const fullPageData = await api.getPage(page.id);
+      const convertedPage = convertPageToFrontendType(fullPageData);
+      console.log("Full page data loaded:", convertedPage);
+
+      // Cache the page data
+      setPageCache((prev) => new Map(prev.set(page.id, convertedPage)));
+      setSelectedPage(convertedPage);
+    } catch (error) {
+      console.error("Failed to load full page data:", error);
+      // Fallback to the metadata page if full data fails to load
+      setSelectedPage(page);
+    }
+  };
+
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
     if (selectedNotebook && selectedPage) {
+      // Don't make API calls in view-only mode
+      if (selectedNotebook.permission === "view") {
+        console.log("Skipping API call in view-only mode");
+        return;
+      }
+
       try {
         const updatedPage = await api.updatePage(selectedPage.id, updates);
         // Update local state directly instead of refreshing all notebooks
@@ -170,6 +213,11 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         // Update pages list locally
         setPages(
           pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
+        );
+
+        // Update the cache with the latest page data
+        setPageCache(
+          (prev) => new Map(prev.set(selectedPage.id, convertedPage))
         );
       } catch (error) {
         // Handle error silently
@@ -201,6 +249,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         if (selectedPage?.id === page.id) {
           setSelectedPage(convertedPage);
         }
+
+        // Update the cache with the renamed page
+        setPageCache((prev) => new Map(prev.set(page.id, convertedPage)));
 
         setRenameDialogOpen(false);
       } catch (error) {
@@ -235,6 +286,13 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           }
         }
 
+        // Remove the deleted page from cache
+        setPageCache((prev) => {
+          const newCache = new Map(prev);
+          newCache.delete(pageToEdit.id);
+          return newCache;
+        });
+
         setPageToEdit(null);
         setDeleteDialogOpen(false);
 
@@ -244,13 +302,19 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           itemName: pageToEdit.title,
           type: "delete-page",
           onUndo: async () => {
-            await api.restorePage(pageToEdit.id);
+            const restoredPage = await api.restorePage(pageToEdit.id);
             // Reload pages to show restored page
             const updatedPages = await api.getPages(selectedNotebook.id);
             const convertedUpdatedPages = updatedPages.map((page) =>
               convertPageToFrontendType(page)
             );
             setPages(convertedUpdatedPages);
+
+            // Cache the restored page
+            const convertedPage = convertPageToFrontendType(restoredPage);
+            setPageCache(
+              (prev) => new Map(prev.set(restoredPage.id, convertedPage))
+            );
           },
         });
       } catch (error) {
@@ -317,7 +381,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           <PagesList
             pages={pages}
             selectedPage={selectedPage}
-            onSelectPage={setSelectedPage}
+            onSelectPage={handleSelectPage}
             onCreatePage={handleCreatePage}
             onDeletePage={handleOpenDeleteDialog}
             onRenamePage={handleOpenRenameDialog}

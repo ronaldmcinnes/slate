@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react";
 
 export function AnimatedSlateLogo({
   className = "",
@@ -8,65 +8,70 @@ export function AnimatedSlateLogo({
   duration = 3000,
   strokeWidth = 2,
 }: {
-  className?: string
-  autoPlay?: boolean
-  duration?: number
-  strokeWidth?: number
+  className?: string;
+  autoPlay?: boolean;
+  duration?: number;
+  strokeWidth?: number;
 }) {
-  const [isAnimating, setIsAnimating] = useState(autoPlay)
-  const svgRef = useRef<SVGSVGElement>(null)
+  const [isAnimating, setIsAnimating] = useState(autoPlay);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    if (!svgRef.current || !isAnimating) return
+    if (!svgRef.current || !isAnimating) return;
 
-    const paths = svgRef.current.querySelectorAll("path")
+    const paths = svgRef.current.querySelectorAll("path");
 
     paths.forEach((path, index) => {
-      const length = path.getTotalLength()
+      const length = path.getTotalLength();
 
       // Set up the starting positions
-      path.style.strokeDasharray = length.toString()
-      path.style.strokeDashoffset = length.toString()
-      path.style.fillOpacity = "0"
+      path.style.strokeDasharray = length.toString();
+      path.style.strokeDashoffset = length.toString();
+      path.style.fillOpacity = "0";
 
       // Trigger animation with slight delay for each letter
-      setTimeout(
-        () => {
-          path.style.transition = `stroke-dashoffset ${duration / paths.length}ms ease-in-out, fill-opacity ${duration / paths.length}ms ease-in-out`
-          path.style.strokeDashoffset = "0"
-          path.style.fillOpacity = "1"
-        },
-        (duration / paths.length) * index,
-      )
-    })
+      setTimeout(() => {
+        path.style.transition = `stroke-dashoffset ${
+          duration / paths.length
+        }ms ease-in-out, fill-opacity ${duration / paths.length}ms ease-in-out`;
+        path.style.strokeDashoffset = "0";
+        path.style.fillOpacity = "1";
+      }, (duration / paths.length) * index);
+    });
 
     // Reset animation state after completion
     const timer = setTimeout(() => {
-      setIsAnimating(false)
-    }, duration)
+      setIsAnimating(false);
+    }, duration);
 
-    return () => clearTimeout(timer)
-  }, [isAnimating, duration])
+    return () => clearTimeout(timer);
+  }, [isAnimating, duration]);
 
   const replay = () => {
-    if (!svgRef.current) return
+    if (!svgRef.current) return;
 
     // Reset all paths
-    const paths = svgRef.current.querySelectorAll("path")
+    const paths = svgRef.current.querySelectorAll("path");
     paths.forEach((path) => {
-      const length = path.getTotalLength()
-      path.style.transition = "none"
-      path.style.strokeDashoffset = length.toString()
-      path.style.fillOpacity = "0"
-    })
+      const length = path.getTotalLength();
+      path.style.transition = "none";
+      path.style.strokeDashoffset = length.toString();
+      path.style.fillOpacity = "0";
+    });
 
     // Trigger animation
-    setTimeout(() => setIsAnimating(true), 50)
-  }
+    setTimeout(() => setIsAnimating(true), 50);
+  };
 
   return (
     <div className="relative inline-block">
-      <svg ref={svgRef} id="slate-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 715 332" className={className}>
+      <svg
+        ref={svgRef}
+        id="slate-logo"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 715 332"
+        className={className}
+      >
         <defs>
           <style>{`
             .logo-path {
@@ -109,5 +114,5 @@ export function AnimatedSlateLogo({
         </button>
       )}
     </div>
-  )
+  );
 }
