@@ -69,30 +69,33 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
         style={{ width: `${progressPercent}%` }}
       />
 
-      <div className="pr-8">
+      <div className="pr-8 flex flex-col justify-center">
         <p className="text-sm font-medium text-foreground">
-          Deleted <span className="font-semibold">{toast.itemName}</span>
+          {toast.type === "leave-notebook" ? "Left" : "Deleted"}{" "}
+          <span className="font-semibold">{toast.itemName}</span>
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           {Math.ceil(timeLeft / 1000)}s
         </p>
       </div>
 
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={handleUndo}
-          disabled={isUndoing}
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium",
-            "rounded-md transition-colors",
-            isUndoing
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-primary/10 text-primary hover:bg-primary/20"
-          )}
-        >
-          <RotateCcw size={14} />
-          Undo
-        </button>
+      <div className="flex gap-2 mt-3 items-center">
+        {toast.type !== "leave-notebook" && toast.onUndo && (
+          <button
+            onClick={handleUndo}
+            disabled={isUndoing}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium",
+              "rounded-md transition-colors",
+              isUndoing
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-primary/10 text-primary hover:bg-primary/20"
+            )}
+          >
+            <RotateCcw size={14} />
+            Undo
+          </button>
+        )}
         <button
           onClick={() => onRemove(toast.id)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"

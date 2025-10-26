@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import PagesList from "@/components/layout/PagesList";
 import Canvas from "@/components/canvas/Canvas";
@@ -9,6 +9,10 @@ import { ToastContainer } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authContext";
 import { useToast } from "@/lib/toastContext";
+import { useCanvasState } from "@/hooks/useCanvasState";
+import { useOptimizedData } from "@/hooks/useOptimizedData";
+import { useBackgroundRefresh } from "@/hooks/useBackgroundRefresh";
+import { ClipboardProvider } from "@/lib/clipboardContext";
 import type { Notebook, Page as SharedPage } from "@shared/types";
 import type { Page } from "@/types";
 
@@ -17,22 +21,54 @@ interface NotebookAppProps {
 }
 
 export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
-  const { user, updateCanvasState } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useToast();
+
+  // Canvas state management with persistence
+  const {
+    state: canvasState,
+    isInitialized: canvasStateInitialized,
+    setCurrentNotebook,
+    setCurrentPage,
+    setLastAccessedPage,
+    setLastAccessedNotebook,
+    getLastAccessedPage,
+    getCurrentNotebookId,
+    setExpandedPanel,
+    setColumnWidth,
+  } = useCanvasState();
+
+  // Optimized data fetching
+  const {
+    getNotebooks,
+    getPagesForNotebook,
+    getPage,
+    preloadAllNotebookPages,
+    preloadCurrentNotebookPages,
+    loadingStates,
+    invalidateCache,
+    updateCache,
+  } = useOptimizedData();
+
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(
     null
   );
-  const [pages, setPages] = useState<Page[]>([]); // Add pages state
+  const [pages, setPages] = useState<Page[]>([]);
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
-  // Cache for page data to avoid repeated API calls
-  const [pageCache, setPageCache] = useState<Map<string, Page>>(new Map());
+  // Track if an update is in progress to prevent stutter
+  const updateInProgressRef = useRef<Set<string>>(new Set());
+
+  // Track if we've already loaded the initial notebook to prevent multiple calls
+  const initialLoadRef = useRef<boolean>(false);
 
   // Dialog states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [notebookToLeave, setNotebookToLeave] = useState<Notebook | null>(null);
   const [pageToEdit, setPageToEdit] = useState<Page | null>(null);
 
   // Load notebooks from API on mount
@@ -40,19 +76,57 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     loadNotebooks();
   }, []);
 
+  // Restore previous state when canvas state is initialized
+  useEffect(() => {
+    if (
+      canvasStateInitialized &&
+      notebooks.length > 0 &&
+      !initialLoadRef.current
+    ) {
+      const currentNotebookId = getCurrentNotebookId();
+
+      if (currentNotebookId) {
+        const previousNotebook = notebooks.find(
+          (n) => n.id === currentNotebookId
+        );
+        if (previousNotebook) {
+          initialLoadRef.current = true;
+          setSelectedNotebook(previousNotebook);
+          loadPagesForNotebook(previousNotebook.id, {
+            autoSelectFirst: true,
+            preserveSelection: true,
+          });
+        } else {
+        }
+      } else {
+      }
+    }
+  }, [canvasStateInitialized, getCurrentNotebookId, notebooks]);
+
   const loadNotebooks = async () => {
     try {
-      const { owned, shared } = await api.getNotebooks();
+      const { owned, shared } = await getNotebooks();
       const allNotebooks = [...owned, ...shared];
       setNotebooks(allNotebooks);
 
+      // Preload all notebook pages in background for instant switching (non-blocking)
       if (allNotebooks.length > 0) {
+        // Don't await this - let it run in background
+        preloadAllNotebookPages(allNotebooks).catch(console.error);
+      }
+
+      // If no previous state or previous notebook not found, select first notebook
+      if (
+        allNotebooks.length > 0 &&
+        (!canvasState.currentNotebookId ||
+          !allNotebooks.find((n) => n.id === canvasState.currentNotebookId))
+      ) {
         setSelectedNotebook(allNotebooks[0]);
-        // Load pages for the first notebook
+        setCurrentNotebook(allNotebooks[0].id);
         await loadPagesForNotebook(allNotebooks[0].id);
       }
     } catch (error) {
-      // Silently fail
+      console.error("Failed to load notebooks:", error);
     }
   };
 
@@ -62,67 +136,83 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   ) => {
     const { autoSelectFirst = true, preserveSelection = true } = options;
 
+    // Prevent multiple simultaneous calls for the same notebook
+    if (updateInProgressRef.current.has(notebookId)) {
+      return;
+    }
+
+    updateInProgressRef.current.add(notebookId);
+
     try {
-      const fetchedPages = await api.getPages(notebookId);
-      // Convert shared types to frontend types
-      const convertedPages = fetchedPages.map((page) =>
-        convertPageToFrontendType(page)
-      );
+      const convertedPages = await getPagesForNotebook(notebookId);
       setPages(convertedPages);
 
       // Handle page selection logic
       if (autoSelectFirst) {
-        if (preserveSelection && selectedPage) {
-          // Check if current selection still exists in the new pages
-          const pageStillExists = convertedPages.some(
-            (p) => p.id === selectedPage.id
+        // First, try to restore the last accessed page for this notebook
+        const lastAccessedPageId = getLastAccessedPage(notebookId);
+        if (lastAccessedPageId) {
+          const lastAccessedPage = convertedPages.find(
+            (p) => p.id === lastAccessedPageId
           );
-          if (!pageStillExists) {
-            // Current page was deleted or is unavailable, select first
-            if (convertedPages.length > 0) {
-              setSelectedPage(convertedPages[0]);
-            } else {
-              setSelectedPage(null);
-            }
+          if (lastAccessedPage) {
+            setSelectedPage(lastAccessedPage);
+            setCurrentPage(lastAccessedPage.id);
+            return; // Found and selected last accessed page
+          } else {
           }
-          // If page still exists, keep current selection (don't call setSelectedPage)
+        } else {
+        }
+
+        // If no last accessed page or it doesn't exist, use preserveSelection logic
+        if (preserveSelection && canvasState.currentPageId) {
+          // Check if previous page still exists in the new pages
+          const previousPage = convertedPages.find(
+            (p) => p.id === canvasState.currentPageId
+          );
+          if (previousPage) {
+            setSelectedPage(previousPage);
+            setCurrentPage(previousPage.id);
+          } else if (convertedPages.length > 0) {
+            // Previous page not found, select first
+            setSelectedPage(convertedPages[0]);
+            setCurrentPage(convertedPages[0].id);
+          } else {
+            setSelectedPage(null);
+            setCurrentPage(null);
+          }
         } else {
           // Don't preserve selection, select first page
           if (convertedPages.length > 0) {
             setSelectedPage(convertedPages[0]);
+            setCurrentPage(convertedPages[0].id);
           } else {
             setSelectedPage(null);
+            setCurrentPage(null);
           }
         }
       }
     } catch (err) {
+      console.error("Failed to load pages:", err);
       setPages([]);
       if (autoSelectFirst && !preserveSelection) {
         setSelectedPage(null);
+        setCurrentPage(null);
       }
+    } finally {
+      // Clean up the loading state
+      updateInProgressRef.current.delete(notebookId);
     }
-  };
-
-  const convertPageToFrontendType = (sharedPage: SharedPage): Page => {
-    return {
-      id: sharedPage.id,
-      title: sharedPage.title,
-      createdAt: sharedPage.createdAt,
-      lastModified: sharedPage.lastModified,
-      content: sharedPage.content,
-      drawings: sharedPage.drawings,
-      graphs: sharedPage.graphs,
-      textBoxes: sharedPage.textBoxes,
-    };
   };
 
   const refreshNotebooks = async (): Promise<Notebook[]> => {
     try {
-      const { owned, shared } = await api.getNotebooks();
+      const { owned, shared } = await getNotebooks(true); // Force refresh
       const allNotebooks = [...owned, ...shared];
       setNotebooks(allNotebooks);
       return allNotebooks;
     } catch (error) {
+      console.error("Failed to refresh notebooks:", error);
       return [];
     }
   };
@@ -132,9 +222,43 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       const newNotebook = await api.createNotebook({ title });
       await refreshNotebooks();
       setSelectedNotebook(newNotebook);
+      setCurrentNotebook(newNotebook.id);
       setSelectedPage(null);
+      setCurrentPage(null);
+      // Clear pages list when creating a new notebook
+      setPages([]);
     } catch (error) {
-      // Handle error silently
+      console.error("Failed to create notebook:", error);
+    }
+  };
+
+  const handleLeaveNotebook = (notebook: Notebook): void => {
+    setNotebookToLeave(notebook);
+    setLeaveDialogOpen(true);
+  };
+
+  const handleConfirmLeaveNotebook = async (): Promise<void> => {
+    if (!notebookToLeave) return;
+
+    try {
+      await api.leaveNotebook(notebookToLeave.id);
+      await refreshNotebooks();
+
+      // If we're leaving the currently selected notebook, clear the selection
+      if (selectedNotebook?.id === notebookToLeave.id) {
+        setSelectedNotebook(null);
+        setSelectedPage(null);
+        setCurrentNotebook(null);
+        setCurrentPage(null);
+      }
+
+      // Close the dialog
+      setLeaveDialogOpen(false);
+      setNotebookToLeave(null);
+    } catch (error) {
+      console.error("Failed to leave notebook:", error);
+      // For now, just log the error since we don't have an error toast type
+      // TODO: Add error toast type to toast context
     }
   };
 
@@ -148,51 +272,72 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           preserveSelection: true,
         });
 
-        // Cache the new page immediately
-        const convertedPage = convertPageToFrontendType(newPage);
-        setPageCache((prev) => new Map(prev.set(newPage.id, convertedPage)));
+        // Select the new page
+        const convertedPage = {
+          id: newPage.id,
+          title: newPage.title,
+          createdAt: newPage.createdAt,
+          lastModified: newPage.lastModified,
+          content: newPage.content,
+          drawings: newPage.drawings,
+          graphs: newPage.graphs,
+          textBoxes: newPage.textBoxes,
+        };
         setSelectedPage(convertedPage);
+        setCurrentPage(convertedPage.id);
       } catch (error) {
-        // Handle error silently
+        console.error("Failed to create page:", error);
       }
     }
   };
 
   const handleSelectNotebook = async (notebook: Notebook): Promise<void> => {
     setSelectedNotebook(notebook);
+    setCurrentNotebook(notebook.id);
+    setLastAccessedNotebook(notebook.id); // Save the last accessed notebook
 
-    // Clear page cache when switching notebooks to avoid stale data
-    setPageCache(new Map());
-
+    // Load pages immediately from cache if available
     await loadPagesForNotebook(notebook.id, {
       autoSelectFirst: true,
       preserveSelection: false,
     });
+
+    // Aggressively preload all pages of the current notebook in background
+    preloadCurrentNotebookPages(notebook.id);
   };
 
   const handleSelectPage = async (page: Page) => {
     try {
-      // Check if page is already cached
-      const cachedPage = pageCache.get(page.id);
-      if (cachedPage) {
-        console.log("Using cached page data for:", page.id);
-        setSelectedPage(cachedPage);
-        return;
+      // Use optimized page loading with caching
+      const fullPageData = await getPage(page.id);
+      if (fullPageData) {
+        setSelectedPage(fullPageData);
+        setCurrentPage(fullPageData.id);
+
+        // Track last accessed page for this notebook
+        if (selectedNotebook) {
+          setLastAccessedPage(selectedNotebook.id, fullPageData.id);
+        }
+      } else {
+        // Fallback to the metadata page if full data fails to load
+        setSelectedPage(page);
+        setCurrentPage(page.id);
+
+        // Track last accessed page for this notebook
+        if (selectedNotebook) {
+          setLastAccessedPage(selectedNotebook.id, page.id);
+        }
       }
-
-      // Load full page data including drawings, textBoxes, and graphs
-      console.log("Loading full page data for:", page.id);
-      const fullPageData = await api.getPage(page.id);
-      const convertedPage = convertPageToFrontendType(fullPageData);
-      console.log("Full page data loaded:", convertedPage);
-
-      // Cache the page data
-      setPageCache((prev) => new Map(prev.set(page.id, convertedPage)));
-      setSelectedPage(convertedPage);
     } catch (error) {
       console.error("Failed to load full page data:", error);
       // Fallback to the metadata page if full data fails to load
       setSelectedPage(page);
+      setCurrentPage(page.id);
+
+      // Track last accessed page for this notebook
+      if (selectedNotebook) {
+        setLastAccessedPage(selectedNotebook.id, page.id);
+      }
     }
   };
 
@@ -200,27 +345,42 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook && selectedPage) {
       // Don't make API calls in view-only mode
       if (selectedNotebook.permission === "view") {
-        console.log("Skipping API call in view-only mode");
         return;
       }
+
+      // Prevent multiple simultaneous updates for the same page
+      if (updateInProgressRef.current.has(selectedPage.id)) {
+        return;
+      }
+
+      updateInProgressRef.current.add(selectedPage.id);
 
       try {
         const updatedPage = await api.updatePage(selectedPage.id, updates);
         // Update local state directly instead of refreshing all notebooks
-        const convertedPage = convertPageToFrontendType(updatedPage);
-        setSelectedPage(convertedPage);
+        const convertedPage = {
+          id: updatedPage.id,
+          title: updatedPage.title,
+          createdAt: updatedPage.createdAt,
+          lastModified: updatedPage.lastModified,
+          content: updatedPage.content,
+          drawings: updatedPage.drawings,
+          graphs: updatedPage.graphs,
+          textBoxes: updatedPage.textBoxes,
+        };
 
-        // Update pages list locally
+        // Update cache first to prevent any reloading
+        updateCache("pages", selectedPage.id, convertedPage);
+
+        // Then update local state atomically to prevent stutter
+        setSelectedPage(convertedPage);
         setPages(
           pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
         );
-
-        // Update the cache with the latest page data
-        setPageCache(
-          (prev) => new Map(prev.set(selectedPage.id, convertedPage))
-        );
       } catch (error) {
-        // Handle error silently
+        console.error("Failed to update page:", error);
+      } finally {
+        updateInProgressRef.current.delete(selectedPage.id);
       }
     }
   };
@@ -241,7 +401,16 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         });
 
         // Update local state directly instead of reloading pages
-        const convertedPage = convertPageToFrontendType(updatedPage);
+        const convertedPage = {
+          id: updatedPage.id,
+          title: updatedPage.title,
+          createdAt: updatedPage.createdAt,
+          lastModified: updatedPage.lastModified,
+          content: updatedPage.content,
+          drawings: updatedPage.drawings,
+          graphs: updatedPage.graphs,
+          textBoxes: updatedPage.textBoxes,
+        };
         setPages(
           pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
         );
@@ -250,12 +419,12 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           setSelectedPage(convertedPage);
         }
 
-        // Update the cache with the renamed page
-        setPageCache((prev) => new Map(prev.set(page.id, convertedPage)));
+        // Update cache with the new data instead of invalidating
+        updateCache("pages", page.id, convertedPage);
 
         setRenameDialogOpen(false);
       } catch (error) {
-        // Handle error silently
+        console.error("Failed to rename page:", error);
       }
     }
   };
@@ -271,9 +440,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         await api.deletePage(pageToEdit.id);
 
         // Reload pages after deletion
-        const fetchedPages = await api.getPages(selectedNotebook.id);
-        const convertedPages = fetchedPages.map((page) =>
-          convertPageToFrontendType(page)
+        const convertedPages = await getPagesForNotebook(
+          selectedNotebook.id,
+          true
         );
         setPages(convertedPages);
 
@@ -281,17 +450,15 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         if (selectedPage?.id === pageToEdit.id) {
           if (convertedPages.length > 0) {
             setSelectedPage(convertedPages[0]);
+            setCurrentPage(convertedPages[0].id);
           } else {
             setSelectedPage(null);
+            setCurrentPage(null);
           }
         }
 
         // Remove the deleted page from cache
-        setPageCache((prev) => {
-          const newCache = new Map(prev);
-          newCache.delete(pageToEdit.id);
-          return newCache;
-        });
+        invalidateCache("pages", pageToEdit.id);
 
         setPageToEdit(null);
         setDeleteDialogOpen(false);
@@ -304,56 +471,76 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           onUndo: async () => {
             const restoredPage = await api.restorePage(pageToEdit.id);
             // Reload pages to show restored page
-            const updatedPages = await api.getPages(selectedNotebook.id);
-            const convertedUpdatedPages = updatedPages.map((page) =>
-              convertPageToFrontendType(page)
+            const updatedPages = await getPagesForNotebook(
+              selectedNotebook.id,
+              true
             );
-            setPages(convertedUpdatedPages);
+            setPages(updatedPages);
 
-            // Cache the restored page
-            const convertedPage = convertPageToFrontendType(restoredPage);
-            setPageCache(
-              (prev) => new Map(prev.set(restoredPage.id, convertedPage))
-            );
+            // Invalidate cache to ensure fresh data
+            invalidateCache("pages", restoredPage.id);
           },
         });
       } catch (error) {
-        // Handle error silently
+        console.error("Failed to delete page:", error);
       }
     }
   };
 
   const handleSidebarCollapsedChange = (collapsed: boolean) => {
-    updateCanvasState({
-      expandedPanels: {
-        sidebar: !collapsed,
-      },
-    });
+    setExpandedPanel("sidebar", !collapsed);
   };
 
   const handlePagesListCollapsedChange = (collapsed: boolean) => {
-    updateCanvasState({
-      expandedPanels: {
-        pagesList: !collapsed,
-      },
-    });
+    setExpandedPanel("pagesList", !collapsed);
   };
 
+  const handleSidebarWidthChange = (width: number) => {
+    setColumnWidth("sidebar", width);
+  };
+
+  const handlePagesListWidthChange = (width: number) => {
+    setColumnWidth("pagesList", width);
+  };
+
+  const handlePageAdded = (newPage: Page) => {
+    // Add the new page to the current pages list
+    setPages((prevPages) => [...prevPages, newPage]);
+    // Select the new page
+    setSelectedPage(newPage);
+  };
+
+  const handlePageDeleted = (pageId: string) => {
+    // Remove the deleted page from the current pages list
+    setPages((prevPages) => prevPages.filter((page) => page.id !== pageId));
+    // If the deleted page was selected, clear selection
+    if (selectedPage?.id === pageId) {
+      setSelectedPage(null);
+      setCurrentPage(null);
+    }
+  };
+
+  // Set up background refresh for optimal user experience
+  useBackgroundRefresh({
+    selectedNotebook,
+    onPagesUpdated: setPages,
+    onNotebooksUpdated: setNotebooks,
+  });
+
   return (
-    <>
+    <ClipboardProvider>
       <div className="flex h-screen overflow-hidden bg-background text-foreground">
         <ResizablePanel
-          defaultWidth={256}
+          defaultWidth={canvasState.columnWidths.sidebar}
           minWidth={200}
           maxWidth={400}
           side="left"
           panelId="notebooks"
           activePanel={activePanel}
           onInteractionChange={setActivePanel}
-          initialCollapsed={
-            user?.canvasState?.expandedPanels?.sidebar === false
-          }
+          initialCollapsed={canvasState.expandedPanels.sidebar === false}
           onCollapsedChange={handleSidebarCollapsedChange}
+          onWidthChange={handleSidebarWidthChange}
         >
           <Sidebar
             notebooks={notebooks}
@@ -362,21 +549,22 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             onCreateNotebook={handleCreateNotebook}
             onNotebookChanged={loadNotebooks}
             onNavigateHome={onNavigateHome}
+            isLoading={loadingStates.notebooks}
+            onLeaveNotebook={handleLeaveNotebook}
           />
         </ResizablePanel>
 
         <ResizablePanel
-          defaultWidth={224}
+          defaultWidth={canvasState.columnWidths.pagesList}
           minWidth={180}
           maxWidth={400}
           side="left"
           panelId="pages"
           activePanel={activePanel}
           onInteractionChange={setActivePanel}
-          initialCollapsed={
-            user?.canvasState?.expandedPanels?.pagesList === false
-          }
+          initialCollapsed={canvasState.expandedPanels.pagesList === false}
           onCollapsedChange={handlePagesListCollapsedChange}
+          onWidthChange={handlePagesListWidthChange}
         >
           <PagesList
             pages={pages}
@@ -385,7 +573,11 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             onCreatePage={handleCreatePage}
             onDeletePage={handleOpenDeleteDialog}
             onRenamePage={handleOpenRenameDialog}
+            onPageAdded={handlePageAdded}
+            onPageDeleted={handlePageDeleted}
             notebookSelected={!!selectedNotebook}
+            notebookId={selectedNotebook?.id}
+            isLoading={loadingStates.pages}
           />
         </ResizablePanel>
 
@@ -411,7 +603,17 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         title="Delete Page"
         itemName={pageToEdit?.title}
       />
+
+      <DeleteConfirmDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        onConfirm={handleConfirmLeaveNotebook}
+        title="Leave Notebook"
+        description={`Are you sure you want to leave "${notebookToLeave?.title}"? You will no longer have access to this notebook.`}
+        confirmButtonText="Leave"
+        confirmButtonVariant="destructive"
+      />
       <ToastContainer />
-    </>
+    </ClipboardProvider>
   );
 }

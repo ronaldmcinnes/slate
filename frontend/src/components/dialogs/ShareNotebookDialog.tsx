@@ -2,6 +2,12 @@ import { useState } from "react";
 import { X, Mail, UserPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import type { Notebook } from "@shared/types";
 
@@ -57,36 +63,27 @@ export default function ShareNotebookDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b dark:border-slate-700">
-          <div>
-            <h2 className="text-xl font-bold">Share Notebook</h2>
-            <p className="text-sm text-gray-500 mt-1">{notebook.title}</p>
-          </div>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Share Notebook</DialogTitle>
+          <p className="text-sm text-muted-foreground">{notebook.title}</p>
+        </DialogHeader>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           {/* Share Form */}
           <div className="space-y-4">
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-foreground mb-2"
               >
                 Share with
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
@@ -106,7 +103,7 @@ export default function ShareNotebookDialog({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Permission
               </label>
               <div className="flex gap-2">
@@ -117,7 +114,7 @@ export default function ShareNotebookDialog({
                     ${
                       permission === "view"
                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                        : "border-border hover:border-border"
                     }
                   `}
                 >
@@ -130,7 +127,7 @@ export default function ShareNotebookDialog({
                     ${
                       permission === "edit"
                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                        : "border-border hover:border-border"
                     }
                   `}
                 >
@@ -157,21 +154,21 @@ export default function ShareNotebookDialog({
 
           {/* Shared With List */}
           {notebook.sharedWith && notebook.sharedWith.length > 0 && (
-            <div className="pt-4 border-t dark:border-slate-700">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-sm font-medium text-foreground mb-3">
                 Shared with ({notebook.sharedWith.length})
               </h3>
               <div className="space-y-2">
                 {notebook.sharedWith.map((share) => (
                   <div
                     key={share.userId}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
                         {share.email}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         {share.permission === "view" ? "Can view" : "Can edit"}
                       </p>
                     </div>
@@ -189,7 +186,7 @@ export default function ShareNotebookDialog({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

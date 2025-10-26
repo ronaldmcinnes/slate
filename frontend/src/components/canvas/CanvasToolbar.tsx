@@ -1,14 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { Lasso } from "lucide-react";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import ToolbarSettings from "./ToolbarSettings";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface CanvasToolbarProps {
   isToolbarVisible: boolean;
   onToggleVisibility: () => void;
   tool: string;
-  onToolChange: (tool: string) => void;
+  onToolChange: (tool: string, color?: string, width?: number) => void;
   onUndo: () => void;
   onRedo: () => void;
   onSave: () => void;
@@ -83,7 +83,7 @@ export default function CanvasToolbar({
       data-toolbar
       className="sticky top-4 left-1/2 transform -translate-x-1/2 z-20 bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg max-w-[60%] w-fit"
     >
-      <div className="flex items-center gap-2 px-2 py-2">
+      <div className="flex items-center gap-2 px-2 py-3">
         {/* Static Tools - Always Visible */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Undo/Redo */}
@@ -132,7 +132,7 @@ export default function CanvasToolbar({
             </svg>
           </Button>
 
-          <div className="w-px h-6 bg-border mx-1" />
+          <div className="w-px h-8 bg-border mx-1" />
 
           {/* Save Button */}
           <Button
@@ -190,7 +190,7 @@ export default function CanvasToolbar({
             </svg>
           </Button>
 
-          <div className="w-px h-6 bg-border mx-1" />
+          <div className="w-px h-8 bg-border mx-1" />
 
           {/* Selection Tools */}
           <Button
@@ -214,15 +214,6 @@ export default function CanvasToolbar({
               <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
               <path d="M13 13l6 6" />
             </svg>
-          </Button>
-          <Button
-            variant={tool === "lasso" ? "secondary" : "ghost"}
-            size="icon"
-            className={`h-9 w-9 ${tool === "lasso" ? "bg-muted" : ""}`}
-            onClick={() => onToolChange("lasso")}
-            title="Lasso Tool"
-          >
-            <Lasso size={18} />
           </Button>
 
           {/* Audio Recording */}
@@ -250,7 +241,7 @@ export default function CanvasToolbar({
             }
           >
             {isTranscribing || isInterpreting ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+              <LoadingSpinner size="sm" text="" showText={false} />
             ) : isRecording ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -286,7 +277,7 @@ export default function CanvasToolbar({
           </Button>
         </div>
 
-        <div className="w-px h-8 bg-border flex-shrink-0" />
+        <div className="w-px h-12 bg-border flex-shrink-0" />
 
         {/* Left Scroll Arrow */}
         <Button
@@ -328,7 +319,7 @@ export default function CanvasToolbar({
                 visibleTools={visibleTools}
               />
 
-              <div className="w-px h-8 bg-border flex-shrink-0" />
+              <div className="w-px h-10 bg-border flex-shrink-0" />
 
               <ToolbarActions
                 onAddGraph={onAddGraph}
@@ -366,7 +357,7 @@ export default function CanvasToolbar({
           </svg>
         </Button>
 
-        <div className="w-px h-8 bg-border flex-shrink-0" />
+        <div className="w-px h-10 bg-border flex-shrink-0" />
 
         <ToolbarSettings
           visibleTools={visibleTools}

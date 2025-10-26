@@ -47,7 +47,24 @@ export interface CanvasActions {
 
 export function useCanvas(
   page: Page | null,
-  onUpdatePage: (updates: Partial<Page>) => void
+  onUpdatePage: (updates: Partial<Page>) => void,
+  initialState?: {
+    strokeColor?: string;
+    strokeWidth?: number;
+    tool?: string;
+    canvasSize?: { width: number; height: number };
+    toolbarScrollPosition?: number;
+    isToolbarVisible?: boolean;
+    visibleTools?: {
+      eraser: boolean;
+      markers: boolean;
+      highlighter: boolean;
+      fountainPen: boolean;
+      text: boolean;
+      graph: boolean;
+      microphone: boolean;
+    };
+  }
 ) {
   // State
   const [isRecording, setIsRecording] = useState(false);
@@ -67,23 +84,35 @@ export function useCanvas(
       : "#000000";
   };
 
-  const [strokeColor, setStrokeColor] = useState(getInitialStrokeColor());
-  const [strokeWidth, setStrokeWidth] = useState(3);
-  const [tool, setTool] = useState("marker");
+  const [strokeColor, setStrokeColor] = useState(
+    initialState?.strokeColor || getInitialStrokeColor()
+  );
+  const [strokeWidth, setStrokeWidth] = useState(
+    initialState?.strokeWidth || 3
+  );
+  const [tool, setTool] = useState(initialState?.tool || "marker");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
-  const [isToolbarVisible, setIsToolbarVisible] = useState(true);
-  const [toolbarScrollPosition, setToolbarScrollPosition] = useState(0);
-  const [canvasSize, setCanvasSize] = useState({ width: 200, height: 200 });
-  const [visibleTools, setVisibleTools] = useState({
-    eraser: true,
-    markers: true,
-    highlighter: true,
-    fountainPen: true,
-    text: true,
-    graph: true,
-    microphone: true,
-  });
+  const [isToolbarVisible, setIsToolbarVisible] = useState(
+    initialState?.isToolbarVisible ?? true
+  );
+  const [toolbarScrollPosition, setToolbarScrollPosition] = useState(
+    initialState?.toolbarScrollPosition || 0
+  );
+  const [canvasSize, setCanvasSize] = useState(
+    initialState?.canvasSize || { width: 200, height: 200 }
+  );
+  const [visibleTools, setVisibleTools] = useState(
+    initialState?.visibleTools || {
+      eraser: true,
+      markers: true,
+      highlighter: true,
+      fountainPen: true,
+      text: true,
+      graph: true,
+      microphone: true,
+    }
+  );
 
   // Refs
   const canvasRef = useRef<any>(null);

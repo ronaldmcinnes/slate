@@ -15,16 +15,14 @@ interface GraphDialogProps {
   onAddGraph: (graphData: any) => void;
 }
 
-export default function GraphDialog({ open, onOpenChange, onAddGraph }: GraphDialogProps) {
+export default function GraphDialog({
+  open,
+  onOpenChange,
+  onAddGraph,
+}: GraphDialogProps) {
   const [title, setTitle] = useState("");
   const [graphType, setGraphType] = useState("function");
   const [equation, setEquation] = useState("x^2");
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onOpenChange(false);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +47,7 @@ export default function GraphDialog({ open, onOpenChange, onAddGraph }: GraphDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onKeyDown={handleKeyDown}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Interactive Graph</DialogTitle>
         </DialogHeader>

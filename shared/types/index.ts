@@ -21,8 +21,14 @@ export interface User {
       pagesList?: boolean;
       toolbar?: boolean;
     };
+    columnWidths?: {
+      sidebar?: number;
+      pagesList?: number;
+    };
     currentNotebookId?: string;
     currentPageId?: string;
+    lastAccessedPages?: Record<string, string>; // notebookId -> pageId
+    lastAccessedNotebook?: string;
     canvasViewport?: {
       x?: number;
       y?: number;
@@ -161,8 +167,13 @@ export interface UpdateCanvasStateRequest {
     pagesList?: boolean;
     toolbar?: boolean;
   };
+  columnWidths?: {
+    sidebar?: number;
+    pagesList?: number;
+  };
   currentNotebookId?: string;
   currentPageId?: string;
+  lastAccessedPages?: Record<string, string>; // notebookId -> pageId
   canvasViewport?: {
     x?: number;
     y?: number;

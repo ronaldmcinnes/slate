@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/authContext";
 import Header from "@/components/landing/Header";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import HeroSection from "@/components/landing/HeroSection";
+import { DemoSection } from "@/components/app/DemoSection";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -21,6 +22,7 @@ export default function HomePage() {
       <Header />
       <HeroSection />
       <FeaturesSection />
+      <DemoSection />
     </div>
   );
 }

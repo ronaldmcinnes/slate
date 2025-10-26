@@ -15,6 +15,14 @@ interface DeleteConfirmDialogProps {
   title?: string;
   description?: string;
   itemName?: string;
+  confirmButtonText?: string;
+  confirmButtonVariant?:
+    | "destructive"
+    | "default"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link";
 }
 
 export default function DeleteConfirmDialog({
@@ -24,23 +32,17 @@ export default function DeleteConfirmDialog({
   title = "Confirm Delete",
   description = "Are you sure you want to delete this item? This action cannot be undone.",
   itemName,
+  confirmButtonText = "Delete",
+  confirmButtonVariant = "destructive",
 }: DeleteConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onOpenChange(false);
-    } else if (e.key === "Enter") {
-      handleConfirm();
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onKeyDown={handleKeyDown}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -58,8 +60,8 @@ export default function DeleteConfirmDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleConfirm}>
-            Delete
+          <Button variant={confirmButtonVariant} onClick={handleConfirm}>
+            {confirmButtonText}
           </Button>
         </DialogFooter>
       </DialogContent>

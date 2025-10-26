@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -56,8 +57,8 @@ export default function AuthCallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 dark:border-white mb-4"></div>
-        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">
+        <LoadingSpinner size="lg" text="" showText={false} />
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2 mt-4">
           Authenticating...
         </h2>
         <p className="text-slate-600 dark:text-slate-400">

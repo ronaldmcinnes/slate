@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import type { Notebook } from "@shared/types";
 
@@ -38,23 +46,20 @@ export default function DeleteNotebookDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full">
-        {/* Header */}
-        <div className="p-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                Delete Notebook
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <DialogTitle>Delete Notebook</DialogTitle>
+              <DialogDescription>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold">"{notebook.title}"</span>? This
+                <span className="font-semibold">"{notebook?.title}"</span>? This
                 will move it to trash where it can be recovered for 30 days.
-              </p>
+              </DialogDescription>
             </div>
           </div>
 
@@ -63,27 +68,25 @@ export default function DeleteNotebookDialog({
               {error}
             </div>
           )}
-        </div>
+        </DialogHeader>
 
-        {/* Actions */}
-        <div className="flex gap-3 p-6 pt-0">
+        <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
-            className="flex-1"
           >
             Cancel
           </Button>
           <Button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            variant="destructive"
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

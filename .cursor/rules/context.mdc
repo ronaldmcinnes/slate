@@ -86,3 +86,5 @@ Slate is a modern, collaborative notebook application with real-time canvas draw
 - Backend: Vercel Serverless (Express)
 - Frontend: Vercel (Vite SPA)
 - MongoDB Atlas for database
+
+Only change files that are related to the prompt, not files you thought should be changed.

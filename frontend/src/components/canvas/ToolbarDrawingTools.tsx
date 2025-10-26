@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_COLORS = [
@@ -133,119 +133,121 @@ export default function ToolbarDrawingTools({
     maxWidth?: number;
   }
 
-  const ColorAndSizeButton = ({
-    color,
-    width,
-    onColorChange,
-    onWidthChange,
-    isActive,
-    onClick,
-    icon,
-    label,
-    minWidth = 1,
-    maxWidth = 30,
-  }: ColorAndSizeButtonProps) => {
-    const [popoverOpen, setPopoverOpen] = useState(false);
-    const IconComponent = icon;
+  const ColorAndSizeButton = memo(
+    ({
+      color,
+      width,
+      onColorChange,
+      onWidthChange,
+      isActive,
+      onClick,
+      icon,
+      label,
+      minWidth = 1,
+      maxWidth = 30,
+    }: ColorAndSizeButtonProps) => {
+      const [popoverOpen, setPopoverOpen] = useState(false);
+      const IconComponent = icon;
 
-    return (
-      <div className="flex flex-col items-center">
-        <Button
-          variant={isActive ? "secondary" : "ghost"}
-          size="icon"
-          className={cn("h-9 w-9", isActive ? "rounded-b-none bg-muted" : "")}
-          onClick={onClick}
-          title={label}
-        >
-          <div className="relative">
-            <IconComponent size={18} />
-            <div
-              className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-          </div>
-        </Button>
-        {isActive && (
-          <Popover
-            open={popoverOpen}
-            onOpenChange={setPopoverOpen}
-            modal={false}
+      return (
+        <div className="flex flex-col items-center">
+          <Button
+            variant={isActive ? "secondary" : "ghost"}
+            size="icon"
+            className={cn("h-9 w-9", isActive ? "rounded-b-none bg-muted" : "")}
+            onClick={onClick}
+            title={label}
           >
-            <PopoverTrigger asChild>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-3 w-9 rounded-t-none bg-muted py-0 flex items-center justify-center"
-                onClick={() => setPopoverOpen(!popoverOpen)}
-              >
-                <ChevronDown size={10} />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-auto p-3"
-              side="bottom"
-              align="center"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
+            <div className="relative">
+              <IconComponent size={18} />
               <div
-                className="space-y-3"
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
+                className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+            </div>
+          </Button>
+          {isActive && (
+            <Popover
+              open={popoverOpen}
+              onOpenChange={setPopoverOpen}
+              modal={false}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-3 w-9 rounded-t-none bg-muted py-0 flex items-center justify-center"
+                  onClick={() => setPopoverOpen(!popoverOpen)}
+                >
+                  <ChevronDown size={10} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-3"
+                side="bottom"
+                align="center"
+                onOpenAutoFocus={(e) => e.preventDefault()}
               >
-                {/* Color Picker */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Choose color</p>
-                  <div className="grid grid-cols-6 gap-2">
-                    {DEFAULT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        className={cn(
-                          "w-8 h-8 rounded border-2 hover:scale-110 transition-transform",
-                          c === "#FFFFFF"
-                            ? "border-border"
-                            : "border-transparent"
-                        )}
-                        style={{ backgroundColor: c }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onColorChange(c);
-                        }}
-                      />
-                    ))}
+                <div
+                  className="space-y-3"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Color Picker */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Choose color</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      {DEFAULT_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          className={cn(
+                            "w-8 h-8 rounded border-2 hover:scale-110 transition-transform",
+                            c === "#FFFFFF"
+                              ? "border-border"
+                              : "border-transparent"
+                          )}
+                          style={{ backgroundColor: c }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onColorChange(c);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Size Slider */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Size</p>
+                      <span className="text-xs text-muted-foreground">
+                        {width}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={minWidth}
+                      max={maxWidth}
+                      value={width}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        onWidthChange(Number(e.target.value));
+                      }}
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
                   </div>
                 </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      );
+    }
+  );
 
-                {/* Size Slider */}
-                <div className="space-y-2 pt-2 border-t">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Size</p>
-                    <span className="text-xs text-muted-foreground">
-                      {width}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={minWidth}
-                    max={maxWidth}
-                    value={width}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      onWidthChange(Number(e.target.value));
-                    }}
-                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
-    );
-  };
-
-  const EraserButton = () => {
+  const EraserButton = memo(() => {
     const [popoverOpen, setPopoverOpen] = useState(false);
     const isActive = tool === "eraser";
 
@@ -352,7 +354,7 @@ export default function ToolbarDrawingTools({
         )}
       </div>
     );
-  };
+  });
 
   return (
     <div className="flex items-center gap-1">

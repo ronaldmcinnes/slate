@@ -377,7 +377,7 @@ router.post(
   }
 );
 
-// Unshare notebook
+// Unshare notebook (owner removes someone)
 router.delete(
   "/:id/share/:userId",
   authenticate,
@@ -423,6 +423,52 @@ router.delete(
     }
   }
 );
+
+// Leave notebook (user removes themselves from shared notebook)
+router.delete("/:id/leave", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const notebook = await Notebook.findById(req.params.id);
+    const userId = req.user!._id as mongoose.Types.ObjectId;
+
+    if (!notebook) {
+      res.status(404).json({
+        success: false,
+        error: "Notebook not found",
+      });
+      return;
+    }
+
+    // Check if user is shared with this notebook
+    const userShare = notebook.sharedWith.find(
+      (s) => s.userId.toString() === userId.toString()
+    );
+
+    if (!userShare) {
+      res.status(403).json({
+        success: false,
+        error: "You are not shared with this notebook",
+      });
+      return;
+    }
+
+    // Remove user from sharedWith array
+    notebook.sharedWith = notebook.sharedWith.filter(
+      (s) => s.userId.toString() !== userId.toString()
+    );
+
+    await notebook.save();
+
+    res.json({
+      success: true,
+      message: "Left notebook successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Error leaving notebook",
+    });
+  }
+});
 
 // Get all unique tags
 router.get("/tags/list", authenticate, async (req: AuthRequest, res) => {

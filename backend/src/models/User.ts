@@ -20,6 +20,8 @@ export interface IUser extends Document {
     };
     currentNotebookId?: mongoose.Types.ObjectId;
     currentPageId?: mongoose.Types.ObjectId;
+    lastAccessedPages?: Record<string, string>; // notebookId -> pageId
+    lastAccessedNotebook?: string;
     canvasViewport: {
       x?: number;
       y?: number;
@@ -97,6 +99,14 @@ const UserSchema: Schema = new Schema(
       currentPageId: {
         type: Schema.Types.ObjectId,
         ref: "Page",
+      },
+      lastAccessedPages: {
+        type: Schema.Types.Mixed,
+        default: {},
+      },
+      lastAccessedNotebook: {
+        type: String,
+        default: null,
       },
       canvasViewport: {
         x: {
