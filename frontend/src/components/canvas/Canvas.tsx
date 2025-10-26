@@ -266,6 +266,11 @@ export default function Canvas({
           console.log("Loading drawing paths:", page.drawings.paths);
           await canvasRef.current.loadPaths(page.drawings.paths);
           console.log("Drawing paths loaded successfully");
+        } else if (page.drawings && Array.isArray(page.drawings) && page.drawings.length > 0) {
+          // Handle case where drawings is stored as array directly
+          console.log("Loading drawing paths (direct array):", page.drawings);
+          await canvasRef.current.loadPaths(page.drawings);
+          console.log("Drawing paths loaded successfully");
         } else {
           console.log("No drawings to load, clearing canvas");
           // Clear canvas if no drawings
@@ -291,10 +296,16 @@ export default function Canvas({
     if (!page) return;
     
     const graphs = page.graphs || [];
-    graphs.push({
-      id: Date.now(),
-      ...graphData,
-    });
+    const newGraph = {
+      id: Date.now().toString(),
+      type: graphData.type || "mathematical",
+      data: graphData,
+      layout: {},
+      position: { x: graphData.x || 100, y: graphData.y || 100 },
+      size: { width: 500, height: 400 },
+      graphSpec: graphData,
+    };
+    graphs.push(newGraph);
     onUpdatePage({ graphs });
     markAsChanged();
   };
@@ -323,7 +334,7 @@ export default function Canvas({
     if (!page) return;
     
     const graphs = page.graphs.map((g) =>
-      g.id === graphId ? { ...g, x, y } : g
+      g.id === graphId ? { ...g, position: { x, y } } : g
     );
     onUpdatePage({ graphs });
     markAsChanged();
@@ -419,14 +430,16 @@ export default function Canvas({
       const paths = canvasRef.current ? await canvasRef.current.exportPaths() : null;
       console.log("Drawing paths:", paths);
       
-      // Prepare the complete page state
+      // Prepare the complete page state with proper drawing data structure
       const pageState = {
-        drawings: paths,
+        drawings: paths ? { paths } : null,
         textBoxes: page.textBoxes || [],
         graphs: page.graphs || [],
       };
 
       console.log("Saving page state:", pageState);
+      console.log("Text boxes with positions:", pageState.textBoxes.map(tb => ({ id: tb.id, position: tb.position })));
+      console.log("Graphs with positions:", pageState.graphs.map(g => ({ id: g.id, position: g.position })));
 
       // Save to database
       await onUpdatePage(pageState);
