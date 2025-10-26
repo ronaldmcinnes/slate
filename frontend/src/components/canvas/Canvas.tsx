@@ -3,6 +3,7 @@ import { ReactSketchCanvas } from "react-sketch-canvas";
 import { Button } from "@/components/ui/button";
 import { Lasso } from "lucide-react";
 import GraphDialog from "@/components/dialogs/GraphDialog";
+import SharePageDialog from "@/components/dialogs/SharePageDialog";
 import DraggableGraph from "./DraggableGraph";
 import TextBox from "./TextBox";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
@@ -32,6 +33,7 @@ export default function Canvas({
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [tool, setTool] = useState("marker");
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
@@ -606,6 +608,7 @@ export default function Canvas({
 
                       <ToolbarActions
                         onAddGraph={() => setGraphDialogOpen(true)}
+                        onSharePage={() => setShareDialogOpen(true)}
                         visibleTools={visibleTools}
                       />
                     </>
@@ -907,6 +910,16 @@ export default function Canvas({
         open={graphDialogOpen}
         onOpenChange={setGraphDialogOpen}
         onAddGraph={handleAddGraph}
+      />
+
+      <SharePageDialog
+        page={page}
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        onShared={() => {
+          // Could add a toast notification here
+          console.log("Page shared successfully");
+        }}
       />
     </>
   );

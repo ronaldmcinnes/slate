@@ -8,10 +8,13 @@ import type {
   ShareNotebookRequest,
   CreatePageRequest,
   UpdatePageRequest,
+  SharePageRequest,
   UpdateCanvasStateRequest,
   SearchQuery,
   SearchResult,
   TrashItem,
+  PageShareInvitation,
+  SharedPage,
   ApiResponse,
 } from "@shared/types";
 
@@ -277,6 +280,56 @@ class ApiClient {
     lastModified: string | null;
   }> {
     const response = await this.request<any>("/api/aggregate/stats");
+    return response.data;
+  }
+
+  // ============================================
+  // PAGE SHARING
+  // ============================================
+  async sharePage(pageId: string, data: SharePageRequest): Promise<any> {
+    const response = await this.request(`/api/page-shares/${pageId}/share`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  }
+
+  async getSharedPages(): Promise<SharedPage[]> {
+    const response = await this.request<SharedPage[]>("/api/page-shares/shared");
+    return response.data!;
+  }
+
+  async getPageShareInvitations(): Promise<PageShareInvitation[]> {
+    const response = await this.request<PageShareInvitation[]>("/api/page-shares/invitations");
+    return response.data!;
+  }
+
+  async acceptPageShare(shareId: string): Promise<any> {
+    const response = await this.request(`/api/page-shares/${shareId}/accept`, {
+      method: "POST",
+    });
+    return response.data;
+  }
+
+  async declinePageShare(shareId: string): Promise<void> {
+    await this.request(`/api/page-shares/${shareId}/decline`, {
+      method: "POST",
+    });
+  }
+
+  async getPageShareStatus(pageId: string): Promise<any[]> {
+    const response = await this.request<any[]>(`/api/page-shares/${pageId}/share-status`);
+    return response.data!;
+  }
+
+  async revokePageShare(shareId: string): Promise<void> {
+    await this.request(`/api/page-shares/${shareId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getInvitationByToken(token: string): Promise<any> {
+    const response = await this.request(`/api/page-shares/invitation/${token}`);
     return response.data;
   }
 }

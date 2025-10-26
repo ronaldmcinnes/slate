@@ -1,13 +1,15 @@
-import { LineChart } from "lucide-react";
+import { LineChart, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ToolbarActionsProps {
   onAddGraph: () => void;
+  onSharePage?: () => void;
   visibleTools?: Record<string, boolean>;
 }
 
 export default function ToolbarActions({ 
   onAddGraph, 
+  onSharePage,
   visibleTools = {} 
 }: ToolbarActionsProps) {
   return (
@@ -24,6 +26,17 @@ export default function ToolbarActions({
         </Button>
       )}
       
+      {onSharePage && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 hover:bg-muted"
+          onClick={onSharePage}
+          title="Share Page"
+        >
+          <Share2 size={18} />
+        </Button>
+      )}
     </div>
   );
 }

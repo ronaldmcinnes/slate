@@ -150,6 +150,11 @@ export interface UpdatePageRequest {
   order?: number;
 }
 
+export interface SharePageRequest {
+  email: string;
+  permission: "view" | "edit";
+}
+
 export interface UpdateCanvasStateRequest {
   expandedPanels?: {
     sidebar?: boolean;
@@ -228,4 +233,39 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   hasMore: boolean;
+}
+
+// ============================================
+// PAGE SHARING TYPES
+// ============================================
+export interface PageShare {
+  id: string;
+  pageId: string;
+  sharedBy: string;
+  sharedWith: string;
+  permission: "view" | "edit";
+  status: "pending" | "accepted" | "declined" | "expired";
+  invitationToken: string;
+  expiresAt: string;
+  acceptedAt?: string;
+  declinedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PageShareInvitation {
+  id: string;
+  page: Page;
+  sharedBy: User;
+  permission: "view" | "edit";
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface SharedPage {
+  id: string;
+  page: Page;
+  sharedBy: User;
+  permission: "view" | "edit";
+  acceptedAt: string;
 }

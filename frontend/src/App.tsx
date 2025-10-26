@@ -11,6 +11,7 @@ import AuthCallback from "@/components/AuthCallback";
 import OnboardingPage from "@/components/OnboardingPage";
 import NotFoundPage from "@/components/NotFoundPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import SharedPageInvitation from "@/components/SharedPageInvitation";
 import NotebookApp from "./NotebookApp";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/shared-page/:token" element={<SharedPageInvitation />} />
 
           {/* Onboarding - only accessible if tutorial NOT completed */}
           <Route

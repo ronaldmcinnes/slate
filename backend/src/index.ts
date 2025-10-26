@@ -10,6 +10,7 @@ import { configurePassport } from "./config/passport";
 import authRoutes from "./routes/auth";
 import notebooksRoutes from "./routes/notebooks";
 import pagesRoutes from "./routes/pages";
+import pageSharesRoutes from "./routes/pageShares";
 import searchRoutes from "./routes/search";
 import trashRoutes from "./routes/trash";
 import aggregateRoutes from "./routes/aggregate";
@@ -56,6 +57,7 @@ app.get("/health", (req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/notebooks", notebooksRoutes);
 app.use("/api/pages", pagesRoutes);
+app.use("/api/page-shares", pageSharesRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/trash", trashRoutes);
 app.use("/api/aggregate", aggregateRoutes);
