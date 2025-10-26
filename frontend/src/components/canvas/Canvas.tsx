@@ -36,7 +36,7 @@ export default function Canvas({
   const [tempTitle, setTempTitle] = useState("");
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   const [toolbarScrollPosition, setToolbarScrollPosition] = useState(0);
-  const [canvasSize, setCanvasSize] = useState({ width: 200, height: 200 }); // in %
+  const [canvasSize, setCanvasSize] = useState({ width: 200, height: 200 });
   const [visibleTools, setVisibleTools] = useState({
     eraser: true,
     markers: true,
@@ -51,6 +51,7 @@ export default function Canvas({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const toolbarScrollRef = useRef<HTMLDivElement>(null);
   const audioService = useRef(new AudioRecordingService());
+  const saveDrawingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleToggleTool = (toolId: keyof typeof visibleTools) => {
     setVisibleTools((prev) => ({
@@ -116,8 +117,13 @@ export default function Canvas({
   // Focus input when editing title
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
+      const input = titleInputRef.current;
+      // Use requestAnimationFrame to avoid blocking
+      requestAnimationFrame(() => {
+        input.focus();
+        // Position cursor at end of text
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
     }
   }, [isEditingTitle]);
 
@@ -211,10 +217,18 @@ export default function Canvas({
   };
 
   const handleSaveDrawing = async () => {
-    if (canvasRef.current) {
+    if (!canvasRef.current || isReadOnly) return;
+
+    // Clear any pending saves
+    if (saveDrawingTimeoutRef.current) {
+      clearTimeout(saveDrawingTimeoutRef.current);
+    }
+
+    // Debounce the save - wait 500ms after drawing stops
+    saveDrawingTimeoutRef.current = setTimeout(async () => {
       const paths = await canvasRef.current.exportPaths();
       onUpdatePage({ drawings: paths });
-    }
+    }, 500);
   };
 
   const handleAddGraph = (graphData: any) => {
@@ -240,7 +254,9 @@ export default function Canvas({
 
   const handleUpdateGraph = (graphId: string, newGraphSpec: any) => {
     const graphs = page.graphs.map((g) =>
-      g.id === graphId ? { ...g, graphSpec: newGraphSpec, data: newGraphSpec } : g
+      g.id === graphId
+        ? { ...g, graphSpec: newGraphSpec, data: newGraphSpec }
+        : g
     );
     onUpdatePage({ graphs });
   };
@@ -295,7 +311,6 @@ export default function Canvas({
 
   const handleGenerate = () => {
     // TODO: Implement AI generation
-    console.log("Generate clicked");
   };
 
   const handleStartRecording = async () => {
@@ -307,7 +322,6 @@ export default function Canvas({
       setError(
         err instanceof Error ? err.message : "Failed to start recording"
       );
-      console.error("Error starting recording:", err);
     }
   };
 
@@ -317,21 +331,18 @@ export default function Canvas({
       setIsRecording(false);
       setIsTranscribing(true);
 
-      // Transcribe the audio
       const transcriptionText = await audioService.current.transcribeAudio(
         audioBlob
       );
       setTranscription(transcriptionText);
       setIsTranscribing(false);
 
-      // Interpret the transcription and create a graph
       setIsInterpreting(true);
       const graphSpec = await audioService.current.interpretTranscription(
         transcriptionText
       );
       setIsInterpreting(false);
 
-      // Add the graph to the page
       const graphs = page?.graphs || [];
       const newGraph = {
         id: Date.now().toString(),
@@ -346,7 +357,6 @@ export default function Canvas({
       onUpdatePage({ graphs });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Recording failed");
-      console.error("Recording error:", err);
       setIsRecording(false);
       setIsTranscribing(false);
       setIsInterpreting(false);
@@ -362,9 +372,6 @@ export default function Canvas({
   });
 
   const convertGraphForComponent = (graph: any) => {
-    // Debug logging to help identify the issue
-    console.log("Converting graph:", graph);
-
     return {
       id: graph.id,
       x: graph.position?.x || graph.x || 100,
@@ -705,63 +712,59 @@ export default function Canvas({
           )}
           {/* Page Title - Top Left */}
           <div className="absolute top-6 left-6 z-10 pointer-events-auto">
-            {isEditingTitle ? (
-              <input
-                ref={titleInputRef}
-                type="text"
-                value={tempTitle}
-                onChange={(e) => setTempTitle(e.target.value)}
-                onBlur={() => {
-                  if (tempTitle.trim()) {
-                    onUpdatePage({ title: tempTitle.trim() });
-                  }
-                  setIsEditingTitle(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+            <div>
+              {isEditingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={tempTitle}
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  onBlur={() => {
                     if (tempTitle.trim()) {
                       onUpdatePage({ title: tempTitle.trim() });
                     }
                     setIsEditingTitle(false);
-                  } else if (e.key === "Escape") {
-                    setIsEditingTitle(false);
-                  }
-                }}
-                className="text-3xl font-bold text-foreground px-1 bg-background border-2 border-primary rounded focus:outline-none"
-                autoFocus
-              />
-            ) : (
-              <div>
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (tempTitle.trim()) {
+                        onUpdatePage({ title: tempTitle.trim() });
+                      }
+                      setIsEditingTitle(false);
+                    } else if (e.key === "Escape") {
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                  className="m-0 text-3xl font-bold text-foreground bg-transparent outline-none"
+                  autoComplete="off"
+                  autoFocus
+                />
+              ) : (
                 <h1
-                  className={`text-3xl font-bold text-foreground px-1 ${
-                    isReadOnly ? "" : "cursor-pointer hover:bg-muted/50"
-                  } rounded transition-colors`}
-                  onDoubleClick={() => {
+                  onClick={() => {
                     if (!isReadOnly) {
                       setTempTitle(page.title);
                       setIsEditingTitle(true);
                     }
                   }}
+                  className={`m-0 text-3xl font-bold text-foreground ${
+                    isReadOnly ? "" : "cursor-text"
+                  }`}
                 >
-                  {page.title}
+                  {tempTitle || page.title}
                 </h1>
-                {page.createdAt && (
-                  <p className="text-sm text-muted-foreground px-1 mt-1">
-                    {new Date(page.createdAt).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}{" "}
-                    {new Date(page.createdAt).toLocaleTimeString("en-US", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
+              {page.createdAt && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {new Date(page.createdAt).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Drawing Canvas */}

@@ -193,13 +193,13 @@ function TerrainPlane({
     const clampedDelta = Math.min(delta, 0.05); // max frame step 50ms
 
     /* debuggin!! */
-/*     console.log({
+    /*     console.log({
       delta,
       clampedDelta,
       elapsed: state.clock.getElapsedTime(),
     }); */
 
-/*     const elapsed = state.clock.getElapsedTime();
+    /*     const elapsed = state.clock.getElapsedTime();
     console.log("TerrainPlane BEFORE set uTime:", materialRef.current.uniforms?.uTime?.value);
   materialRef.current.uniforms.uTime.value = elapsed;
   console.log("TerrainPlane AFTER set uTime:", materialRef.current.uniforms?.uTime?.value);
@@ -238,7 +238,7 @@ function IdleCamera({ paused }: { paused: boolean }) {
     // accumulate clamped time (stable across reloads)
     const clampedDelta = Math.min(delta, 0.05);
 
-/*     console.log({
+    /*     console.log({
       delta,
       clampedDelta,
       elapsed: state.clock.getElapsedTime(),
@@ -294,8 +294,6 @@ export default function HeroTopo() {
         <IdleCamera paused={paused} />
         <TerrainPlane segments={segments} size={70} paused={paused} />
       </Canvas>
-
-      
     </div>
   );
 }

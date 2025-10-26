@@ -56,7 +56,6 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching notebooks:", error);
     res.status(500).json({
       success: false,
       error: "Error fetching notebooks",
@@ -137,7 +136,6 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
       },
     });
   } catch (error) {
-    console.error("Error creating notebook:", error);
     res.status(500).json({
       success: false,
       error: "Error creating notebook",
@@ -371,7 +369,6 @@ router.post(
         },
       });
     } catch (error) {
-      console.error("Error sharing notebook:", error);
       res.status(500).json({
         success: false,
         error: "Error sharing notebook",

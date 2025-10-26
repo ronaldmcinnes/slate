@@ -5,8 +5,10 @@ import Canvas from "@/components/canvas/Canvas";
 import ResizablePanel from "@/components/layout/ResizablePanel";
 import RenamePageDialog from "@/components/dialogs/RenamePageDialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { ToastContainer } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authContext";
+import { useToast } from "@/lib/toastContext";
 import type { Notebook, Page as SharedPage } from "@shared/types";
 import type { Page } from "@/types";
 
@@ -16,6 +18,7 @@ interface NotebookAppProps {
 
 export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const { user, updateCanvasState } = useAuth();
+  const { addToast } = useToast();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(
     null
@@ -46,11 +49,16 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         await loadPagesForNotebook(allNotebooks[0].id);
       }
     } catch (error) {
-      console.error("Error loading notebooks:", error);
+      // Silently fail
     }
   };
 
-  const loadPagesForNotebook = async (notebookId: string) => {
+  const loadPagesForNotebook = async (
+    notebookId: string,
+    options: { autoSelectFirst?: boolean; preserveSelection?: boolean } = {}
+  ) => {
+    const { autoSelectFirst = true, preserveSelection = true } = options;
+
     try {
       const fetchedPages = await api.getPages(notebookId);
       // Convert shared types to frontend types
@@ -58,21 +66,43 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         convertPageToFrontendType(page)
       );
       setPages(convertedPages);
-      if (convertedPages.length > 0) {
-        setSelectedPage(convertedPages[0]);
-      } else {
-        setSelectedPage(null);
+
+      // Handle page selection logic
+      if (autoSelectFirst) {
+        if (preserveSelection && selectedPage) {
+          // Check if current selection still exists in the new pages
+          const pageStillExists = convertedPages.some(
+            (p) => p.id === selectedPage.id
+          );
+          if (!pageStillExists) {
+            // Current page was deleted or is unavailable, select first
+            if (convertedPages.length > 0) {
+              setSelectedPage(convertedPages[0]);
+            } else {
+              setSelectedPage(null);
+            }
+          }
+          // If page still exists, keep current selection (don't call setSelectedPage)
+        } else {
+          // Don't preserve selection, select first page
+          if (convertedPages.length > 0) {
+            setSelectedPage(convertedPages[0]);
+          } else {
+            setSelectedPage(null);
+          }
+        }
       }
     } catch (err) {
-      console.error("Error loading pages:", err);
       setPages([]);
-      setSelectedPage(null);
+      if (autoSelectFirst && !preserveSelection) {
+        setSelectedPage(null);
+      }
     }
   };
 
   const convertPageToFrontendType = (sharedPage: SharedPage): Page => {
     return {
-      id: sharedPage.id, // Keep as string to preserve MongoDB ObjectId format
+      id: sharedPage.id,
       title: sharedPage.title,
       createdAt: sharedPage.createdAt,
       lastModified: sharedPage.lastModified,
@@ -90,7 +120,6 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       setNotebooks(allNotebooks);
       return allNotebooks;
     } catch (error) {
-      console.error("Error refreshing notebooks:", error);
       return [];
     }
   };
@@ -102,7 +131,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       setSelectedNotebook(newNotebook);
       setSelectedPage(null);
     } catch (error) {
-      console.error("Error creating notebook:", error);
+      // Handle error silently
     }
   };
 
@@ -110,27 +139,30 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
     if (selectedNotebook) {
       try {
         const newPage = await api.createPage(selectedNotebook.id, { title });
-        // Reload pages to include the new one
-        await loadPagesForNotebook(selectedNotebook.id);
+        // Reload pages to include the new one, preserving current selection
+        await loadPagesForNotebook(selectedNotebook.id, {
+          autoSelectFirst: false,
+          preserveSelection: true,
+        });
         setSelectedPage(convertPageToFrontendType(newPage));
       } catch (error) {
-        console.error("Error creating page:", error);
+        // Handle error silently
       }
     }
   };
 
   const handleSelectNotebook = async (notebook: Notebook): Promise<void> => {
     setSelectedNotebook(notebook);
-    await loadPagesForNotebook(notebook.id);
+    await loadPagesForNotebook(notebook.id, {
+      autoSelectFirst: true,
+      preserveSelection: false,
+    });
   };
 
   const handleUpdatePage = async (updates: Partial<Page>): Promise<void> => {
     if (selectedNotebook && selectedPage) {
       try {
-        const updatedPage = await api.updatePage(
-          selectedPage.id, // No need to convert to string since it's already a string
-          updates
-        );
+        const updatedPage = await api.updatePage(selectedPage.id, updates);
         // Update local state directly instead of refreshing all notebooks
         const convertedPage = convertPageToFrontendType(updatedPage);
         setSelectedPage(convertedPage);
@@ -140,7 +172,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
         );
       } catch (error) {
-        console.error("Error updating page:", error);
+        // Handle error silently
       }
     }
   };
@@ -172,7 +204,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
         setRenameDialogOpen(false);
       } catch (error) {
-        console.error("Error renaming page:", error);
+        // Handle error silently
       }
     }
   };
@@ -188,16 +220,41 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         await api.deletePage(pageToEdit.id);
 
         // Reload pages after deletion
-        await loadPagesForNotebook(selectedNotebook.id);
+        const fetchedPages = await api.getPages(selectedNotebook.id);
+        const convertedPages = fetchedPages.map((page) =>
+          convertPageToFrontendType(page)
+        );
+        setPages(convertedPages);
 
-        // If deleting current page, pages state is already updated
-        if (selectedPage?.id === pageToEdit.id && pages.length > 0) {
-          setSelectedPage(pages[0]);
+        // If we deleted the currently selected page, select the first remaining page
+        if (selectedPage?.id === pageToEdit.id) {
+          if (convertedPages.length > 0) {
+            setSelectedPage(convertedPages[0]);
+          } else {
+            setSelectedPage(null);
+          }
         }
 
         setPageToEdit(null);
+        setDeleteDialogOpen(false);
+
+        // Show toast with undo option
+        addToast({
+          message: "Deleted",
+          itemName: pageToEdit.title,
+          type: "delete-page",
+          onUndo: async () => {
+            await api.restorePage(pageToEdit.id);
+            // Reload pages to show restored page
+            const updatedPages = await api.getPages(selectedNotebook.id);
+            const convertedUpdatedPages = updatedPages.map((page) =>
+              convertPageToFrontendType(page)
+            );
+            setPages(convertedUpdatedPages);
+          },
+        });
       } catch (error) {
-        console.error("Error deleting page:", error);
+        // Handle error silently
       }
     }
   };
@@ -290,6 +347,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         title="Delete Page"
         itemName={pageToEdit?.title}
       />
+      <ToastContainer />
     </>
   );
 }

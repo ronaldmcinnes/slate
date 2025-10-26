@@ -232,10 +232,9 @@ router.get("/user/full", authenticate, async (req: AuthRequest, res) => {
       data: result[0],
     });
   } catch (error) {
-    console.error("Error fetching aggregated user data:", error);
     res.status(500).json({
       success: false,
-      error: "Error fetching user data",
+      error: "Error fetching aggregated user data",
     });
   }
 });
@@ -305,7 +304,6 @@ router.get("/stats", authenticate, async (req: AuthRequest, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching user stats:", error);
     res.status(500).json({
       success: false,
       error: "Error fetching statistics",

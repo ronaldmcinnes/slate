@@ -8,7 +8,7 @@ export interface Notebook {
 }
 
 export interface Page {
-  id: string; // Changed from number to string to preserve MongoDB ObjectId format
+  id: string;
   title: string;
   createdAt: string;
   lastModified: string;
@@ -46,7 +46,7 @@ export interface DrawingData {
 
 export interface CanvasElement {
   id: string;
-  type: 'text' | 'graph' | 'drawing';
+  type: "text" | "graph" | "drawing";
   position: { x: number; y: number };
   size: { width: number; height: number };
   data: any;
@@ -90,7 +90,14 @@ export interface BaseGraphSpec {
 export interface MathematicalGraphSpec extends BaseGraphSpec {
   graphType: 'mathematical';
   plot: {
-    kind: '2d_explicit' | '2d_parametric' | '2d_polar' | '2d_inequality' | '3d_surface' | '2d_integral' | '3d_integral' | 'cylindrical_integral' | 'spherical_integral';
+    kind:
+      | "2d_explicit"
+      | "2d_parametric"
+      | "2d_polar"
+      | "2d_inequality"
+      | "3d_surface"
+      | "2d_integral"
+      | "3d_integral";
     title?: string;
     xLabel?: string;
     yLabel?: string;
@@ -125,67 +132,13 @@ export interface MathematicalGraphSpec extends BaseGraphSpec {
       showArea?: boolean;
       areaColor?: string;
       areaOpacity?: number;
-      betweenFunctions?: boolean;
-      coordinateSystem?: 'cartesian' | 'cylindrical' | 'spherical';
-      integrationOrder?: string[]; // e.g., ['dz', 'dr', 'dtheta'] for cylindrical
+      betweenFunctions?: boolean; // Flag to indicate between-two-functions integral
+    };
+    style?: {
+      lineWidth?: number;
+      showGrid?: boolean;
+      theme?: "light" | "dark" | "system";
+      color?: string;
     };
   };
 }
-
-// Chart graphs (bar, line, scatter, pie)
-export interface ChartGraphSpec extends BaseGraphSpec {
-  graphType: 'chart';
-  chart: {
-    kind: 'bar' | 'line' | 'scatter' | 'pie' | 'area' | 'histogram';
-    title?: string;
-    xLabel?: string;
-    yLabel?: string;
-    data: {
-      labels?: string[];
-      datasets: {
-        label: string;
-        data: number[] | { x: number; y: number }[];
-        backgroundColor?: string | string[];
-        borderColor?: string | string[];
-        fill?: boolean;
-        tension?: number;
-      }[];
-    };
-    options?: {
-      responsive?: boolean;
-      scales?: {
-        x?: { beginAtZero?: boolean; title?: { display: boolean; text: string } };
-        y?: { beginAtZero?: boolean; title?: { display: boolean; text: string } };
-      };
-      plugins?: {
-        legend?: { display?: boolean; position?: string };
-        title?: { display?: boolean; text?: string };
-      };
-    };
-  };
-}
-
-// Statistical graphs
-export interface StatisticalGraphSpec extends BaseGraphSpec {
-  graphType: 'statistical';
-  statistics: {
-    kind: 'distribution' | 'correlation' | 'regression' | 'anova';
-    title?: string;
-    data: number[] | { x: number; y: number }[];
-    parameters?: {
-      mean?: number;
-      stdDev?: number;
-      correlation?: number;
-      regression?: { slope: number; intercept: number };
-    };
-    visualization?: {
-      showHistogram?: boolean;
-      showCurve?: boolean;
-      showConfidence?: boolean;
-      bins?: number;
-    };
-  };
-}
-
-// Union type for all graph specifications
-export type GraphSpec = MathematicalGraphSpec | ChartGraphSpec | StatisticalGraphSpec;
