@@ -1,7 +1,8 @@
-import React, { useRef, useEffect, useMemo, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import * as THREE from "three";
-import { OrbitControls } from "@react-three/drei";
+"use client"
+
+import { useRef, useEffect, useMemo, useState } from "react"
+import { Canvas, useFrame, useThree } from "@react-three/fiber"
+import * as THREE from "three"
 
 // --- GLSL: Ashima 3D simplex noise (compact) for vertex displacement ---
 // Note: This is a commonly used GLSL noise implementation; kept here inline.
@@ -50,7 +51,7 @@ float snoise(vec3 v){
   m = m * m;
   return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
 }
-`;
+`
 
 // --- VERTEX SHADER ---
 // Displace vertices using fractal (fbm) of snoise, pass world position to fragment shader.
@@ -62,6 +63,7 @@ const VERT = `
   uniform float uTime;
   uniform float uDisplacement;
   uniform float uNoiseScale;
+  uniform float uSeed; // Added random seed uniform
 
   ${SIMPLEX_NOISE}
 
@@ -82,8 +84,7 @@ const VERT = `
     vUv = uv;
     vec3 pos = position;
 
-    // sample noise in world-space (or plane local space)
-    vec3 samplePos = vec3(position.x * uNoiseScale, position.y * uNoiseScale, position.z * uNoiseScale - uTime * 0.06);
+    vec3 samplePos = vec3(position.x * uNoiseScale + uSeed, position.y * uNoiseScale, position.z * uNoiseScale - uTime * 0.06 + uSeed * 0.5);
 
     float n = fbm(samplePos);
     float ridge = 1.0 - abs(n);
@@ -94,59 +95,46 @@ const VERT = `
     vWorldPos = worldPos.xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
-`;
+`
 
 // --- FRAGMENT SHADER ---
 // Evan-style grid using fwidth on world-space xz coordinates; with a color ramp by height
 const FRAG = `
-/*   precision highp float;
-
-  varying vec3 vWorldPos;
-  varying vec2 vUv;
-
-  uniform vec3 uColorBase;
-  uniform float uContourSpacing;
-  uniform float uContourThickness;
-  uniform float uGamma;
-
-  float gridAA(vec2 coord, float spacing, float thickness){
-    // anti-aliased grid using fwidth; available in WebGL2 or via OES_standard_derivatives in WebGL1
-    vec2 grid = abs(fract(coord/spacing - 0.5) - 0.5) / fwidth(coord/spacing);
-    float line = min(grid.x, grid.y);
-    float col = 1.0 - min(line, 1.0);
-    float t = smoothstep(1.0 - thickness, 1.0, col);
-    return t;
-  }
-
-  void main(){
-    vec2 coord = vWorldPos.xz;
-
-    float h = clamp((vWorldPos.y + 2.0) / 6.0, 0.0, 1.0);
-    vec3 base = mix(uColorBase * 0.5, uColorBase, h);
-
-    float g = gridAA(coord, uContourSpacing, uContourThickness);
-    vec3 lineColor = vec3(0.95, 0.98, 1.0);
-    vec3 color = mix(base, lineColor, g);
-
-    float vign = smoothstep(0.0, 1.0, 1.0 - length(vUv - 0.5) * 1.2);
-    color *= mix(0.95, 1.0, vign);
-
-    color = pow(color, vec3(1.0 / uGamma));
-
-    gl_FragColor = vec4(color, 1.0);
-  } */
-
-    precision highp float;
+precision highp float;
 varying vec3 vWorldPos;
+varying vec2 vUv;
+
+uniform float uContourSpacing;
+uniform float uContourThickness;
+
 void main() {
-  vec2 coord = vWorldPos.xz;
-  vec2 grid = abs(fract(coord - 0.5) - 0.5) / fwidth(coord);
-  float line = min(grid.x, grid.y);
-  float color = 1.0 - min(line, 1.0);
+  // Horizontal grid (XZ plane)
+  vec2 coordXZ = vWorldPos.xz * uContourSpacing;
+  vec2 gridXZ = abs(fract(coordXZ - 0.5) - 0.5) / fwidth(coordXZ);
+  float lineXZ = min(gridXZ.x, gridXZ.y);
+  
+  // Vertical grid (Y axis) - shows elevation
+  vec2 coordXY = vec2(vWorldPos.x * uContourSpacing, vWorldPos.y * uContourSpacing);
+  vec2 gridXY = abs(fract(coordXY - 0.5) - 0.5) / fwidth(coordXY);
+  float lineXY = gridXY.x;
+  
+  vec2 coordYZ = vec2(vWorldPos.y * uContourSpacing, vWorldPos.z * uContourSpacing);
+  vec2 gridYZ = abs(fract(coordYZ - 0.5) - 0.5) / fwidth(coordYZ);
+  float lineYZ = gridYZ.y;
+  
+  // Combine horizontal and vertical lines with thickness control
+  float line = min(min(lineXZ, lineXY), lineYZ);
+  float color = 1.0 - min(line * uContourThickness, 1.0);
   color = pow(color, 1.0 / 2.2);
+  
+  // Distance-based fade for horizon effect
+  float dist = length(vWorldPos.xz);
+  float fade = smoothstep(25.0, 35.0, dist);
+  color = mix(color, 0.0, fade);
+  
   gl_FragColor = vec4(vec3(color), 1.0);
 }
-`;
+`
 
 // ---- React child which renders the plane and updates uniforms ----
 function TerrainPlane({
@@ -154,43 +142,46 @@ function TerrainPlane({
   size,
   paused,
 }: {
-  segments: number;
-  size: number;
-  paused: boolean;
+  segments: number
+  size: number
+  paused: boolean
 }) {
-  const ref = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial | null>(null);
+  const ref = useRef<THREE.Mesh>(null)
+  const materialRef = useRef<THREE.ShaderMaterial | null>(null)
 
-  const tRef = useRef(0);
+  const tRef = useRef(0)
+
+  const randomSeed = useMemo(() => Math.random() * 1000, [])
 
   // uniforms initial values
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0.0 },
-      uDisplacement: { value: 4.5 } /* terrain */,
+      uDisplacement: { value: 5.0 } /* terrain */,
       uNoiseScale: { value: 0.03 },
       uRidgeExp: { value: 0.6 },
       uColorBase: { value: new THREE.Color(0x1f4e79) },
-      uContourSpacing: { value: 0.6 } /* spacing of the lines */,
-      uContourThickness: { value: 0.5 } /* thickness of lines here!! */,
+      uContourSpacing: { value: 3 } /* Higher = lines closer together */,
+      uContourThickness: { value: 1.5 } /* Higher = thicker lines */,
       uGamma: { value: 2.2 },
+      uSeed: { value: randomSeed }, // Added seed uniform
     }),
-    []
-  );
+    [randomSeed],
+  )
 
   // Build geometry once
   const geometry = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(size, size, segments, segments);
-    geo.rotateX(-Math.PI / 2);
-    return geo;
+    const geo = new THREE.PlaneGeometry(size, size, segments, segments)
+    geo.rotateX(-Math.PI / 2)
+    return geo
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, segments]);
+  }, [size, segments])
 
   // update time uniform in animation loop
   useFrame((state, delta) => {
-    if (!materialRef.current) return;
+    if (!materialRef.current) return
     // clamp delta to avoid huge jumps when tab was inactive or on full reload
-    const clampedDelta = Math.min(delta, 0.05); // max frame step 50ms
+    const clampedDelta = Math.min(delta, 0.05) // max frame step 50ms
 
     /* debuggin!! */
     /*     console.log({
@@ -210,10 +201,9 @@ function TerrainPlane({
 
     // small subtle motion of whole mesh for extra organic feel
     if (ref.current) {
-      ref.current.rotation.y =
-        Math.sin(materialRef.current.uniforms.uTime.value * 0.02) * 0.02;
+      ref.current.rotation.y = Math.sin(materialRef.current.uniforms.uTime.value * 0.02) * 0.02
     }
-  });
+  })
   return (
     <mesh ref={ref} geometry={geometry}>
       <shaderMaterial
@@ -224,19 +214,19 @@ function TerrainPlane({
         side={THREE.DoubleSide}
       />
     </mesh>
-  );
+  )
 }
 
 // ---- Camera idle flight component ----
 function IdleCamera({ paused }: { paused: boolean }) {
-  const { camera } = useThree();
-  const tRef = useRef(0);
+  const { camera } = useThree()
+  const tRef = useRef(0)
 
   useFrame((state, delta) => {
-    if (paused) return;
+    if (paused) return
 
     // accumulate clamped time (stable across reloads)
-    const clampedDelta = Math.min(delta, 0.05);
+    const clampedDelta = Math.min(delta, 0.05)
 
     /*     console.log({
       delta,
@@ -244,56 +234,53 @@ function IdleCamera({ paused }: { paused: boolean }) {
       elapsed: state.clock.getElapsedTime(),
     }); */
 
-    tRef.current += clampedDelta;
-    const t = tRef.current;
+    tRef.current += clampedDelta
+    const t = tRef.current
 
-    const radius = 22.0;
-    const speed = 0.06; // smaller = slower rotation
+    const radius = 22.0
+    const speed = 0.06 // smaller = slower rotation
 
-    const x = Math.cos(t * speed) * radius;
-    const z = Math.sin(t * speed) * radius;
-    const y = 10.0 + Math.sin(t * 0.5) * 1.3;
+    const x = Math.cos(t * speed) * radius
+    const z = Math.sin(t * speed) * radius
+    const y = 10.0 + Math.sin(t * 0.5) * 1.3
 
     // debug camera jump
-    camera.position.set(x, y, z);
-    camera.lookAt(0, 2, 0);
-  });
+    camera.position.set(x, y, z)
+    camera.lookAt(0, 2, 0)
+  })
 
-  return null;
+  return null
 }
 
 // ---- Main Hero component export ----
 
 export default function HeroTopo() {
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(false)
   const [segments, setSegments] = useState(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 900) return 160;
-    return 360;
-  });
+    if (typeof window !== "undefined" && window.innerWidth < 900) return 160
+    return 360
+  })
 
   useEffect(() => {
-    if (
-      (navigator as any).connection &&
-      (navigator as any).connection.saveData
-    ) {
-      setSegments(120);
+    if ((navigator as any).connection && (navigator as any).connection.saveData) {
+      setSegments(120)
     }
-  }, []);
+  }, [])
 
   return (
-    <div className="w-full h-screen relative">
+    <div className="w-full h-[60%] relative">
       <Canvas
         className="r3-canvas"
         gl={{ antialias: true, powerPreference: "high-performance" }}
         camera={{ position: [0, 8, 20], fov: 50 }}
       >
-        <color attach="background" args={["#000000"]} />{" "}
-        {/* change color here!!! */}
+        <color attach="background" args={["#000000"]} />
+        <fog attach="fog" args={["#000000", 20, 40]} />
         <ambientLight intensity={0.7} />
         <directionalLight position={[10, 10, 5]} intensity={0.6} />
         <IdleCamera paused={paused} />
         <TerrainPlane segments={segments} size={70} paused={paused} />
       </Canvas>
     </div>
-  );
+  )
 }
