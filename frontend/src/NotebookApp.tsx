@@ -49,7 +49,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         await loadPagesForNotebook(allNotebooks[0].id);
       }
     } catch (error) {
-      console.error("Error loading notebooks:", error);
+      // Silently fail
     }
   };
 
@@ -93,7 +93,6 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         }
       }
     } catch (err) {
-      console.error("Error loading pages:", err);
       setPages([]);
       if (autoSelectFirst && !preserveSelection) {
         setSelectedPage(null);
@@ -121,7 +120,6 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       setNotebooks(allNotebooks);
       return allNotebooks;
     } catch (error) {
-      console.error("Error refreshing notebooks:", error);
       return [];
     }
   };
@@ -133,7 +131,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
       setSelectedNotebook(newNotebook);
       setSelectedPage(null);
     } catch (error) {
-      console.error("Error creating notebook:", error);
+      // Handle error silently
     }
   };
 
@@ -148,7 +146,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
         });
         setSelectedPage(convertPageToFrontendType(newPage));
       } catch (error) {
-        console.error("Error creating page:", error);
+        // Handle error silently
       }
     }
   };
@@ -174,7 +172,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           pages.map((p) => (p.id === convertedPage.id ? convertedPage : p))
         );
       } catch (error) {
-        console.error("Error updating page:", error);
+        // Handle error silently
       }
     }
   };
@@ -206,7 +204,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
 
         setRenameDialogOpen(false);
       } catch (error) {
-        console.error("Error renaming page:", error);
+        // Handle error silently
       }
     }
   };
@@ -219,11 +217,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const handleDeletePage = async (): Promise<void> => {
     if (selectedNotebook && pageToEdit) {
       try {
-        console.log("🗑️ Deleting page:", pageToEdit.id, pageToEdit.title);
-        const isDeleted = selectedPage?.id === pageToEdit.id;
-
         await api.deletePage(pageToEdit.id);
-        console.log("✅ Page deleted successfully on backend");
 
         // Reload pages after deletion
         const fetchedPages = await api.getPages(selectedNotebook.id);
@@ -231,10 +225,9 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           convertPageToFrontendType(page)
         );
         setPages(convertedPages);
-        console.log("📄 Reloaded pages, count:", convertedPages.length);
 
         // If we deleted the currently selected page, select the first remaining page
-        if (isDeleted) {
+        if (selectedPage?.id === pageToEdit.id) {
           if (convertedPages.length > 0) {
             setSelectedPage(convertedPages[0]);
           } else {
@@ -258,12 +251,10 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
               convertPageToFrontendType(page)
             );
             setPages(convertedUpdatedPages);
-            console.log("✅ Page restored successfully");
           },
         });
       } catch (error) {
-        console.error("❌ Error deleting page:", error);
-        // Keep dialog open on error so user can retry
+        // Handle error silently
       }
     }
   };

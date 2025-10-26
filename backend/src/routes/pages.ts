@@ -18,18 +18,14 @@ router.get(
   checkNotebookAccess("view"),
   async (req: AuthRequest, res) => {
     try {
-      console.log("📄 Fetching pages for notebook:", req.params.notebookId);
-
       const pages = await Page.find({
         notebookId: req.params.notebookId,
         isDeleted: false,
       })
         .select(
           "title createdAt lastModified lastModifiedBy order tags notebookId userId"
-        ) // Only lightweight fields
+        )
         .sort({ order: 1, createdAt: 1 });
-
-      console.log("✅ Found", pages.length, "pages");
 
       res.json({
         success: true,
@@ -43,7 +39,6 @@ router.get(
           tags: p.tags,
           notebookId: p.notebookId,
           userId: p.userId,
-          // These are excluded but set to null/empty for frontend compatibility
           content: "",
           drawings: null,
           graphs: [],
@@ -52,7 +47,6 @@ router.get(
         })),
       });
     } catch (error) {
-      console.error("❌ Error fetching pages:", error);
       res.status(500).json({
         success: false,
         error: "Error fetching pages",
@@ -156,7 +150,6 @@ router.post(
         },
       });
     } catch (error) {
-      console.error("Error creating page:", error);
       res.status(500).json({
         success: false,
         error: "Error creating page",
@@ -175,25 +168,9 @@ router.patch(
       const { title, content, drawings, graphs, textBoxes, tags, order } =
         req.body;
 
-      // DEBUG: Log what we received
-      console.log("🔵 PATCH /api/pages/:id - Received update request");
-      console.log("  Page ID:", req.params.id);
-      console.log("  Update fields:", Object.keys(req.body));
-      if (drawings) {
-        console.log("  Drawings data:", {
-          type: typeof drawings,
-          isArray: Array.isArray(drawings),
-          hasPaths: !!drawings.paths,
-          pathCount: drawings.paths?.length || 0,
-          hasWidth: !!drawings.width,
-          hasHeight: !!drawings.height,
-        });
-      }
-
       const page = await Page.findById(req.params.id);
 
       if (!page) {
-        console.log("  ❌ Page not found");
         res.status(404).json({
           success: false,
           error: "Page not found",
@@ -201,15 +178,9 @@ router.patch(
         return;
       }
 
-      console.log("  📄 Found page:", page.title);
-
       if (title !== undefined) page.title = title.trim();
       if (content !== undefined) page.content = content;
       if (drawings !== undefined) {
-        console.log("  💾 Saving drawings:", {
-          pathCount: drawings.paths?.length || 0,
-          previousPathCount: page.drawings?.paths?.length || 0,
-        });
         page.drawings = drawings;
       }
       if (graphs !== undefined) page.graphs = graphs;
@@ -219,12 +190,6 @@ router.patch(
 
       page.lastModifiedBy = req.user!._id as mongoose.Types.ObjectId;
       await page.save();
-
-      console.log("  ✅ Page saved to database");
-      console.log("  📊 Current drawings in DB:", {
-        hasPaths: !!page.drawings?.paths,
-        pathCount: page.drawings?.paths?.length || 0,
-      });
 
       // Update notebook lastModified
       await Notebook.findByIdAndUpdate(page.notebookId, {
@@ -239,7 +204,6 @@ router.patch(
         },
       });
     } catch (error) {
-      console.error("Error updating page:", error);
       res.status(500).json({
         success: false,
         error: "Error updating page",
@@ -255,9 +219,6 @@ router.delete(
   checkPageAccess("edit"),
   async (req: AuthRequest, res) => {
     try {
-      console.log("🗑️ DELETE /api/pages/:id - Received delete request");
-      console.log("  Page ID:", req.params.id);
-
       // Use findByIdAndUpdate for atomic operation
       const page = await Page.findByIdAndUpdate(
         req.params.id,
@@ -270,46 +231,12 @@ router.delete(
       );
 
       if (!page) {
-        console.log("  ❌ Page not found");
         res.status(404).json({
           success: false,
           error: "Page not found",
         });
         return;
       }
-
-      console.log("  📄 Found and updated page:", page.title);
-      console.log("  ✅ isDeleted is now:", page.isDeleted);
-      console.log(
-        "  📋 Full page object:",
-        JSON.stringify(
-          {
-            _id: page._id,
-            title: page.title,
-            isDeleted: page.isDeleted,
-            deletedAt: page.deletedAt,
-            deletedBy: page.deletedBy,
-          },
-          null,
-          2
-        )
-      );
-
-      // Verify deletion in database with fresh query
-      const verifyPage = await Page.findById(req.params.id);
-      console.log(
-        "  🔍 Fresh verification - Page in DB:",
-        JSON.stringify(
-          {
-            _id: verifyPage?._id,
-            title: verifyPage?.title,
-            isDeleted: verifyPage?.isDeleted,
-            deletedAt: verifyPage?.deletedAt,
-          },
-          null,
-          2
-        )
-      );
 
       // Add to trash
       await Trash.create({
@@ -319,21 +246,16 @@ router.delete(
         originalData: page.toObject(),
       });
 
-      console.log("  🗑️ Added to trash");
-
       // Update notebook lastModified
       await Notebook.findByIdAndUpdate(page.notebookId, {
         lastModified: new Date(),
       });
 
-      console.log("  📤 Sending success response");
       res.json({
         success: true,
         message: "Page moved to trash",
       });
-      console.log("  ✅ Response sent");
     } catch (error) {
-      console.error("❌ Error deleting page:", error);
       res.status(500).json({
         success: false,
         error: "Error deleting page",
