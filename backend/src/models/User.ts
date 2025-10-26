@@ -21,6 +21,7 @@ export interface IUser extends Document {
     currentNotebookId?: mongoose.Types.ObjectId;
     currentPageId?: mongoose.Types.ObjectId;
     lastAccessedPages?: Record<string, string>; // notebookId -> pageId
+    lastAccessedNotebook?: string;
     canvasViewport: {
       x?: number;
       y?: number;
