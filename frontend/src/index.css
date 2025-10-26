@@ -28,8 +28,39 @@
     --radius: 0.5rem;
   }
 
+  .dark {
+    /* Grayscale/neutral palette for dark theme */
+    --background: 0 0% 7%; /* near-black */
+    --foreground: 0 0% 96%; /* near-white text */
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 0% 96%; /* primary text/buttons: white */
+    --primary-foreground: 0 0% 10%;
+    --secondary: 0 0% 18%; /* mid gray */
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 22%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 96%;
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 0 0% 60%;
+  }
+
   body {
     @apply bg-background text-foreground font-sans;
+    /* Smooth transitions for theme changes */
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Smooth transitions for all theme-dependent elements */
+  * {
+    transition: background-color 0.2s ease, color 0.2s ease,
+      border-color 0.2s ease;
   }
 }
 

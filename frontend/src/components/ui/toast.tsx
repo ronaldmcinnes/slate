@@ -9,7 +9,7 @@ export function ToastContainer() {
   const { toasts, removeToast } = useToast();
 
   return (
-    <div className="fixed bottom-4 right-4 space-y-3 z-50 pointer-events-none">
+    <div className="fixed bottom-4 right-4 space-y-3 z-1 pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
       ))}

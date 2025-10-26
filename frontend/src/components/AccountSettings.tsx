@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, User, LogOut, Sun, Moon, Monitor } from "lucide-react";
+import { X, User, LogOut, Sun, Moon, Check } from "lucide-react";
 
 interface AccountSettingsProps {
   onClose: () => void;
@@ -12,35 +12,60 @@ interface AccountSettingsProps {
 export default function AccountSettings({ onClose }: AccountSettingsProps) {
   const { user, refreshUser, logout } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [theme, setTheme] = useState<"light" | "dark" | "system">(
-    user?.settings?.theme || "system"
+  const [theme, setTheme] = useState<"light" | "dark">(
+    (user?.settings?.theme as "light" | "dark") || "light"
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [nameJustSaved, setNameJustSaved] = useState(false);
+  const nameSaveTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (user) {
       setDisplayName(user.displayName);
-      setTheme(user.settings?.theme || "system");
+      setTheme((user.settings?.theme as "light" | "dark") || "light");
     }
   }, [user]);
 
-  const handleSave = async () => {
+  const applyThemeClass = (value: "light" | "dark") => {
+    const root = document.documentElement;
+    // Use requestAnimationFrame to prevent flicker
+    requestAnimationFrame(() => {
+      if (value === "dark") {
+        root.classList.add("dark");
+      } else {
+        root.classList.remove("dark");
+      }
+    });
+  };
+
+  const persistTheme = async (value: "light" | "dark") => {
+    try {
+      await api.updateSettings({ theme: value });
+      await refreshUser();
+    } catch (err) {
+      console.error("Theme save failed", err);
+      setError("Failed to save theme");
+    }
+  };
+
+  const handleThemeClick = (value: "light" | "dark") => {
+    setTheme(value);
+    applyThemeClass(value);
+    void persistTheme(value);
+  };
+
+  const saveDisplayName = async (name: string) => {
     setIsSaving(true);
     setError(null);
-    setSuccessMessage(null);
-
     try {
-      await api.updateSettings({ displayName, theme });
+      await api.updateSettings({ displayName: name });
       await refreshUser();
-      setSuccessMessage("Settings saved successfully!");
-
-      // Clear success message after 2 seconds
-      setTimeout(() => setSuccessMessage(null), 2000);
+      setNameJustSaved(true);
+      window.setTimeout(() => setNameJustSaved(false), 1200);
     } catch (err: any) {
-      setError(err.message || "Failed to save settings.");
-      console.error("Settings error:", err);
+      console.error("Display name save failed", err);
+      setError(err.message || "Failed to save display name.");
     } finally {
       setIsSaving(false);
     }
@@ -58,12 +83,11 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
   const themeOptions = [
     { value: "light" as const, label: "Light", icon: Sun },
     { value: "dark" as const, label: "Dark", icon: Moon },
-    { value: "system" as const, label: "System", icon: Monitor },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold">Account Settings</h2>
@@ -92,7 +116,9 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
                 </div>
               )}
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Email</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Email
+                </p>
                 <p className="font-medium">{user?.email}</p>
               </div>
             </div>
@@ -100,15 +126,33 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
             <div>
               <label
                 htmlFor="displayName"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
-                Display Name
+                <span>Display Name</span>
+                {nameJustSaved && <Check className="w-4 h-4 text-green-600" />}
               </label>
               <Input
                 id="displayName"
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDisplayName(val);
+                  if (nameSaveTimeoutRef.current) {
+                    window.clearTimeout(nameSaveTimeoutRef.current);
+                  }
+                  nameSaveTimeoutRef.current = window.setTimeout(() => {
+                    void saveDisplayName(val.trim());
+                  }, 600);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (nameSaveTimeoutRef.current) {
+                      window.clearTimeout(nameSaveTimeoutRef.current);
+                    }
+                    void saveDisplayName(displayName.trim());
+                  }
+                }}
                 placeholder="Your name"
               />
             </div>
@@ -116,22 +160,22 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
 
           {/* Theme Section */}
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Theme Preference
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {themeOptions.map((option) => {
                 const Icon = option.icon;
                 return (
                   <button
                     key={option.value}
-                    onClick={() => setTheme(option.value)}
+                    onClick={() => handleThemeClick(option.value)}
                     className={`
                       flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all
                       ${
                         theme === option.value
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 hover:border-gray-300 text-gray-600"
+                          ? "border-gray-500 bg-gray-100 text-gray-900 dark:border-gray-400 dark:bg-neutral-800 dark:text-gray-100"
+                          : "border-gray-200 hover:border-gray-300 text-gray-600 dark:border-neutral-700 dark:text-gray-300"
                       }
                     `}
                   >
@@ -143,28 +187,15 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
             </div>
           </div>
 
-          {/* Error/Success Messages */}
+          {/* Error */}
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {error}
             </div>
           )}
-          {successMessage && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-              {successMessage}
-            </div>
-          )}
 
-          {/* Action Buttons */}
+          {/* Actions */}
           <div className="space-y-3 pt-4">
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !displayName.trim()}
-              className="w-full"
-            >
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-
             <Button
               variant="outline"
               onClick={handleLogout}
@@ -176,17 +207,11 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
           </div>
 
           {/* Account Info */}
-          <div className="pt-4 border-t text-xs text-gray-500 space-y-1">
+          <div className="pt-4 border-t text-xs text-gray-500 dark:text-gray-400 space-y-1">
             <p>
               Member since:{" "}
               {user?.createdAt
                 ? new Date(user.createdAt).toLocaleDateString()
-                : "N/A"}
-            </p>
-            <p>
-              Last login:{" "}
-              {user?.lastLogin
-                ? new Date(user.lastLogin).toLocaleDateString()
                 : "N/A"}
             </p>
           </div>

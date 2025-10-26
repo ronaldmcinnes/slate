@@ -9,7 +9,7 @@ import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import ToolbarSettings from "./ToolbarSettings";
 import { AudioRecordingService } from "@/lib/audioService";
-import type { Page} from "@/types";
+import type { Page } from "@/types";
 
 interface CanvasProps {
   page: Page | null;
@@ -29,7 +29,14 @@ export default function Canvas({
   const [isSaving, setIsSaving] = useState(false);
   const [transcription, setTranscription] = useState("");
   const [error, setError] = useState("");
-  const [strokeColor, setStrokeColor] = useState("#000000");
+  // Initialize stroke color based on current theme
+  const getInitialStrokeColor = () => {
+    return typeof window !== "undefined" &&
+      document.documentElement.classList.contains("dark")
+      ? "#FFFFFF"
+      : "#000000";
+  };
+  const [strokeColor, setStrokeColor] = useState(getInitialStrokeColor());
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [tool, setTool] = useState("marker");
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
@@ -114,6 +121,32 @@ export default function Canvas({
     setStrokeColor(color);
     setStrokeWidth(width);
   };
+
+  // When theme toggles, flip default ink color if user hasn't customized away from default
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      const isDark = root.classList.contains("dark");
+      setStrokeColor((current) => {
+        if (isDark && current === "#000000") return "#FFFFFF";
+        if (!isDark && current === "#FFFFFF") return "#000000";
+        return current;
+      });
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Force canvas re-render when theme changes to prevent flicker
+  const [canvasKey, setCanvasKey] = useState(0);
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setCanvasKey((prev) => prev + 1);
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   // Focus input when editing title
   useEffect(() => {
@@ -502,12 +535,12 @@ export default function Canvas({
         {/* Canvas Area */}
         <div
           ref={canvasContainerRef}
-          className="flex-1 relative bg-muted/30 overflow-auto scrollbar-hide"
+          className="flex-1 relative bg-muted/30 dark:bg-neutral-900 overflow-auto scrollbar-hide"
           style={{ cursor: getCursorStyle() }}
         >
           {/* Floating Toolbar */}
           {isToolbarVisible ? (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg">
               <div className="flex items-center gap-2 px-2 py-2">
                 {/* Static Tools - Always Visible */}
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -902,11 +935,22 @@ export default function Canvas({
             }}
           >
             <ReactSketchCanvas
+              key={canvasKey}
               ref={canvasRef}
               strokeWidth={strokeWidth}
-              strokeColor={tool === "eraser" ? "#FAFAFA" : strokeColor}
+              strokeColor={
+                tool === "eraser"
+                  ? document.documentElement.classList.contains("dark")
+                    ? "#111111"
+                    : "#FAFAFA"
+                  : strokeColor
+              }
               eraserWidth={tool === "eraser" ? strokeWidth : 0}
-              canvasColor="#FAFAFA"
+              canvasColor={
+                document.documentElement.classList.contains("dark")
+                  ? "#111111"
+                  : "#FAFAFA"
+              }
               style={{
                 width: "100%",
                 height: "100%",
