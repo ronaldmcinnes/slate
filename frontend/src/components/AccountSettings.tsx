@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import { api } from "@/lib/api";
-import CleanupButton from "@/components/features/cleanup/CleanupButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, User, LogOut, Sun, Moon, Check, Monitor } from "lucide-react";
@@ -198,14 +197,6 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
               <LogOut className="w-4 h-4 mr-2" />
               Log Out
             </Button>
-          </div>
-
-          {/* Storage Management */}
-          <div className="pt-4 border-t">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Storage Management
-            </h3>
-            <CleanupButton />
           </div>
 
           {/* Account Info */}

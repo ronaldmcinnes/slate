@@ -13,7 +13,6 @@ import pagesRoutes from "./routes/pages";
 import searchRoutes from "./routes/search";
 import trashRoutes from "./routes/trash";
 import aggregateRoutes from "./routes/aggregate";
-import cleanupRoutes from "./routes/cleanup";
 
 // Load environment variables
 dotenv.config();
@@ -60,7 +59,6 @@ app.use("/api/pages", pagesRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/trash", trashRoutes);
 app.use("/api/aggregate", aggregateRoutes);
-app.use("/api/cleanup", cleanupRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
