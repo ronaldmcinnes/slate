@@ -45,38 +45,44 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     // Draw chart based on type
     switch (chart.kind) {
       case 'bar':
-        drawBarChart(ctx, chart.data as ChartData, width, height);
+        drawBarChart(ctx, chart.data as ChartData, width, height, chart.title);
         break;
       case 'line':
-        drawLineChart(ctx, chart.data as ChartData, width, height);
+        drawLineChart(ctx, chart.data as ChartData, width, height, chart.title);
         break;
       case 'scatter':
-        drawScatterPlot(ctx, chart.data as ChartData, width, height);
+        drawScatterPlot(ctx, chart.data as ChartData, width, height, chart.title);
         break;
       case 'pie':
-        drawPieChart(ctx, chart.data as ChartData, width, height);
+        drawPieChart(ctx, chart.data as ChartData, width, height, chart.title);
         break;
       case 'area':
-        drawAreaChart(ctx, chart.data as ChartData, width, height);
+        drawAreaChart(ctx, chart.data as ChartData, width, height, chart.title);
         break;
       case 'histogram':
-        drawHistogram(ctx, chart.data as ChartData, width, height);
+        drawHistogram(ctx, chart.data as ChartData, width, height, chart.title);
         break;
       default:
         console.warn('Unsupported chart type:', chart.kind);
     }
   }, [graphSpec, width, height]);
 
-  const drawBarChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number) => {
+  const drawBarChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number, title?: string) => {
     const { labels, datasets } = data;
     const dataset = datasets[0];
     const values = dataset.data as number[];
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
     const barWidth = chartWidth / values.length;
     const maxValue = Math.max(...values);
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title || 'Bar Chart', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -86,6 +92,27 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     ctx.lineTo(margin, height - margin);
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
+    
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = (i / numTicks) * maxValue;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
     
     // Draw bars
     values.forEach((value, index) => {
@@ -96,7 +123,13 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
       ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
       ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
       
-      // Draw label
+      // Draw value on top of bar
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(value.toString(), x + barWidth / 2, y - 5);
+      
+      // Draw X-axis label
       ctx.fillStyle = '#333';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
@@ -104,17 +137,23 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     });
   };
 
-  const drawLineChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number) => {
+  const drawLineChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number, title?: string) => {
     const { labels, datasets } = data;
     const dataset = datasets[0];
     const values = dataset.data as number[];
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
     const valueRange = maxValue - minValue;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title || 'Line Chart', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -124,6 +163,37 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     ctx.lineTo(margin, height - margin);
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
+    
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = minValue + (i / numTicks) * valueRange;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
+    
+    // Draw X-axis labels
+    values.forEach((value, index) => {
+      const x = margin + (index / (values.length - 1)) * chartWidth;
+      
+      ctx.fillStyle = '#333';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[index] || `Point ${index + 1}`, x, height - margin + 15);
+    });
     
     // Draw line
     ctx.strokeStyle = dataset.borderColor as string || '#3b82f6';
@@ -143,24 +213,30 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     
     ctx.stroke();
     
-    // Draw points
+    // Draw points with values
     ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
     values.forEach((value, index) => {
       const x = margin + (index / (values.length - 1)) * chartWidth;
       const y = height - margin - ((value - minValue) / valueRange) * chartHeight;
       
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.arc(x, y, 6, 0, 2 * Math.PI);
       ctx.fill();
+      
+      // Draw value label
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(value.toString(), x, y - 12);
     });
   };
 
-  const drawScatterPlot = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number) => {
+  const drawScatterPlot = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number, title?: string) => {
     const { datasets } = data;
     const dataset = datasets[0];
     const points = dataset.data as { x: number; y: number }[];
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
     
@@ -170,6 +246,14 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     const xMax = Math.max(...xValues);
     const yMin = Math.min(...yValues);
     const yMax = Math.max(...yValues);
+    const xRange = xMax - xMin;
+    const yRange = yMax - yMin;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title || 'Scatter Plot', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -180,26 +264,82 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
     
-    // Draw points
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = yMin + (i / numTicks) * yRange;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
+    
+    // Draw X-axis labels and grid lines
+    for (let i = 0; i <= numTicks; i++) {
+      const value = xMin + (i / numTicks) * xRange;
+      const x = margin + (i / numTicks) * chartWidth;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, margin);
+      ctx.lineTo(x, height - margin);
+      ctx.stroke();
+      
+      // X-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(value.toFixed(1), x, height - margin + 15);
+    }
+    
+    // Draw points with values
     ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
-    points.forEach(point => {
-      const x = margin + ((point.x - xMin) / (xMax - xMin)) * chartWidth;
-      const y = height - margin - ((point.y - yMin) / (yMax - yMin)) * chartHeight;
+    points.forEach((point, index) => {
+      const x = margin + ((point.x - xMin) / xRange) * chartWidth;
+      const y = height - margin - ((point.y - yMin) / yRange) * chartHeight;
       
       ctx.beginPath();
       ctx.arc(x, y, 6, 0, 2 * Math.PI);
       ctx.fill();
+      
+      // Draw value label (show every other point to avoid crowding)
+      if (index % 2 === 0) {
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`, x, y - 12);
+        ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
+      }
     });
   };
 
-  const drawPieChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number) => {
+  const drawPieChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number, title?: string) => {
     const { labels, datasets } = data;
     const dataset = datasets[0];
     const values = dataset.data as number[];
     
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title || 'Pie Chart', width / 2, 25);
+    
     const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = Math.min(width, height) / 2 - 40;
+    const centerY = height / 2 + 20; // Offset for title
+    const radius = Math.min(width, height) / 2 - 60;
     
     const total = values.reduce((sum, value) => sum + value, 0);
     let currentAngle = 0;
@@ -211,6 +351,7 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     
     values.forEach((value, index) => {
       const sliceAngle = (value / total) * 2 * Math.PI;
+      const percentage = ((value / total) * 100).toFixed(1);
       
       // Draw slice
       ctx.fillStyle = colors[index % colors.length];
@@ -220,31 +361,47 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
       ctx.closePath();
       ctx.fill();
       
-      // Draw label
+      // Draw percentage in center of slice
+      const textAngle = currentAngle + sliceAngle / 2;
+      const textX = centerX + Math.cos(textAngle) * (radius * 0.7);
+      const textY = centerY + Math.sin(textAngle) * (radius * 0.7);
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${percentage}%`, textX, textY);
+      
+      // Draw label with value
       const labelAngle = currentAngle + sliceAngle / 2;
-      const labelX = centerX + Math.cos(labelAngle) * (radius + 20);
-      const labelY = centerY + Math.sin(labelAngle) * (radius + 20);
+      const labelX = centerX + Math.cos(labelAngle) * (radius + 30);
+      const labelY = centerY + Math.sin(labelAngle) * (radius + 30);
       
       ctx.fillStyle = '#333';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(labels[index] || `Item ${index + 1}`, labelX, labelY);
+      ctx.fillText(`${labels[index] || `Item ${index + 1}`}: ${value}`, labelX, labelY);
       
       currentAngle += sliceAngle;
     });
   };
 
-  const drawAreaChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number) => {
+  const drawAreaChart = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number, title?: string) => {
     const { labels, datasets } = data;
     const dataset = datasets[0];
     const values = dataset.data as number[];
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
     const valueRange = maxValue - minValue;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title || 'Area Chart', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -254,6 +411,37 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     ctx.lineTo(margin, height - margin);
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
+    
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = minValue + (i / numTicks) * valueRange;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
+    
+    // Draw X-axis labels
+    values.forEach((value, index) => {
+      const x = margin + (index / (values.length - 1)) * chartWidth;
+      
+      ctx.fillStyle = '#333';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[index] || `Point ${index + 1}`, x, height - margin + 15);
+    });
     
     // Draw area
     ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
@@ -294,16 +482,39 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     });
     
     ctx.stroke();
+    
+    // Draw points with values
+    ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
+    values.forEach((value, index) => {
+      const x = margin + (index / (values.length - 1)) * chartWidth;
+      const y = height - margin - ((value - minValue) / valueRange) * chartHeight;
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw value label
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(value.toString(), x, y - 12);
+    });
   };
 
-  const drawHistogram = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number) => {
+  const drawHistogram = (ctx: CanvasRenderingContext2D, data: ChartData, width: number, height: number, title?: string) => {
     const { datasets } = data;
     const dataset = datasets[0];
     const values = dataset.data as number[];
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(title || 'Histogram', width / 2, 25);
     
     // Create bins
     const numBins = 10;
@@ -328,7 +539,28 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
     
-    // Draw bars
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const count = (i / numTicks) * maxCount;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(count.toFixed(0), margin - 10, y + 4);
+    }
+    
+    // Draw bars with values
     bins.forEach((count, index) => {
       const barHeight = (count / maxCount) * chartHeight;
       const barWidth = chartWidth / numBins;
@@ -337,6 +569,22 @@ const ChartGraph: React.FC<ChartGraphProps> = ({
       
       ctx.fillStyle = dataset.backgroundColor as string || '#3b82f6';
       ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+      
+      // Draw count on top of bar
+      if (count > 0) {
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(count.toString(), x + barWidth / 2, y - 5);
+      }
+      
+      // Draw bin range label
+      const binStart = minValue + index * binWidth;
+      const binEnd = minValue + (index + 1) * binWidth;
+      ctx.fillStyle = '#333';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${binStart.toFixed(1)}-${binEnd.toFixed(1)}`, x + barWidth / 2, height - margin + 15);
     });
   };
 

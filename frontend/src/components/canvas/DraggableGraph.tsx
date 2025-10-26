@@ -25,6 +25,45 @@ interface DraggableGraphProps {
   onSizeChange?: (id: string, width: number, height: number) => void;
 }
 
+// Helper function to get chart type display name
+const getChartTypeDisplay = (graph: GraphData): string => {
+  if (graph.graphSpec) {
+    switch (graph.graphSpec.graphType) {
+      case 'chart':
+        if (graph.graphSpec.chart) {
+          const chartKind = graph.graphSpec.chart.kind;
+          switch (chartKind) {
+            case 'bar': return 'Bar Chart';
+            case 'line': return 'Line Chart';
+            case 'scatter': return 'Scatter Plot';
+            case 'pie': return 'Pie Chart';
+            case 'area': return 'Area Chart';
+            case 'histogram': return 'Histogram';
+            default: return 'Chart';
+          }
+        }
+        return 'Chart';
+      case 'statistical':
+        if (graph.graphSpec.statistics) {
+          const statsKind = graph.graphSpec.statistics.kind;
+          switch (statsKind) {
+            case 'distribution': return 'Distribution Analysis';
+            case 'correlation': return 'Correlation Analysis';
+            case 'regression': return 'Regression Analysis';
+            case 'anova': return 'ANOVA Box Plot';
+            default: return 'Statistical Analysis';
+          }
+        }
+        return 'Statistical Analysis';
+      case 'mathematical':
+        return 'Mathematical Graph';
+      default:
+        return 'Graph';
+    }
+  }
+  return 'Graph';
+};
+
 export default function DraggableGraph({ graph, onPositionChange, onRemove, onUpdateGraph, onSizeChange }: DraggableGraphProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -178,7 +217,7 @@ export default function DraggableGraph({ graph, onPositionChange, onRemove, onUp
           <div className="flex items-center gap-2">
             <GripVertical size={14} className="text-muted-foreground" />
             <span className="text-xs font-medium select-none">
-              {graph.title}
+              {getChartTypeDisplay(graph)}
             </span>
           </div>
           <div className="flex items-center gap-1">

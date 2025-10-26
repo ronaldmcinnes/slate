@@ -53,9 +53,15 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const { mean, stdDev } = stats.parameters || {};
     const { showHistogram = true, showCurve = true, bins = 10 } = stats.visualization || {};
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Distribution Analysis', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -80,7 +86,28 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
       
       const maxCount = Math.max(...histogram);
       
-      // Draw histogram bars
+      // Draw Y-axis labels and grid lines
+      const numTicks = 5;
+      for (let i = 0; i <= numTicks; i++) {
+        const count = (i / numTicks) * maxCount;
+        const y = height - margin - (i / numTicks) * chartHeight;
+        
+        // Grid line
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin, y);
+        ctx.lineTo(width - margin, y);
+        ctx.stroke();
+        
+        // Y-axis label
+        ctx.fillStyle = '#666';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(count.toFixed(0), margin - 10, y + 4);
+      }
+      
+      // Draw histogram bars with values
       histogram.forEach((count, index) => {
         const barHeight = (count / maxCount) * chartHeight;
         const barWidth = chartWidth / bins;
@@ -89,6 +116,14 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
         
         ctx.fillStyle = '#3b82f6';
         ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+        
+        // Draw count on top of bar
+        if (count > 0) {
+          ctx.fillStyle = '#333';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(count.toString(), x + barWidth / 2, y - 5);
+        }
       });
     }
     
@@ -117,7 +152,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
       ctx.stroke();
     }
     
-    // Draw mean line
+    // Draw mean line with label
     if (mean !== undefined) {
       const minX = Math.min(...data);
       const maxX = Math.max(...data);
@@ -131,6 +166,21 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
       ctx.lineTo(meanX, height - margin);
       ctx.stroke();
       ctx.setLineDash([]);
+      
+      // Draw mean label
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Mean: ${mean.toFixed(2)}`, meanX, margin - 10);
+    }
+    
+    // Draw statistics info
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Sample Size: ${data.length}`, margin, margin - 10);
+    if (stdDev !== undefined) {
+      ctx.fillText(`Std Dev: ${stdDev.toFixed(2)}`, margin, margin + 10);
     }
   };
 
@@ -138,7 +188,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const data = stats.data as { x: number; y: number }[];
     const { correlation } = stats.parameters || {};
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
     
@@ -148,6 +198,14 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const xMax = Math.max(...xValues);
     const yMin = Math.min(...yValues);
     const yMax = Math.max(...yValues);
+    const xRange = xMax - xMin;
+    const yRange = yMax - yMin;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Correlation Analysis', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -158,23 +216,83 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
     
-    // Draw scatter points
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = yMin + (i / numTicks) * yRange;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
+    
+    // Draw X-axis labels and grid lines
+    for (let i = 0; i <= numTicks; i++) {
+      const value = xMin + (i / numTicks) * xRange;
+      const x = margin + (i / numTicks) * chartWidth;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, margin);
+      ctx.lineTo(x, height - margin);
+      ctx.stroke();
+      
+      // X-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(value.toFixed(1), x, height - margin + 15);
+    }
+    
+    // Draw scatter points with values
     ctx.fillStyle = '#3b82f6';
-    data.forEach(point => {
-      const x = margin + ((point.x - xMin) / (xMax - xMin)) * chartWidth;
-      const y = height - margin - ((point.y - yMin) / (yMax - yMin)) * chartHeight;
+    data.forEach((point, index) => {
+      const x = margin + ((point.x - xMin) / xRange) * chartWidth;
+      const y = height - margin - ((point.y - yMin) / yRange) * chartHeight;
       
       ctx.beginPath();
       ctx.arc(x, y, 6, 0, 2 * Math.PI);
       ctx.fill();
+      
+      // Draw value label (show every other point to avoid crowding)
+      if (index % 3 === 0) {
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`, x, y - 12);
+        ctx.fillStyle = '#3b82f6';
+      }
     });
     
-    // Draw correlation coefficient
+    // Draw correlation coefficient and strength
     if (correlation !== undefined) {
+      const strength = Math.abs(correlation);
+      let strengthText = '';
+      if (strength >= 0.8) strengthText = 'Very Strong';
+      else if (strength >= 0.6) strengthText = 'Strong';
+      else if (strength >= 0.4) strengthText = 'Moderate';
+      else if (strength >= 0.2) strengthText = 'Weak';
+      else strengthText = 'Very Weak';
+      
       ctx.fillStyle = '#333';
-      ctx.font = '16px Arial';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'left';
       ctx.fillText(`Correlation: ${correlation.toFixed(3)}`, margin, margin - 10);
+      ctx.fillText(`Strength: ${strengthText}`, margin, margin + 10);
+      ctx.fillText(`Sample Size: ${data.length}`, margin, margin + 30);
     }
   };
 
@@ -182,7 +300,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const data = stats.data as { x: number; y: number }[];
     const { regression } = stats.parameters || {};
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
     
@@ -192,6 +310,14 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const xMax = Math.max(...xValues);
     const yMin = Math.min(...yValues);
     const yMax = Math.max(...yValues);
+    const xRange = xMax - xMin;
+    const yRange = yMax - yMin;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Regression Analysis', width / 2, 25);
     
     // Draw axes
     ctx.strokeStyle = '#333';
@@ -202,15 +328,65 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
     
-    // Draw scatter points
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = yMin + (i / numTicks) * yRange;
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
+    
+    // Draw X-axis labels and grid lines
+    for (let i = 0; i <= numTicks; i++) {
+      const value = xMin + (i / numTicks) * xRange;
+      const x = margin + (i / numTicks) * chartWidth;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, margin);
+      ctx.lineTo(x, height - margin);
+      ctx.stroke();
+      
+      // X-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(value.toFixed(1), x, height - margin + 15);
+    }
+    
+    // Draw scatter points with values
     ctx.fillStyle = '#3b82f6';
-    data.forEach(point => {
-      const x = margin + ((point.x - xMin) / (xMax - xMin)) * chartWidth;
-      const y = height - margin - ((point.y - yMin) / (yMax - yMin)) * chartHeight;
+    data.forEach((point, index) => {
+      const x = margin + ((point.x - xMin) / xRange) * chartWidth;
+      const y = height - margin - ((point.y - yMin) / yRange) * chartHeight;
       
       ctx.beginPath();
       ctx.arc(x, y, 6, 0, 2 * Math.PI);
       ctx.fill();
+      
+      // Draw value label (show every other point to avoid crowding)
+      if (index % 3 === 0) {
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`, x, y - 12);
+        ctx.fillStyle = '#3b82f6';
+      }
     });
     
     // Draw regression line
@@ -226,29 +402,39 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
       const x2 = xMax;
       const y2 = slope * x2 + intercept;
       
-      const canvasX1 = margin + ((x1 - xMin) / (xMax - xMin)) * chartWidth;
-      const canvasY1 = height - margin - ((y1 - yMin) / (yMax - yMin)) * chartHeight;
-      const canvasX2 = margin + ((x2 - xMin) / (xMax - xMin)) * chartWidth;
-      const canvasY2 = height - margin - ((y2 - yMin) / (yMax - yMin)) * chartHeight;
+      const canvasX1 = margin + ((x1 - xMin) / xRange) * chartWidth;
+      const canvasY1 = height - margin - ((y1 - yMin) / yRange) * chartHeight;
+      const canvasX2 = margin + ((x2 - xMin) / xRange) * chartWidth;
+      const canvasY2 = height - margin - ((y2 - yMin) / yRange) * chartHeight;
       
       ctx.moveTo(canvasX1, canvasY1);
       ctx.lineTo(canvasX2, canvasY2);
       ctx.stroke();
       
-      // Draw equation
+      // Draw equation and statistics
       ctx.fillStyle = '#333';
-      ctx.font = '14px Arial';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'left';
       ctx.fillText(`y = ${slope.toFixed(2)}x + ${intercept.toFixed(2)}`, margin, margin - 10);
+      ctx.font = '12px Arial';
+      ctx.fillText(`Sample Size: ${data.length}`, margin, margin + 10);
+      ctx.fillText(`Slope: ${slope.toFixed(3)}`, margin, margin + 30);
+      ctx.fillText(`Intercept: ${intercept.toFixed(3)}`, margin, margin + 50);
     }
   };
 
   const drawANOVA = (ctx: CanvasRenderingContext2D, stats: any, width: number, height: number) => {
     const data = stats.data as number[];
     
-    const margin = 40;
+    const margin = 60;
     const chartWidth = width - 2 * margin;
     const chartHeight = height - 2 * margin;
+    
+    // Draw title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('ANOVA Box Plot', width / 2, 25);
     
     // Create box plot
     const sortedData = [...data].sort((a, b) => a - b);
@@ -257,6 +443,7 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     const q3 = sortedData[Math.floor(sortedData.length * 0.75)];
     const min = sortedData[0];
     const max = sortedData[sortedData.length - 1];
+    const mean = data.reduce((sum, val) => sum + val, 0) / data.length;
     
     const boxX = margin + chartWidth * 0.3;
     const boxWidth = chartWidth * 0.4;
@@ -271,6 +458,27 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.lineTo(margin, height - margin);
     ctx.lineTo(width - margin, height - margin);
     ctx.stroke();
+    
+    // Draw Y-axis labels and grid lines
+    const numTicks = 5;
+    for (let i = 0; i <= numTicks; i++) {
+      const value = min + (i / numTicks) * (max - min);
+      const y = height - margin - (i / numTicks) * chartHeight;
+      
+      // Grid line
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, y);
+      ctx.lineTo(width - margin, y);
+      ctx.stroke();
+      
+      // Y-axis label
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(value.toFixed(1), margin - 10, y + 4);
+    }
     
     // Draw box plot
     const scale = boxHeight / (max - min);
@@ -296,6 +504,29 @@ const StatisticalGraph: React.FC<StatisticalGraphProps> = ({
     ctx.moveTo(boxX, boxY + (median - min) * scale);
     ctx.lineTo(boxX + boxWidth, boxY + (median - min) * scale);
     ctx.stroke();
+    
+    // Draw statistics
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Sample Size: ${data.length}`, margin, margin - 10);
+    ctx.font = '12px Arial';
+    ctx.fillText(`Min: ${min.toFixed(2)}`, margin, margin + 10);
+    ctx.fillText(`Q1: ${q1.toFixed(2)}`, margin, margin + 30);
+    ctx.fillText(`Median: ${median.toFixed(2)}`, margin, margin + 50);
+    ctx.fillText(`Q3: ${q3.toFixed(2)}`, margin, margin + 70);
+    ctx.fillText(`Max: ${max.toFixed(2)}`, margin, margin + 90);
+    ctx.fillText(`Mean: ${mean.toFixed(2)}`, margin, margin + 110);
+    
+    // Draw value labels on the box plot
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(min.toFixed(1), boxX + boxWidth / 2, boxY + (min - min) * scale + 15);
+    ctx.fillText(q1.toFixed(1), boxX + boxWidth / 2, boxY + (q1 - min) * scale - 5);
+    ctx.fillText(median.toFixed(1), boxX + boxWidth / 2, boxY + (median - min) * scale - 5);
+    ctx.fillText(q3.toFixed(1), boxX + boxWidth / 2, boxY + (q3 - min) * scale - 5);
+    ctx.fillText(max.toFixed(1), boxX + boxWidth / 2, boxY + (max - min) * scale + 15);
   };
 
   // Helper function for normal distribution

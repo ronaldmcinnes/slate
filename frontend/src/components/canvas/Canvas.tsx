@@ -9,7 +9,7 @@ import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import ToolbarSettings from "./ToolbarSettings";
 import { AudioRecordingService } from "@/lib/audioService";
-import type { Page, GraphSpec } from "@/types";
+import type { Page} from "@/types";
 
 interface CanvasProps {
   page: Page | null;
