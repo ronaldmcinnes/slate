@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from "react";
-import { useOptimizedData } from "./useOptimizedData";
+import { api } from "@/lib/api";
 
 interface UseBackgroundRefreshProps {
   selectedNotebook: { id: string } | null;
@@ -12,31 +12,28 @@ export function useBackgroundRefresh({
   onPagesUpdated,
   onNotebooksUpdated,
 }: UseBackgroundRefreshProps) {
-  const { getPagesForNotebook, getNotebooks, invalidateCache } =
-    useOptimizedData();
-
   const refreshPages = useCallback(async () => {
     if (selectedNotebook && onPagesUpdated) {
       try {
-        const pages = await getPagesForNotebook(selectedNotebook.id, true);
+        const pages = await api.getPages(selectedNotebook.id);
         onPagesUpdated(pages);
       } catch (error) {
         console.error("Background refresh failed for pages:", error);
       }
     }
-  }, [selectedNotebook, onPagesUpdated, getPagesForNotebook]);
+  }, [selectedNotebook, onPagesUpdated]);
 
   const refreshNotebooks = useCallback(async () => {
     if (onNotebooksUpdated) {
       try {
-        const { owned, shared } = await getNotebooks(true);
+        const { owned, shared } = await api.getNotebooks();
         const allNotebooks = [...owned, ...shared];
         onNotebooksUpdated(allNotebooks);
       } catch (error) {
         console.error("Background refresh failed for notebooks:", error);
       }
     }
-  }, [onNotebooksUpdated, getNotebooks]);
+  }, [onNotebooksUpdated]);
 
   // Set up periodic background refresh
   useEffect(() => {
@@ -62,6 +59,5 @@ export function useBackgroundRefresh({
   return {
     refreshPages,
     refreshNotebooks,
-    invalidateCache,
   };
 }

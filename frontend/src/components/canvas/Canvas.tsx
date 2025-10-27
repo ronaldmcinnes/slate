@@ -15,8 +15,6 @@ import { useCanvasSave } from "@/hooks/useCanvasSave";
 import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
-import { useGraphOptimization } from "@/hooks/useGraphOptimization";
-import { useGraphPerformance } from "@/hooks/useGraphPerformance";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 
@@ -46,12 +44,6 @@ export default function Canvas({
     setVisibleTools,
   } = useCanvasState();
 
-  // Graph optimization
-  const {
-    optimizeGraphsForViewport,
-    preloadAdjacentGraphs,
-    shouldRenderGraph,
-  } = useGraphOptimization();
 
   // Main canvas hook with persistent state
   const { state, actions, refs, setters } = useCanvas(page, onUpdatePage, {
