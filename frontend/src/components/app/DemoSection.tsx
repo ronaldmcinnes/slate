@@ -69,7 +69,7 @@ export function DemoSection() {
             <div className="absolute top-0 left-0 right-0 flex items-start justify-center z-20">
               <div className="w-[60rem] h-[400px]">
                 <VideoEmbed
-                  src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                  src=""
                   poster="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
                   className="w-full h-full shadow-2xl"
                   autoplay={false}
