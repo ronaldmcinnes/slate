@@ -1,6 +1,6 @@
 # Slate - A Notebook Application
 
-A modern, collaborative notebook application with real-time canvas drawing, mathematical graphs, and AI-powered features.
+A modern, collaborative notebook application with real-time canvas drawing, mathematical graphs, and other features.
 
 ## 🏗️ Project Structure
 
