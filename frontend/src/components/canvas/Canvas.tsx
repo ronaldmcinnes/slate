@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ReactSketchCanvas } from "react-sketch-canvas";
 import GraphDialog from "@/components/dialogs/GraphDialog";
 import CanvasToolbar from "./CanvasToolbar";
@@ -158,23 +158,40 @@ export default function Canvas({
     }
   }, [state.visibleTools, canvasState.visibleTools, setVisibleTools]);
 
+  // Track eraser type (area vs stroke) via toolbar broadcast
+  const [eraserKind, setEraserKind] = useState<"area" | "stroke">("area");
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (
+        e?.detail?.eraserType === "stroke" ||
+        e?.detail?.eraserType === "area"
+      ) {
+        setEraserKind(e.detail.eraserType);
+      }
+    };
+    window.addEventListener("slate-eraser-type", handler as EventListener);
+    return () =>
+      window.removeEventListener("slate-eraser-type", handler as EventListener);
+  }, []);
+
+  // Enable area erase only for area mode; stroke mode handled manually
   useEffect(() => {
     const instance: any = refs.canvasRef.current;
     if (!instance || typeof instance.eraseMode !== "function") return;
     try {
-      instance.eraseMode(state.tool === "eraser");
-    } catch {
-      // no-op if the underlying implementation differs
-    }
-  }, [state.tool, refs.canvasRef]);
+      instance.eraseMode(state.tool === "eraser" && eraserKind === "area");
+    } catch {}
+  }, [state.tool, refs.canvasRef, eraserKind]);
 
   // Canvas operations
-  const handleUndo = () => {
-    refs.canvasRef.current?.undo();
+  const handleUndo = async () => {
+    const used = await tryCustomUndo();
+    if (!used) refs.canvasRef.current?.undo();
   };
 
-  const handleRedo = () => {
-    refs.canvasRef.current?.redo();
+  const handleRedo = async () => {
+    const used = await tryCustomRedo();
+    if (!used) refs.canvasRef.current?.redo();
   };
 
   const handleClearCanvas = async () => {
@@ -194,6 +211,91 @@ export default function Canvas({
     actions.markAsChanged();
   };
 
+  // --- Custom history to track programmatic edits (rotate/scale/recolor/delete) ---
+  const customHistoryRef = useRef<any[][]>([]); // array of paths snapshots
+  const customHistoryIndexRef = useRef<number>(-1);
+  const transformSessionActiveRef = useRef<boolean>(false);
+  const transformSnapshotPendingRef = useRef<boolean>(false);
+  const clearForwardHistory = () => {
+    const idx = customHistoryIndexRef.current;
+    if (idx < customHistoryRef.current.length - 1) {
+      customHistoryRef.current = customHistoryRef.current.slice(0, idx + 1);
+    }
+  };
+  const snapshotPaths = async () => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return;
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    clearForwardHistory();
+    customHistoryRef.current.push(JSON.parse(JSON.stringify(paths)));
+    customHistoryIndexRef.current = customHistoryRef.current.length - 1;
+  };
+  const pushCurrentSnapshot = async () => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return;
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    clearForwardHistory();
+    customHistoryRef.current.push(JSON.parse(JSON.stringify(paths)));
+    customHistoryIndexRef.current = customHistoryRef.current.length - 1;
+  };
+  const beginTransformSession = () => {
+    if (transformSessionActiveRef.current) return;
+    transformSnapshotPendingRef.current = true;
+    void (async () => {
+      await snapshotPaths(); // ensure pre-transform captured before first delta
+      transformSnapshotPendingRef.current = false;
+    })();
+    transformSessionActiveRef.current = true;
+  };
+  const endTransformSession = () => {
+    if (!transformSessionActiveRef.current) return;
+    transformSessionActiveRef.current = false;
+    void pushCurrentSnapshot(); // capture post-transform
+  };
+  const tryCustomUndo = async (): Promise<boolean> => {
+    const idx = customHistoryIndexRef.current;
+    if (idx <= 0) return false;
+    customHistoryIndexRef.current = idx - 1;
+    const snapshot = customHistoryRef.current[customHistoryIndexRef.current];
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return false;
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(snapshot);
+    // Wait two frames to ensure render is settled before bbox compute
+    await new Promise((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(r))
+    );
+    if (lassoSelection.length > 0) {
+      await recomputeSelectionBBox(lassoSelection);
+      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
+    }
+    return true;
+  };
+  const tryCustomRedo = async (): Promise<boolean> => {
+    const idx = customHistoryIndexRef.current;
+    if (idx >= customHistoryRef.current.length - 1) return false;
+    customHistoryIndexRef.current = idx + 1;
+    const snapshot = customHistoryRef.current[customHistoryIndexRef.current];
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return false;
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(snapshot);
+    await new Promise((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(r))
+    );
+    if (lassoSelection.length > 0) {
+      await recomputeSelectionBBox(lassoSelection);
+      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
+    }
+    return true;
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -208,10 +310,40 @@ export default function Canvas({
         return;
       }
 
-      // Ctrl+Z - Undo
+      // Delete selection with Delete/Backspace
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        lassoSelection.length > 0
+      ) {
+        e.preventDefault();
+        void deleteSelectedStrokes(lassoSelection);
+        setLassoSelection([]);
+        setLassoBBox(null);
+        return;
+      }
+
+      // Ctrl+Z - Prefer content undo, then fallback to reselection
       if (e.ctrlKey && e.key === "z") {
         e.preventDefault();
-        handleUndo();
+        // Try custom or native undo first
+        tryCustomUndo().then((used) => {
+          if (used) return;
+          if (
+            lastDeselectionRef.current?.wasDeselected &&
+            lastDeselectionRef.current.indices.length > 0
+          ) {
+            setLassoSelection(lastDeselectionRef.current.indices);
+            setLassoBBox(lastDeselectionRef.current.bbox);
+            lastDeselectionRef.current = {
+              indices: [],
+              bbox: null,
+              wasDeselected: false,
+            };
+            return;
+          }
+          // Fallback to canvas undo
+          refs.canvasRef.current?.undo?.();
+        });
       }
       // Ctrl+Y - Redo
       else if (e.ctrlKey && e.key === "y") {
@@ -281,42 +413,7 @@ export default function Canvas({
         // Wait a bit to ensure the canvas is fully mounted and ready
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Restore drawings if they exist
-        if (page.drawings) {
-          let drawingData = null;
-
-          // Check if drawings is compressed (string) or uncompressed (object)
-          if (typeof page.drawings === "string") {
-            console.log("Decompressing drawing data...");
-            drawingData = decompressDrawingData(page.drawings);
-            if (drawingData && drawingData.paths) {
-              console.log(
-                "Loading decompressed drawing paths:",
-                drawingData.paths
-              );
-              await refs.canvasRef.current.loadPaths(drawingData.paths);
-              console.log("Drawing paths loaded successfully");
-            } else {
-              console.log("No valid drawing data after decompression");
-            }
-          } else if (page.drawings.paths && page.drawings.paths.length > 0) {
-            console.log(
-              "Loading drawing paths (uncompressed):",
-              page.drawings.paths
-            );
-            await refs.canvasRef.current.loadPaths(page.drawings.paths);
-            console.log("Drawing paths loaded successfully");
-          } else if (Array.isArray(page.drawings) && page.drawings.length > 0) {
-            // Handle case where drawings is stored as array directly
-            console.log("Loading drawing paths (direct array):", page.drawings);
-            await refs.canvasRef.current.loadPaths(page.drawings);
-            console.log("Drawing paths loaded successfully");
-          } else {
-            console.log("No valid drawing data found");
-          }
-        } else {
-          console.log("No drawings to load, canvas already cleared");
-        }
+        // Intentionally ignoring any existing drawings for stroke rework
       } catch (error) {
         console.error("Failed to load page content:", error);
       }
@@ -338,8 +435,9 @@ export default function Canvas({
     }
   }, [state.isEditingTitle]);
 
-  // Determine if canvas should be interactive for drawing
-  const isDrawingTool = state.tool !== "pan" && state.tool !== "text";
+  // Determine if canvas should be interactive for drawing (disable for lasso)
+  const isDrawingTool =
+    state.tool !== "pan" && state.tool !== "text" && state.tool !== "lasso";
 
   // Get cursor style based on tool
   const getCursorStyle = () => {
@@ -348,6 +446,7 @@ export default function Canvas({
 
     if (state.tool === "text") return "text";
     if (state.tool === "pan") return "grab";
+    if (state.tool === "lasso") return "crosshair";
     if (state.tool === "eraser") return "default";
     return "crosshair";
   };
@@ -378,12 +477,29 @@ export default function Canvas({
 
   // Prevent text selection while erasing
   const [isErasing, setIsErasing] = useState(false);
-  const handleEraserMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const [lassoPoints, setLassoPoints] = useState<{ x: number; y: number }[]>(
+    []
+  );
+  const [isLassoing, setIsLassoing] = useState(false);
+  const [lassoSelection, setLassoSelection] = useState<number[]>([]);
+  const [hasStrokeErasedThisDrag, setHasStrokeErasedThisDrag] = useState(false);
+  const handleEraserMouseDown = async (e: React.MouseEvent<HTMLDivElement>) => {
     if (isReadOnly || state.tool !== "eraser") return;
     e.preventDefault();
     setIsErasing(true);
+    setHasStrokeErasedThisDrag(false);
     document.body.style.userSelect = "none";
     document.body.style.cursor = "crosshair";
+    if (eraserKind === "stroke") {
+      const container = refs.canvasContainerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left + container.scrollLeft;
+        const y = e.clientY - rect.top + container.scrollTop;
+        const erased = await eraseStrokeAt(x, y);
+        if (erased) setHasStrokeErasedThisDrag(true);
+      }
+    }
   };
   const handleEraserMouseUp = () => {
     if (!isErasing) return;
@@ -391,16 +507,497 @@ export default function Canvas({
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
   };
+
+  // Lasso interactions (fully contained)
+  const [lassoBBox, setLassoBBox] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const selectionDragRef = useRef({ startX: 0, startY: 0 });
+  const [isTransformingSelection, setIsTransformingSelection] = useState(false);
+  const transformRef = useRef<{
+    mode: "resize" | "rotate" | null;
+    prevAngle?: number;
+    prevDist?: number;
+    cx?: number;
+    cy?: number;
+  }>({ mode: null });
+
+  const handleLassoMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isReadOnly || state.tool !== "lasso") return;
+    const container = refs.canvasContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+    // Deselect when clicking outside selection bbox
+    if (lassoSelection.length > 0 && lassoBBox) {
+      const inside =
+        x >= lassoBBox.x &&
+        y >= lassoBBox.y &&
+        x <= lassoBBox.x + lassoBBox.w &&
+        y <= lassoBBox.y + lassoBBox.h;
+      if (!inside) {
+        lastDeselectionRef.current = {
+          indices: [...lassoSelection],
+          bbox: lassoBBox,
+          wasDeselected: true,
+        };
+        setLassoSelection([]);
+        setLassoBBox(null);
+      }
+    }
+    if (
+      lassoSelection.length > 0 &&
+      lassoBBox &&
+      x >= lassoBBox.x &&
+      y >= lassoBBox.y &&
+      x <= lassoBBox.x + lassoBBox.w &&
+      y <= lassoBBox.y + lassoBBox.h
+    ) {
+      setIsDraggingSelection(true);
+      selectionDragRef.current = { startX: x, startY: y };
+      return;
+    }
+    setIsLassoing(true);
+    setLassoPoints([{ x, y }]);
+  };
+  const handleLassoMouseMove = async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (state.tool !== "lasso") return;
+    const container = refs.canvasContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+    if (isDraggingSelection && lassoSelection.length > 0) {
+      const dx = x - selectionDragRef.current.startX;
+      const dy = y - selectionDragRef.current.startY;
+      selectionDragRef.current = { startX: x, startY: y };
+      await translateSelectedStrokes(lassoSelection, dx, dy);
+      if (lassoBBox)
+        setLassoBBox({
+          x: lassoBBox.x + dx,
+          y: lassoBBox.y + dy,
+          w: lassoBBox.w,
+          h: lassoBBox.h,
+        });
+      return;
+    }
+    if (!isLassoing) return;
+    setLassoPoints((pts) => [...pts, { x, y }]);
+  };
+  const handleLassoMouseUp = async () => {
+    if (state.tool !== "lasso") return;
+    if (isTransformingSelection) return; // handled by transform listeners
+    if (isDraggingSelection) {
+      setIsDraggingSelection(false);
+      return;
+    }
+    if (!isLassoing) return;
+    setIsLassoing(false);
+    // Close polygon by snapping to start
+    const poly = lassoPoints.length > 2 ? [...lassoPoints, lassoPoints[0]] : [];
+    if (poly.length < 4) {
+      setLassoPoints([]);
+      return;
+    }
+    try {
+      const instance: any = refs.canvasRef.current;
+      const exported: any = (await instance.exportPaths?.()) || [];
+      const paths: any[] = Array.isArray(exported)
+        ? exported
+        : exported.paths || [];
+      const selected: number[] = [];
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (let i = 0; i < paths.length; i++) {
+        const pts =
+          paths[i]?.paths ||
+          paths[i]?.points ||
+          paths[i]?.stroke?.points ||
+          paths[i]?.path ||
+          [];
+        if (!Array.isArray(pts) || pts.length === 0) continue;
+        let allInside = true;
+        for (const p of pts) {
+          const px = p.x ?? p[0];
+          const py = p.y ?? p[1];
+          if (!pointInPolygon(px, py, poly)) {
+            allInside = false;
+            break;
+          }
+        }
+        if (allInside) {
+          selected.push(i);
+          for (const p of pts) {
+            const px = p.x ?? p[0];
+            const py = p.y ?? p[1];
+            if (px < minX) minX = px;
+            if (py < minY) minY = py;
+            if (px > maxX) maxX = px;
+            if (py > maxY) maxY = py;
+          }
+        }
+      }
+      setLassoSelection(selected);
+      if (selected.length > 0 && isFinite(minX))
+        setLassoBBox({ x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+      setLassoPoints([]);
+    } catch {}
+  };
+
+  const pointInPolygon = (
+    x: number,
+    y: number,
+    poly: { x: number; y: number }[]
+  ) => {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x,
+        yi = poly[i].y;
+      const xj = poly[j].x,
+        yj = poly[j].y;
+      const intersect =
+        yi > y !== yj > y &&
+        x < ((xj - xi) * (y - yi)) / (yj - yi + 0.00001) + xi;
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  // Translate selected strokes helper
+  const translateSelectedStrokes = async (
+    indices: number[],
+    dx: number,
+    dy: number
+  ) => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || indices.length === 0) return;
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    const updated = paths.map((p: any, i: number) => {
+      if (!indices.includes(i)) return p;
+      const pts = p?.paths || p?.points || p?.stroke?.points || p?.path;
+      if (!Array.isArray(pts)) return p;
+      const shift = (pt: any) => {
+        const px = pt.x ?? pt[0];
+        const py = pt.y ?? pt[1];
+        if (pt.x != null && pt.y != null)
+          return { ...pt, x: px + dx, y: py + dy };
+        return [px + dx, py + dy];
+      };
+      if (p.paths) return { ...p, paths: pts.map(shift) };
+      if (p.points) return { ...p, points: pts.map(shift) };
+      if (p.stroke?.points)
+        return { ...p, stroke: { ...p.stroke, points: pts.map(shift) } };
+      if (p.path) return { ...p, path: pts.map(shift) };
+      return p;
+    });
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(updated);
+  };
+
+  // Scale around bbox center
+  const scaleSelectedStrokes = async (indices: number[], factor: number) => {
+    if (!lassoBBox) return;
+    const cx = lassoBBox.x + lassoBBox.w / 2;
+    const cy = lassoBBox.y + lassoBBox.h / 2;
+    await transformSelectedStrokes(indices, (px, py) => {
+      return [cx + (px - cx) * factor, cy + (py - cy) * factor];
+    });
+    await recomputeSelectionBBox(indices);
+  };
+
+  // Rotate around bbox center
+  const rotateSelectedStrokes = async (indices: number[], degrees: number) => {
+    if (!lassoBBox) return;
+    const rad = (degrees * Math.PI) / 180;
+    const sin = Math.sin(rad);
+    const cos = Math.cos(rad);
+    const cx = lassoBBox.x + lassoBBox.w / 2;
+    const cy = lassoBBox.y + lassoBBox.h / 2;
+    await transformSelectedStrokes(indices, (px, py) => {
+      const dx = px - cx;
+      const dy = py - cy;
+      return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
+    });
+    await recomputeSelectionBBox(indices);
+  };
+
+  // Recolor selected
+  const recolorSelectedStrokes = async (indices: number[], color: string) => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || indices.length === 0) return;
+    await snapshotPaths();
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    const updated = paths.map((p: any, i: number) => {
+      if (!indices.includes(i)) return p;
+      if (p.strokeColor) return { ...p, strokeColor: color };
+      if (p.stroke?.color) return { ...p, stroke: { ...p.stroke, color } };
+      if (p.color) return { ...p, color };
+      return { ...p, strokeColor: color };
+    });
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(updated);
+  };
+
+  // Change stroke width of selected
+  const restyleWidthSelectedStrokes = async (
+    indices: number[],
+    width: number
+  ) => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || indices.length === 0) return;
+    await snapshotPaths();
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    const updated = paths.map((p: any, i: number) => {
+      if (!indices.includes(i)) return p;
+      if (p.strokeWidth != null) return { ...p, strokeWidth: width };
+      if (p.stroke?.width != null)
+        return { ...p, stroke: { ...p.stroke, width } };
+      if (p.width != null) return { ...p, width };
+      return { ...p, strokeWidth: width };
+    });
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(updated);
+    await recomputeSelectionBBox(indices);
+  };
+
+  // Generic transform for selected paths
+  const transformSelectedStrokes = async (
+    indices: number[],
+    mapFn: (x: number, y: number) => [number, number]
+  ) => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || indices.length === 0) return;
+    if (!transformSessionActiveRef.current) {
+      await snapshotPaths();
+    }
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    const updated = paths.map((p: any, i: number) => {
+      if (!indices.includes(i)) return p;
+      const pts = p?.paths || p?.points || p?.stroke?.points || p?.path;
+      if (!Array.isArray(pts)) return p;
+      const mapPoint = (pt: any) => {
+        const px = pt.x ?? pt[0];
+        const py = pt.y ?? pt[1];
+        const [nx, ny] = mapFn(px, py);
+        if (pt.x != null && pt.y != null) return { ...pt, x: nx, y: ny };
+        return [nx, ny];
+      };
+      if (p.paths) return { ...p, paths: pts.map(mapPoint) };
+      if (p.points) return { ...p, points: pts.map(mapPoint) };
+      if (p.stroke?.points)
+        return { ...p, stroke: { ...p.stroke, points: pts.map(mapPoint) } };
+      if (p.path) return { ...p, path: pts.map(mapPoint) };
+      return p;
+    });
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(updated);
+  };
+
+  const recomputeSelectionBBox = async (indices: number[]) => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || indices.length === 0) return;
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (let i = 0; i < paths.length; i++) {
+      if (!indices.includes(i)) continue;
+      const pts =
+        paths[i]?.paths ||
+        paths[i]?.points ||
+        paths[i]?.stroke?.points ||
+        paths[i]?.path ||
+        [];
+      if (!Array.isArray(pts)) continue;
+      for (const p of pts) {
+        const px = p.x ?? p[0];
+        const py = p.y ?? p[1];
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      }
+    }
+    if (isFinite(minX))
+      setLassoBBox({ x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+  };
+
+  // Delete selected stroke indices
+  const deleteSelectedStrokes = async (indices: number[]) => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || indices.length === 0) return;
+    await snapshotPaths();
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    const keepSet = new Set(indices);
+    const remaining = paths.filter((_: any, i: number) => !keepSet.has(i));
+    await instance.clearCanvas?.();
+    await instance.loadPaths?.(remaining);
+    actions.markAsChanged();
+  };
+
+  // Track last deselection for Ctrl+Z reselect
+  const lastDeselectionRef = useRef<{
+    indices: number[];
+    bbox: { x: number; y: number; w: number; h: number } | null;
+    wasDeselected: boolean;
+  }>({ indices: [], bbox: null, wasDeselected: false });
+
+  // Keyboard shortcuts for selection transforms
   useEffect(() => {
-    if (!isErasing) return;
+    const onKey = async (e: KeyboardEvent) => {
+      if (lassoSelection.length === 0) return;
+      if (e.ctrlKey && !e.altKey) {
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          await rotateSelectedStrokes(lassoSelection, -5);
+          return;
+        }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          await rotateSelectedStrokes(lassoSelection, 5);
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          await scaleSelectedStrokes(lassoSelection, 1.1);
+          return;
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          await scaleSelectedStrokes(lassoSelection, 0.9);
+          return;
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lassoSelection, lassoBBox]);
+  useEffect(() => {
+    if (!isErasing || state.tool !== "eraser" || eraserKind !== "stroke")
+      return;
+    const onMove = async (e: MouseEvent) => {
+      const container = refs.canvasContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left + container.scrollLeft;
+      const y = e.clientY - rect.top + container.scrollTop;
+      if (!hasStrokeErasedThisDrag) {
+        const erased = await eraseStrokeAt(x, y);
+        if (erased) setHasStrokeErasedThisDrag(true);
+      }
+    };
+    document.addEventListener("mousemove", onMove);
     const onUp = () => {
       setIsErasing(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
     document.addEventListener("mouseup", onUp);
-    return () => document.removeEventListener("mouseup", onUp);
-  }, [isErasing]);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isErasing, eraserKind, state.tool]);
+
+  // Remove the nearest stroke to the given point
+  const eraseStrokeAt = async (x: number, y: number): Promise<boolean> => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return false;
+    try {
+      const exported: any = (await instance.exportPaths?.()) || [];
+      const paths: any[] = Array.isArray(exported)
+        ? exported
+        : exported.paths || [];
+      const idx = findHitPathIndex(
+        paths,
+        x,
+        y,
+        Math.max(3, Math.floor(state.strokeWidth * 0.6) + 2)
+      );
+      if (idx < 0) return false;
+      const remaining = paths.slice(0, idx).concat(paths.slice(idx + 1));
+      if (remaining.length !== paths.length - 1) {
+        return false;
+      }
+      await instance.clearCanvas?.();
+      await instance.loadPaths?.(remaining);
+      actions.markAsChanged();
+      return true;
+    } catch (e) {
+      console.error("eraseStrokeAt failed", e);
+      return false;
+    }
+  };
+
+  const findHitPathIndex = (
+    paths: any[],
+    px: number,
+    py: number,
+    threshold: number
+  ): number => {
+    const sq = (n: number) => n * n;
+    const distPointToSeg = (
+      ax: number,
+      ay: number,
+      bx: number,
+      by: number,
+      cx: number,
+      cy: number
+    ) => {
+      const abx = bx - ax,
+        aby = by - ay;
+      const denom = abx * abx + aby * aby || 1;
+      const t = Math.max(
+        0,
+        Math.min(1, ((cx - ax) * abx + (cy - ay) * aby) / denom)
+      );
+      const dx = ax + t * abx - cx;
+      const dy = ay + t * aby - cy;
+      return Math.sqrt(sq(dx) + sq(dy));
+    };
+    for (let i = paths.length - 1; i >= 0; i--) {
+      const p = paths[i];
+      const pts = p?.paths || p?.points || p?.stroke?.points || p?.path || [];
+      if (!Array.isArray(pts) || pts.length < 2) continue;
+      for (let j = 0; j < pts.length - 1; j++) {
+        const a = pts[j];
+        const b = pts[j + 1];
+        const ax = a.x ?? a[0];
+        const ay = a.y ?? a[1];
+        const bx = b.x ?? b[0];
+        const by = b.y ?? b[1];
+        if (ax == null || ay == null || bx == null || by == null) continue;
+        if (distPointToSeg(ax, ay, bx, by, px, py) <= threshold) return i;
+      }
+    }
+    return -1;
+  };
 
   // Early return for no page selected
   if (!page) {
@@ -505,10 +1102,19 @@ export default function Canvas({
                 minWidth: `${state.canvasSize.width}%`,
                 minHeight: `${state.canvasSize.height}%`,
               }}
-              onMouseMove={handleCanvasMouseMove}
+              onMouseMove={(e) => {
+                handleCanvasMouseMove(e);
+                handleLassoMouseMove(e);
+              }}
               onMouseLeave={handleCanvasMouseLeave}
-              onMouseDown={handleEraserMouseDown}
-              onMouseUp={handleEraserMouseUp}
+              onMouseDown={(e) => {
+                handleEraserMouseDown(e);
+                handleLassoMouseDown(e);
+              }}
+              onMouseUp={(e) => {
+                handleEraserMouseUp();
+                handleLassoMouseUp();
+              }}
             >
               <ReactSketchCanvas
                 key={`canvas-${page?.id || "no-page"}`}
@@ -558,6 +1164,262 @@ export default function Canvas({
                   }}
                 />
               )}
+
+              {/* Lasso overlay (snaps closed) */}
+              {state.tool === "lasso" &&
+                (isLassoing || lassoPoints.length > 0) && (
+                  <svg
+                    className="pointer-events-none absolute inset-0"
+                    width="100%"
+                    height="100%"
+                  >
+                    <polyline
+                      points={[
+                        ...lassoPoints,
+                        ...(lassoPoints[0] ? [lassoPoints[0]] : []),
+                      ]
+                        .map((p) => `${p.x},${p.y}`)
+                        .join(" ")}
+                      fill="rgba(59,130,246,0.08)"
+                      stroke="rgba(59,130,246,0.9)"
+                      strokeWidth={1}
+                    />
+                  </svg>
+                )}
+
+              {/* Compact palette for color and width */}
+              {state.tool === "lasso" &&
+                lassoSelection.length > 0 &&
+                lassoBBox &&
+                !isTransformingSelection && (
+                  <div
+                    className="absolute bg-card/90 backdrop-blur border border-border rounded-md shadow p-1 flex items-center gap-2"
+                    style={{
+                      left: lassoBBox.x,
+                      top: Math.max(0, lassoBBox.y - 30),
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onMouseMove={(e) => e.stopPropagation()}
+                  >
+                    {[
+                      "#000000",
+                      "#EF4444",
+                      "#3B82F6",
+                      "#10B981",
+                      "#F59E0B",
+                      "#FFFFFF",
+                    ].map((c) => (
+                      <button
+                        key={c}
+                        className="w-4 h-4 rounded-full border border-border hover:scale-110"
+                        style={{ backgroundColor: c }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await recolorSelectedStrokes(lassoSelection, c);
+                        }}
+                        title="Change color"
+                      />
+                    ))}
+                    <div className="w-px h-4 bg-border" />
+                    <input
+                      type="range"
+                      min={1}
+                      max={40}
+                      defaultValue={state.strokeWidth}
+                      className="h-1 cursor-ew-resize"
+                      onChange={async (e) => {
+                        const w = Number(e.currentTarget.value) || 1;
+                        await restyleWidthSelectedStrokes(lassoSelection, w);
+                      }}
+                      title="Stroke width"
+                    />
+                  </div>
+                )}
+              {/* Selection bbox */}
+              {state.tool === "lasso" &&
+                lassoSelection.length > 0 &&
+                lassoBBox && (
+                  <div
+                    className="pointer-events-none absolute border border-primary/60 rounded-sm"
+                    style={{
+                      left: lassoBBox.x,
+                      top: lassoBBox.y,
+                      width: lassoBBox.w,
+                      height: lassoBBox.h,
+                    }}
+                  />
+                )}
+
+              {/* Transform handles for selection */}
+              {state.tool === "lasso" &&
+                lassoSelection.length > 0 &&
+                lassoBBox && (
+                  <>
+                    {["nw", "ne", "se", "sw"].map((corner) => {
+                      const pos: any = {
+                        nw: { left: lassoBBox.x - 6, top: lassoBBox.y - 6 },
+                        ne: {
+                          left: lassoBBox.x + lassoBBox.w - 6,
+                          top: lassoBBox.y - 6,
+                        },
+                        se: {
+                          left: lassoBBox.x + lassoBBox.w - 6,
+                          top: lassoBBox.y + lassoBBox.h - 6,
+                        },
+                        sw: {
+                          left: lassoBBox.x - 6,
+                          top: lassoBBox.y + lassoBBox.h - 6,
+                        },
+                      }[corner];
+                      return (
+                        <div
+                          key={corner}
+                          className="absolute w-3 h-3 bg-primary rounded-sm border border-background cursor-nwse-resize"
+                          style={{ ...pos }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            if (!lassoBBox) return;
+                            setIsTransformingSelection(true);
+                            const cx = lassoBBox.x + lassoBBox.w / 2;
+                            const cy = lassoBBox.y + lassoBBox.h / 2;
+                            const rect = (
+                              refs.canvasContainerRef.current as HTMLDivElement
+                            ).getBoundingClientRect();
+                            const sx =
+                              e.clientX -
+                              rect.left +
+                              (
+                                refs.canvasContainerRef
+                                  .current as HTMLDivElement
+                              ).scrollLeft;
+                            const sy =
+                              e.clientY -
+                              rect.top +
+                              (
+                                refs.canvasContainerRef
+                                  .current as HTMLDivElement
+                              ).scrollTop;
+                            const dist = Math.hypot(sx - cx, sy - cy);
+                            transformRef.current = {
+                              mode: "resize",
+                              prevDist: Math.max(1, dist),
+                              cx,
+                              cy,
+                            };
+                            beginTransformSession();
+                            const onMove = async (ev: MouseEvent) => {
+                              if (transformSnapshotPendingRef.current) return;
+                              const rx =
+                                ev.clientX -
+                                rect.left +
+                                (
+                                  refs.canvasContainerRef
+                                    .current as HTMLDivElement
+                                ).scrollLeft;
+                              const ry =
+                                ev.clientY -
+                                rect.top +
+                                (
+                                  refs.canvasContainerRef
+                                    .current as HTMLDivElement
+                                ).scrollTop;
+                              const newDist = Math.hypot(rx - cx, ry - cy);
+                              const factor = Math.max(
+                                0.2,
+                                Math.min(
+                                  5,
+                                  newDist /
+                                    (transformRef.current.prevDist || newDist)
+                                )
+                              );
+                              transformRef.current.prevDist = newDist;
+                              await scaleSelectedStrokes(
+                                lassoSelection,
+                                factor
+                              );
+                            };
+                            const onUp = () => {
+                              setIsTransformingSelection(false);
+                              document.removeEventListener("mousemove", onMove);
+                              document.removeEventListener("mouseup", onUp);
+                              endTransformSession();
+                            };
+                            document.addEventListener("mousemove", onMove);
+                            document.addEventListener("mouseup", onUp);
+                          }}
+                        />
+                      );
+                    })}
+                    {/* Rotation handle near top-right corner */}
+                    <div
+                      className="absolute w-3 h-3 bg-primary rounded-full border border-background cursor-crosshair"
+                      style={{
+                        left: lassoBBox.x + lassoBBox.w + 8,
+                        top: lassoBBox.y - 16,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        if (!lassoBBox) return;
+                        setIsTransformingSelection(true);
+                        const rect = (
+                          refs.canvasContainerRef.current as HTMLDivElement
+                        ).getBoundingClientRect();
+                        const cx = lassoBBox.x + lassoBBox.w / 2;
+                        const cy = lassoBBox.y + lassoBBox.h / 2;
+                        const sx =
+                          e.clientX -
+                          rect.left +
+                          (refs.canvasContainerRef.current as HTMLDivElement)
+                            .scrollLeft;
+                        const sy =
+                          e.clientY -
+                          rect.top +
+                          (refs.canvasContainerRef.current as HTMLDivElement)
+                            .scrollTop;
+                        transformRef.current = {
+                          mode: "rotate",
+                          prevAngle: Math.atan2(sy - cy, sx - cx),
+                          cx,
+                          cy,
+                        };
+                        beginTransformSession();
+                        const onMove = async (ev: MouseEvent) => {
+                          if (transformSnapshotPendingRef.current) return;
+                          const rx =
+                            ev.clientX -
+                            rect.left +
+                            (refs.canvasContainerRef.current as HTMLDivElement)
+                              .scrollLeft;
+                          const ry =
+                            ev.clientY -
+                            rect.top +
+                            (refs.canvasContainerRef.current as HTMLDivElement)
+                              .scrollTop;
+                          const ang = Math.atan2(
+                            ry - (transformRef.current.cy || 0),
+                            rx - (transformRef.current.cx || 0)
+                          );
+                          const prev = transformRef.current.prevAngle || ang;
+                          const deltaDeg = ((ang - prev) * 180) / Math.PI;
+                          transformRef.current.prevAngle = ang;
+                          await rotateSelectedStrokes(lassoSelection, deltaDeg);
+                        };
+                        const onUp = () => {
+                          setIsTransformingSelection(false);
+                          document.removeEventListener("mousemove", onMove);
+                          document.removeEventListener("mouseup", onUp);
+                          endTransformSession();
+                        };
+                        document.addEventListener("mousemove", onMove);
+                        document.addEventListener("mouseup", onUp);
+                      }}
+                      title="Rotate"
+                    />
+                  </>
+                )}
+
+              {/* Inline controls removed per request - color/rotate/scale via handles/keyboard */}
             </div>
           )}
 
