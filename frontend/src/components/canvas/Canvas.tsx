@@ -451,7 +451,23 @@ export default function Canvas({
         // Wait a bit to ensure the canvas is fully mounted and ready
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Intentionally ignoring any existing drawings for stroke rework
+        // Load drawings from saved state (if present)
+        try {
+          const instance: any = refs.canvasRef.current;
+          if (instance && page.drawings) {
+            const decompressed = decompressDrawingData(
+              page.drawings as unknown as string
+            );
+            const paths: any[] = decompressed?.paths || [];
+            if (Array.isArray(paths) && paths.length > 0) {
+              await instance.clearCanvas?.();
+              await instance.loadPaths?.(paths);
+              console.log(`Loaded ${paths.length} saved paths into canvas`);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to load saved drawings into canvas", e);
+        }
       } catch (error) {
         console.error("Failed to load page content:", error);
       }
