@@ -35,6 +35,9 @@ importers:
       lucide-react:
         specifier: ^0.548.0
         version: 0.548.0(react@19.2.0)
+      plotly.js-dist-min:
+        specifier: ^3.1.2
+        version: 3.1.2
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -1593,6 +1596,9 @@ packages:
   pirates@4.0.7:
     resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
     engines: {node: '>= 6'}
+
+  plotly.js-dist-min@3.1.2:
+    resolution: {integrity: sha512-GlgsV+1IMjPpyJWnWjHfD2SBczqke/JNPElLAZ5cUir3fz5D4WDcYyQFJLU60SjCvJXH+KTPp8SBuVIr084sOA==}
 
   postcss-import@15.1.0:
     resolution: {integrity: sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==}
@@ -3445,6 +3451,8 @@ snapshots:
   pify@2.3.0: {}
 
   pirates@4.0.7: {}
+
+  plotly.js-dist-min@3.1.2: {}
 
   postcss-import@15.1.0(postcss@8.5.6):
     dependencies:

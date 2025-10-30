@@ -298,6 +298,13 @@ export default function ToolbarDrawingTools({
       return () => window.removeEventListener("slate-toolbar-scroll", handler);
     }, []);
 
+    // Broadcast eraser type changes so canvas can react (stroke vs area)
+    useEffect(() => {
+      window.dispatchEvent(
+        new CustomEvent("slate-eraser-type", { detail: { eraserType } })
+      );
+    }, [eraserType]);
+
     return (
       <div className="flex flex-col items-center">
         <Button
