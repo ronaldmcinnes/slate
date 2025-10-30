@@ -1,8 +1,10 @@
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
-import ToolbarSettings from "./ToolbarSettings";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Hand, Lasso, ChevronDown } from "lucide-react";
 
 interface CanvasToolbarProps {
   isToolbarVisible: boolean;
@@ -51,6 +53,31 @@ export default function CanvasToolbar({
   onScrollRight,
   onAddGraph,
 }: CanvasToolbarProps) {
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [undoMenuOpen, setUndoMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const el = toolbarScrollRef?.current;
+    if (!el) return;
+    const update = () => {
+      setCanScrollLeft(el.scrollLeft > 0);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    };
+    update();
+    const onScroll = () => {
+      update();
+      window.dispatchEvent(new CustomEvent("slate-toolbar-scroll"));
+      setUndoMenuOpen(false);
+    };
+    el.addEventListener("scroll", onScroll);
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, [toolbarScrollRef]);
   if (!isToolbarVisible) {
     return (
       <Button
@@ -86,51 +113,75 @@ export default function CanvasToolbar({
       <div className="flex items-center gap-2 px-2 py-3">
         {/* Static Tools - Always Visible */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Undo/Redo */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 hover:bg-muted"
-            onClick={onUndo}
-            title="Undo (Ctrl+Z)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {/* Undo with dropdown for Redo */}
+          <div className="flex flex-col items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 hover:bg-muted"
+              onClick={onUndo}
+              title="Undo (Ctrl+Z)"
             >
-              <path d="M3 7v6h6" />
-              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
-            </svg>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 hover:bg-muted"
-            onClick={onRedo}
-            title="Redo (Ctrl+Y)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 7v6h-6" />
-              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
-            </svg>
-          </Button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 7v6h6" />
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+              </svg>
+            </Button>
+            <Popover open={undoMenuOpen} onOpenChange={setUndoMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-3 w-9 rounded-t-none py-0 flex items-center justify-center"
+                  title="More"
+                >
+                  <ChevronDown size={10} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-2 rounded-t-none border-t-0 shadow-md bg-card z-50"
+                side="bottom"
+                align="center"
+                sideOffset={0}
+              >
+                <div className="flex flex-col">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={onRedo}
+                    title="Redo (Ctrl+Y)"
+                    aria-label="Redo"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 7v6h-6" />
+                      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+                    </svg>
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
           <div className="w-px h-8 bg-border mx-1" />
 
@@ -167,53 +218,26 @@ export default function CanvasToolbar({
             </svg>
           </Button>
 
-          {/* Clear Canvas Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 hover:bg-muted"
-            onClick={onClearCanvas}
-            title="Clear Canvas"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />
-            </svg>
-          </Button>
-
           <div className="w-px h-8 bg-border mx-1" />
 
-          {/* Selection Tools */}
+          {/* Pan and Lasso */}
           <Button
-            variant={tool === "select" ? "secondary" : "ghost"}
+            variant={tool === "pan" ? "secondary" : "ghost"}
             size="icon"
-            className={`h-9 w-9 ${tool === "select" ? "bg-muted" : ""}`}
-            onClick={() => onToolChange("select")}
-            title="Selection Tool"
+            className={`h-9 w-9 ${tool === "pan" ? "bg-muted" : ""}`}
+            onClick={() => onToolChange("pan")}
+            title="Pan Tool"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-              <path d="M13 13l6 6" />
-            </svg>
+            <Hand size={18} />
+          </Button>
+          <Button
+            variant={tool === "lasso" ? "secondary" : "ghost"}
+            size="icon"
+            className={`h-9 w-9 ${tool === "lasso" ? "bg-muted" : ""}`}
+            onClick={() => onToolChange("lasso")}
+            title="Lasso Tool"
+          >
+            <Lasso size={18} />
           </Button>
 
           {/* Audio Recording */}
@@ -283,8 +307,8 @@ export default function CanvasToolbar({
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-7 hover:bg-muted flex-shrink-0"
-          onClick={onScrollLeft}
+          className={`h-9 w-7 flex-shrink-0 ${canScrollLeft ? "hover:bg-muted" : "opacity-50 cursor-not-allowed"}`}
+          onClick={canScrollLeft ? onScrollLeft : undefined}
           title="Scroll Left"
         >
           <svg
@@ -338,8 +362,8 @@ export default function CanvasToolbar({
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-7 hover:bg-muted flex-shrink-0"
-          onClick={onScrollRight}
+          className={`h-9 w-7 flex-shrink-0 ${canScrollRight ? "hover:bg-muted" : "opacity-50 cursor-not-allowed"}`}
+          onClick={canScrollRight ? onScrollRight : undefined}
           title="Scroll Right"
         >
           <svg
@@ -358,11 +382,6 @@ export default function CanvasToolbar({
         </Button>
 
         <div className="w-px h-10 bg-border flex-shrink-0" />
-
-        <ToolbarSettings
-          visibleTools={visibleTools}
-          onToggleTool={onToggleTool}
-        />
 
         <Button
           variant="ghost"

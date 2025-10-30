@@ -157,8 +157,8 @@ export function useCanvasTools({
       onUpdatePage({ textBoxes });
       markAsChanged();
 
-      // Switch back to select tool after placing text
-      setTool("select");
+      // Switch to pan tool after placing text
+      setTool("pan");
     },
     [page, onUpdatePage, markAsChanged, setTool]
   );

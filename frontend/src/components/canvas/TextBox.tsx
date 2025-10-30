@@ -37,7 +37,11 @@ export default function TextBox({
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
+      const ta = textareaRef.current;
+      ta.focus();
+      // Auto-size on enter edit mode
+      ta.style.height = "auto";
+      ta.style.height = `${ta.scrollHeight}px`;
     }
   }, [isEditing]);
 
@@ -81,7 +85,7 @@ export default function TextBox({
     onTextChange(textBox.id, text);
   };
 
-  const handleDoubleClick = () => {
+  const handleClickToEdit = () => {
     if (isReadOnly) return;
     setIsEditing(true);
   };
@@ -125,17 +129,33 @@ export default function TextBox({
             value={text}
             onChange={handleTextChange}
             onBlur={handleBlur}
+            onInput={(e) => {
+              const ta = e.currentTarget;
+              ta.style.height = "auto";
+              ta.style.height = `${ta.scrollHeight}px`;
+            }}
+            onKeyDown={(e) => {
+              // Auto-expand on Enter
+              if (e.key === "Enter") {
+                const ta = e.currentTarget;
+                // Next tick after newline is inserted
+                requestAnimationFrame(() => {
+                  ta.style.height = "auto";
+                  ta.style.height = `${ta.scrollHeight}px`;
+                });
+              }
+            }}
             className="w-full min-h-[60px] p-2 bg-transparent border-none outline-none resize-none text-foreground"
             style={{ fontFamily: "Inter, sans-serif" }}
           />
         ) : (
           <div
-            onDoubleClick={handleDoubleClick}
+            onClick={handleClickToEdit}
             className={`p-2 min-h-[60px] text-foreground whitespace-pre-wrap ${
               isReadOnly ? "cursor-grab" : "cursor-text"
             }`}
           >
-            {text || (isReadOnly ? "" : "Double-click to edit")}
+            {text || (isReadOnly ? "" : "Click to edit")}
           </div>
         )}
       </div>

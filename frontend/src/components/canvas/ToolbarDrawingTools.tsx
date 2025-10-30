@@ -170,6 +170,12 @@ export default function ToolbarDrawingTools({
       const [popoverOpen, setPopoverOpen] = useState(false);
       const IconComponent = icon;
 
+      useEffect(() => {
+        const handler = () => setPopoverOpen(false);
+        window.addEventListener("slate-toolbar-scroll", handler);
+        return () => window.removeEventListener("slate-toolbar-scroll", handler);
+      }, []);
+
       return (
         <div className="flex flex-col items-center">
           <Button
@@ -204,9 +210,10 @@ export default function ToolbarDrawingTools({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-auto p-3"
+                className="w-auto p-3 rounded-t-none border-t-0 shadow-md bg-card z-50"
                 side="bottom"
                 align="center"
+                sideOffset={0}
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
                 <div
@@ -285,6 +292,12 @@ export default function ToolbarDrawingTools({
     const [popoverOpen, setPopoverOpen] = useState(false);
     const isActive = tool === "eraser";
 
+    useEffect(() => {
+      const handler = () => setPopoverOpen(false);
+      window.addEventListener("slate-toolbar-scroll", handler);
+      return () => window.removeEventListener("slate-toolbar-scroll", handler);
+    }, []);
+
     return (
       <div className="flex flex-col items-center">
         <Button
@@ -313,9 +326,10 @@ export default function ToolbarDrawingTools({
               </Button>
             </PopoverTrigger>
             <PopoverContent
-              className="w-auto p-3"
+              className="w-auto p-3 rounded-t-none border-t-0 shadow-md bg-card z-50"
               side="bottom"
               align="center"
+              sideOffset={0}
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
               <div
