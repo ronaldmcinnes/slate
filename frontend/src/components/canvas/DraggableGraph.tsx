@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { GripVertical, X, RefreshCw, Edit3, Move } from "lucide-react";
 import GraphRouter from "./GraphRouter";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,15 @@ export default function DraggableGraph({
   const [functionInput, setFunctionInput] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showFunctionInput, setShowFunctionInput] = useState(false);
-  const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
+  const dragRef = useRef({
+    startX: 0,
+    startY: 0,
+    initialX: 0,
+    initialY: 0,
+    startScrollLeft: 0,
+    startScrollTop: 0,
+  });
+  const globalHandlersRef = useRef<{ move?: any; up?: any }>({});
   const resizeRef = useRef({
     startX: 0,
     startY: 0,
@@ -160,13 +168,22 @@ export default function DraggableGraph({
 
     // Only allow dragging from the header
     if ((e.target as Element).closest(".drag-handle")) {
+      e.preventDefault();
       setIsDragging(true);
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
         initialX: position.x,
         initialY: position.y,
+        startScrollLeft:
+          (document.querySelector('[data-canvas-container]') as HTMLDivElement
+            | null)?.scrollLeft || 0,
+        startScrollTop:
+          (document.querySelector('[data-canvas-container]') as HTMLDivElement
+            | null)?.scrollTop || 0,
       };
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "grabbing";
     }
   };
 
@@ -175,8 +192,8 @@ export default function DraggableGraph({
       const deltaX = e.clientX - dragRef.current.startX;
       const deltaY = e.clientY - dragRef.current.startY;
       setPosition({
-        x: dragRef.current.initialX + deltaX,
-        y: dragRef.current.initialY + deltaY,
+        x: Math.max(0, dragRef.current.initialX + deltaX),
+        y: Math.max(0, dragRef.current.initialY + deltaY),
       });
     } else if (isResizing) {
       const deltaX = e.clientX - resizeRef.current.startX;
@@ -203,7 +220,7 @@ export default function DraggableGraph({
       }
 
       setSize({ width: newWidth, height: newHeight });
-      setPosition({ x: newX, y: newY });
+      setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
     }
   };
 
@@ -211,6 +228,15 @@ export default function DraggableGraph({
     if (isDragging) {
       setIsDragging(false);
       onPositionChange(graph.id, position.x, position.y);
+      if (globalHandlersRef.current.move) {
+        document.removeEventListener("mousemove", globalHandlersRef.current.move);
+      }
+      if (globalHandlersRef.current.up) {
+        document.removeEventListener("mouseup", globalHandlersRef.current.up);
+      }
+      globalHandlersRef.current = {};
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
     } else if (isResizing) {
       setIsResizing(false);
       setResizeDirection("");
@@ -220,6 +246,80 @@ export default function DraggableGraph({
       }
     }
   };
+
+  // Document-level listeners while dragging/resizing to allow cursor to leave canvas
+  useEffect(() => {
+    if (!isDragging && !isResizing) return;
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault();
+      if (isDragging) {
+        // Auto-scroll container near edges while dragging
+        const container = document.querySelector(
+          '[data-canvas-container]'
+        ) as HTMLDivElement | null;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const edge = 48;
+          const speed = 24;
+          if (e.clientX > rect.right - edge) container.scrollLeft += speed;
+          if (e.clientX < rect.left + edge) container.scrollLeft -= speed;
+          if (e.clientY > rect.bottom - edge) container.scrollTop += speed;
+          if (e.clientY < rect.top + edge) container.scrollTop -= speed;
+          const scrollDeltaX = container.scrollLeft - dragRef.current.startScrollLeft;
+          const scrollDeltaY = container.scrollTop - dragRef.current.startScrollTop;
+          const deltaX = (e.clientX - dragRef.current.startX) + scrollDeltaX;
+          const deltaY = (e.clientY - dragRef.current.startY) + scrollDeltaY;
+          setPosition({
+            x: Math.max(0, dragRef.current.initialX + deltaX),
+            y: Math.max(0, dragRef.current.initialY + deltaY),
+          });
+          return;
+        }
+        const deltaX = e.clientX - dragRef.current.startX;
+        const deltaY = e.clientY - dragRef.current.startY;
+        setPosition({
+          x: Math.max(0, dragRef.current.initialX + deltaX),
+          y: Math.max(0, dragRef.current.initialY + deltaY),
+        });
+      } else if (isResizing) {
+        const deltaX = e.clientX - resizeRef.current.startX;
+        const deltaY = e.clientY - resizeRef.current.startY;
+        let newWidth = resizeRef.current.initialWidth;
+        let newHeight = resizeRef.current.initialHeight;
+        let newX = resizeRef.current.initialX;
+        let newY = resizeRef.current.initialY;
+        if (resizeDirection.includes("right")) newWidth = Math.max(200, resizeRef.current.initialWidth + deltaX);
+        if (resizeDirection.includes("left")) { newWidth = Math.max(200, resizeRef.current.initialWidth - deltaX); newX = resizeRef.current.initialX + deltaX; }
+        if (resizeDirection.includes("bottom")) newHeight = Math.max(200, resizeRef.current.initialHeight + deltaY);
+        if (resizeDirection.includes("top")) { newHeight = Math.max(200, resizeRef.current.initialHeight - deltaY); newY = resizeRef.current.initialY + deltaY; }
+        setSize({ width: newWidth, height: newHeight });
+        setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
+      }
+    };
+    const onUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        onPositionChange(graph.id, position.x, position.y);
+      }
+      if (isResizing) {
+        setIsResizing(false);
+        setResizeDirection("");
+        onPositionChange(graph.id, position.x, position.y);
+        onSizeChange?.(graph.id, size.width, size.height);
+      }
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+    globalHandlersRef.current = { move: onMove, up: onUp };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging, isResizing, resizeDirection, onPositionChange, onSizeChange, graph.id, position.x, position.y, size.width, size.height]);
 
   const handleRegenerateGraph = async () => {
     if (!functionInput.trim() || !onUpdateGraph) return;
@@ -263,9 +363,10 @@ export default function DraggableGraph({
           ? "grabbing"
           : "default",
       }}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
     >
       <div
         className={`bg-card border-2 rounded-lg shadow-lg overflow-hidden relative ${

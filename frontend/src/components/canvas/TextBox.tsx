@@ -32,8 +32,16 @@ export default function TextBox({
     y: parseInt(textBox.y as string) || 100,
   });
   const [text, setText] = useState(textBox.text || "");
-  const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
+  const dragRef = useRef({
+    startX: 0,
+    startY: 0,
+    initialX: 0,
+    initialY: 0,
+    startScrollLeft: 0,
+    startScrollTop: 0,
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const globalHandlersRef = useRef<{ move?: any; up?: any }>({});
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -48,32 +56,50 @@ export default function TextBox({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isReadOnly) return;
     if ((e.target as HTMLElement)?.closest?.(".drag-handle")) {
+      e.preventDefault();
       setIsDragging(true);
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
         initialX: position.x,
         initialY: position.y,
+        startScrollLeft:
+          (document.querySelector('[data-canvas-container]') as HTMLDivElement
+            | null)?.scrollLeft || 0,
+        startScrollTop:
+          (document.querySelector('[data-canvas-container]') as HTMLDivElement
+            | null)?.scrollTop || 0,
       };
+      // Prevent text selection and enforce grabbing cursor globally while dragging
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "grabbing";
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      const deltaX = e.clientX - dragRef.current.startX;
-      const deltaY = e.clientY - dragRef.current.startY;
-      setPosition({
-        x: dragRef.current.initialX + deltaX,
-        y: dragRef.current.initialY + deltaY,
-      });
-    }
+    if (!isDragging) return;
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+    setPosition({
+      x: Math.max(0, dragRef.current.initialX + deltaX),
+      y: Math.max(0, dragRef.current.initialY + deltaY),
+    });
   };
 
   const handleMouseUp = () => {
-    if (isDragging) {
-      setIsDragging(false);
-      onPositionChange(textBox.id, position.x, position.y);
+    if (!isDragging) return;
+    setIsDragging(false);
+    onPositionChange(textBox.id, position.x, position.y);
+    // Remove global listeners
+    if (globalHandlersRef.current.move) {
+      document.removeEventListener("mousemove", globalHandlersRef.current.move);
     }
+    if (globalHandlersRef.current.up) {
+      document.removeEventListener("mouseup", globalHandlersRef.current.up);
+    }
+    globalHandlersRef.current = {};
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -90,6 +116,58 @@ export default function TextBox({
     setIsEditing(true);
   };
 
+  // Start drag with document-level listeners to allow cursor to leave canvas
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      e.preventDefault();
+      // Auto-scroll canvas container when near edges while dragging
+      const container = document.querySelector(
+        '[data-canvas-container]'
+      ) as HTMLDivElement | null;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const edge = 48; // px from edge to trigger scroll
+        const speed = 24; // scroll pixels per event
+        if (e.clientX > rect.right - edge) container.scrollLeft += speed;
+        if (e.clientX < rect.left + edge) container.scrollLeft -= speed;
+        if (e.clientY > rect.bottom - edge) container.scrollTop += speed;
+        if (e.clientY < rect.top + edge) container.scrollTop -= speed;
+        // Include scroll delta so dragged element stays under cursor
+        const scrollDeltaX = container.scrollLeft - dragRef.current.startScrollLeft;
+        const scrollDeltaY = container.scrollTop - dragRef.current.startScrollTop;
+        const deltaX = (e.clientX - dragRef.current.startX) + scrollDeltaX;
+        const deltaY = (e.clientY - dragRef.current.startY) + scrollDeltaY;
+        setPosition({
+          x: Math.max(0, dragRef.current.initialX + deltaX),
+          y: Math.max(0, dragRef.current.initialY + deltaY),
+        });
+        return;
+      }
+      const deltaX = e.clientX - dragRef.current.startX;
+      const deltaY = e.clientY - dragRef.current.startY;
+      setPosition({
+        x: Math.max(0, dragRef.current.initialX + deltaX),
+        y: Math.max(0, dragRef.current.initialY + deltaY),
+      });
+    };
+    const onUp = () => {
+      setIsDragging(false);
+      onPositionChange(textBox.id, position.x, position.y);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+    globalHandlersRef.current = { move: onMove, up: onUp };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging, onPositionChange, position.x, position.y, textBox.id]);
+
   return (
     <div
       className="absolute pointer-events-auto group"
@@ -98,9 +176,10 @@ export default function TextBox({
         top: `${position.y}px`,
         cursor: isDragging ? "grabbing" : "default",
       }}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
     >
       <div
         className={`bg-transparent border-2 border-dashed rounded-lg min-w-[200px] ${

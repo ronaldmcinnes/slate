@@ -134,6 +134,7 @@ export default function CanvasContainer({
     <div
       ref={canvasContainerRef}
       className={className}
+      data-canvas-container
       style={{
         cursor: isPanning ? "grabbing" : cursorStyle,
         userSelect: isReadOnly || isPanActive ? "none" : "auto",
