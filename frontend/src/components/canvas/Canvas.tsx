@@ -17,6 +17,7 @@ import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
+import { recognizeMathFromImage } from "@/lib/visionService";
 
 interface CanvasProps {
   page: Page | null;
@@ -692,6 +693,88 @@ export default function Canvas({
     } catch {}
   };
 
+  // Export current lasso selection to an image (for OCR)
+  const exportSelectionToImage = async (): Promise<Blob | null> => {
+    if (!lassoBBox || lassoSelection.length === 0) return null;
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return null;
+    const exported: any = (await instance.exportPaths?.()) || [];
+    const paths: any[] = Array.isArray(exported)
+      ? exported
+      : exported.paths || [];
+    const padding = 16;
+    const width = Math.max(1, Math.ceil(lassoBBox.w + padding * 2));
+    const height = Math.max(1, Math.ceil(lassoBBox.h + padding * 2));
+    const off = document.createElement("canvas");
+    off.width = width;
+    off.height = height;
+    const ctx = off.getContext("2d");
+    if (!ctx) return null;
+    // White background for best OCR contrast
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const selectedSet = new Set(lassoSelection);
+    for (let i = 0; i < paths.length; i++) {
+      if (!selectedSet.has(i)) continue;
+      const pts =
+        paths[i]?.paths ||
+        paths[i]?.points ||
+        paths[i]?.stroke?.points ||
+        paths[i]?.path ||
+        [];
+      if (!Array.isArray(pts) || pts.length === 0) continue;
+      ctx.beginPath();
+      for (let j = 0; j < pts.length; j++) {
+        const p = pts[j];
+        const px = (p?.x ?? p?.[0]) as number;
+        const py = (p?.y ?? p?.[1]) as number;
+        if (px == null || py == null) continue;
+        const x = px - lassoBBox.x + padding;
+        const y = py - lassoBBox.y + padding;
+        if (j === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    return await new Promise<Blob | null>((resolve) =>
+      off.toBlob((b) => resolve(b), "image/png", 1)
+    );
+  };
+
+  // Visualize: OCR lasso → interpret → add graph
+  const handleVisualizeSelection = async () => {
+    try {
+      const img = await exportSelectionToImage();
+      if (!img) return;
+      const recognized = await recognizeMathFromImage(img);
+      // Reuse the interpreter from audio flow
+      const graphSpec = await refs.audioService.current.interpretTranscription(
+        recognized
+      );
+      const graphs = page?.graphs || [];
+      const newGraph = {
+        id: Date.now().toString(),
+        type: "threejs",
+        data: graphSpec,
+        layout: {},
+        position: {
+          x: (lassoBBox?.x || 100) + (lassoBBox?.w || 0) + 20,
+          y: lassoBBox?.y || 100,
+        },
+        size: { width: 500, height: 400 },
+        graphSpec,
+      } as any;
+      graphs.push(newGraph);
+      onUpdatePage({ graphs });
+    } catch (e) {
+      console.error("Visualize selection failed", e);
+    }
+  };
+
   // While lassoing or transforming, prevent text selection globally
   useEffect(() => {
     if ((isLassoing || isTransformingSelection) && state.tool === "lasso") {
@@ -1300,6 +1383,17 @@ export default function Canvas({
                       }}
                       title="Stroke width"
                     />
+                    <div className="w-px h-4 bg-border" />
+                    <button
+                      className="px-2 py-0.5 text-xs rounded border border-border hover:bg-accent"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await handleVisualizeSelection();
+                      }}
+                      title="Visualize selection"
+                    >
+                      Visualize
+                    </button>
                   </div>
                 )}
               {/* Selection bbox */}
