@@ -44,7 +44,6 @@ export default function Canvas({
     setVisibleTools,
   } = useCanvasState();
 
-
   // Main canvas hook with persistent state
   const { state, actions, refs, setters } = useCanvas(page, onUpdatePage, {
     strokeColor: canvasState.strokeColor,
@@ -158,6 +157,16 @@ export default function Canvas({
       setVisibleTools(state.visibleTools);
     }
   }, [state.visibleTools, canvasState.visibleTools, setVisibleTools]);
+
+  useEffect(() => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance || typeof instance.eraseMode !== "function") return;
+    try {
+      instance.eraseMode(state.tool === "eraser");
+    } catch {
+      // no-op if the underlying implementation differs
+    }
+  }, [state.tool, refs.canvasRef]);
 
   // Canvas operations
   const handleUndo = () => {
@@ -344,10 +353,15 @@ export default function Canvas({
   };
 
   // Eraser cursor preview
-  const [eraserPreview, setEraserPreview] = useState({ x: 0, y: 0, visible: false });
+  const [eraserPreview, setEraserPreview] = useState({
+    x: 0,
+    y: 0,
+    visible: false,
+  });
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isReadOnly || state.tool !== "eraser") {
-      if (eraserPreview.visible) setEraserPreview((p) => ({ ...p, visible: false }));
+      if (eraserPreview.visible)
+        setEraserPreview((p) => ({ ...p, visible: false }));
       return;
     }
     const container = refs.canvasContainerRef.current;
@@ -358,8 +372,35 @@ export default function Canvas({
     setEraserPreview({ x, y, visible: true });
   };
   const handleCanvasMouseLeave = () => {
-    if (eraserPreview.visible) setEraserPreview((p) => ({ ...p, visible: false }));
+    if (eraserPreview.visible)
+      setEraserPreview((p) => ({ ...p, visible: false }));
   };
+
+  // Prevent text selection while erasing
+  const [isErasing, setIsErasing] = useState(false);
+  const handleEraserMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isReadOnly || state.tool !== "eraser") return;
+    e.preventDefault();
+    setIsErasing(true);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "crosshair";
+  };
+  const handleEraserMouseUp = () => {
+    if (!isErasing) return;
+    setIsErasing(false);
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+  };
+  useEffect(() => {
+    if (!isErasing) return;
+    const onUp = () => {
+      setIsErasing(false);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+    document.addEventListener("mouseup", onUp);
+    return () => document.removeEventListener("mouseup", onUp);
+  }, [isErasing]);
 
   // Early return for no page selected
   if (!page) {
@@ -466,6 +507,8 @@ export default function Canvas({
               }}
               onMouseMove={handleCanvasMouseMove}
               onMouseLeave={handleCanvasMouseLeave}
+              onMouseDown={handleEraserMouseDown}
+              onMouseUp={handleEraserMouseUp}
             >
               <ReactSketchCanvas
                 key={`canvas-${page?.id || "no-page"}`}
@@ -476,11 +519,7 @@ export default function Canvas({
                     : state.strokeWidth
                 }
                 strokeColor={
-                  state.tool === "eraser"
-                    ? document.documentElement.classList.contains("dark")
-                      ? "#111111"
-                      : "#FAFAFA"
-                    : state.tool === "highlighter"
+                  state.tool === "highlighter"
                     ? state.strokeColor + "80" // Add 50% opacity for highlighter
                     : state.strokeColor
                 }
@@ -517,8 +556,8 @@ export default function Canvas({
                     borderColor: "var(--border)",
                     boxShadow: "0 0 0 1px rgba(0,0,0,0.05)",
                   }}
-                />)
-              }
+                />
+              )}
             </div>
           )}
 

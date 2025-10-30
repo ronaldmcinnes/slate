@@ -90,11 +90,35 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
     { id: "graph", label: "Add Graph" },
   ] as const;
 
+  // Close on Escape key
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-background/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-card rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-background/50 z-50 flex items-center justify-center p-4"
+      onMouseDown={(e) => {
+        if ((e.target as HTMLElement).dataset.accBackdrop === "true") onClose();
+      }}
+      data-acc-backdrop="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-card rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        data-acc-scroll
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="flex items-center justify-between p-5">
           <h2 className="text-2xl font-bold">Account Settings</h2>
           <button
             onClick={onClose}
@@ -105,7 +129,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-5 space-y-6">
           {/* Profile Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -163,29 +187,96 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
             </div>
           </div>
 
-          {/* Theme Section */}
+          {/* Theme Section (compact) */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-foreground">
-              Theme Preference
+              Theme
             </label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2">
               {themeOptions.map((option) => {
                 const Icon = option.icon;
+                const isActive = theme === option.value;
                 return (
                   <button
                     key={option.value}
                     onClick={() => handleThemeClick(option.value)}
-                    className={`
-                      flex flex-col items-center gap-3 p-4 rounded-lg border-2 transition-all min-h-[80px]
-                      ${
-                        theme === option.value
-                          ? "border-primary bg-accent text-accent-foreground"
-                          : "border-border hover:border-border/80 text-muted-foreground hover:text-foreground"
-                      }
-                    `}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                      isActive
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    <Icon className="w-6 h-6" />
-                    <span className="text-sm font-medium">{option.label}</span>
+                    <Icon className="w-4 h-4" />
+                    <span>{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Customize Toolbar (moved above logout) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-foreground">
+                Customize Toolbar
+              </label>
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                onClick={() =>
+                  setVisibleTools({
+                    ...canvasPrefs.visibleTools,
+                    eraser: true,
+                    markers: true,
+                    highlighter: true,
+                    fountainPen: true,
+                    text: true,
+                    graph: true,
+                  })
+                }
+                title="Restore defaults"
+              >
+                Restore defaults
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Choose which tools appear on your canvas toolbar. Changes are
+              saved automatically.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {allTools.map((tool) => {
+                const enabled = canvasPrefs.visibleTools[tool.id] !== false;
+                return (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() =>
+                      setVisibleTools({
+                        ...canvasPrefs.visibleTools,
+                        [tool.id]: !enabled ? true : false,
+                      })
+                    }
+                    className={`flex items-center justify-between w-full rounded-md border px-3 py-2 text-left transition-colors ${
+                      enabled
+                        ? "bg-card/50 hover:bg-card border-border/50"
+                        : "bg-muted/30 hover:bg-muted/40 border-border/40"
+                    }`}
+                  >
+                    <span className="text-sm">{tool.label}</span>
+                    <span
+                      className={`inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        enabled ? "bg-primary/80" : "bg-border"
+                      }`}
+                      aria-hidden
+                    >
+                      <span
+                        className={`h-4 w-4 bg-background rounded-full shadow transition-transform translate-x-0.5 ${
+                          enabled ? "translate-x-[18px]" : ""
+                        }`}
+                      />
+                    </span>
+                    <span className="sr-only">
+                      {enabled ? "Enabled" : "Disabled"}
+                    </span>
                   </button>
                 );
               })}
@@ -212,7 +303,7 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
           </div>
 
           {/* Account Info */}
-          <div className="pt-4 border-t text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <div className="text-[11px] text-muted-foreground space-y-1">
             <p>
               Member since:{" "}
               {user?.createdAt
@@ -221,35 +312,24 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
             </p>
           </div>
         </div>
-
-        {/* Customize Toolbar */}
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-foreground">
-            Customize Toolbar
-          </label>
-          <div className="space-y-1">
-            {allTools.map((tool) => (
-              <label
-                key={tool.id}
-                className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={canvasPrefs.visibleTools[tool.id] !== false}
-                  onChange={() =>
-                    setVisibleTools({
-                      ...canvasPrefs.visibleTools,
-                      [tool.id]: canvasPrefs.visibleTools[tool.id] === false,
-                    })
-                  }
-                  className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
-                />
-                <span className="text-sm">{tool.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
+      {/* Local scrollbar styling for this dialog */}
+      <style>
+        {`
+          [data-acc-scroll]::-webkit-scrollbar { width: 10px; }
+          [data-acc-scroll]::-webkit-scrollbar-track { background: transparent; }
+          [data-acc-scroll]::-webkit-scrollbar-thumb {
+            background-color: var(--border);
+            border-radius: 9999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+          }
+          [data-acc-scroll]::-webkit-scrollbar-thumb:hover {
+            background-color: color-mix(in srgb, var(--border) 60%, transparent);
+          }
+          [data-acc-scroll] { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+        `}
+      </style>
     </div>
   );
 }
