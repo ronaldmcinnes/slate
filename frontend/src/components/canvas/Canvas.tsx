@@ -1175,44 +1175,45 @@ export default function Canvas({
                 handleLassoMouseUp();
               }}
             >
-              <ReactSketchCanvas
-                key={`canvas-${page?.id || "no-page"}`}
-                ref={refs.canvasRef}
-                strokeWidth={
-                  state.tool === "fountain-pen"
-                    ? Math.max(1, state.strokeWidth * 0.7) // Fountain pen has variable pressure
-                    : state.strokeWidth
-                }
-                strokeColor={(function () {
-                  const isDark =
-                    document.documentElement.classList.contains("dark");
-                  if (state.tool === "highlighter")
-                    return state.strokeColor + "80";
-                  if (isDark && state.strokeColor === "#000000")
-                    return "#FFFFFF";
-                  if (!isDark && state.strokeColor === "#FFFFFF")
-                    return "#000000";
-                  return state.strokeColor;
-                })()}
-                eraserWidth={state.tool === "eraser" ? state.strokeWidth : 0}
-                canvasColor={
-                  document.documentElement.classList.contains("dark")
-                    ? "#111111"
-                    : "#FAFAFA"
-                }
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  pointerEvents: isDrawingTool ? "auto" : "none",
-                }}
-                svgStyle={{
-                  width: "100%",
-                  height: "100%",
-                }}
-                onChange={handleSaveDrawing}
-                allowOnlyPointerType="all"
-                preserveBackgroundImageAspectRatio="none"
-              />
+              {(() => {
+                // Honor user-selected color; only apply alpha for highlighter
+                const effectiveStrokeColor =
+                  state.tool === "highlighter"
+                    ? state.strokeColor + "80"
+                    : state.strokeColor;
+                return (
+                  <ReactSketchCanvas
+                    key={`canvas-${page?.id || "no-page"}`}
+                    ref={refs.canvasRef}
+                    strokeWidth={
+                      state.tool === "fountain-pen"
+                        ? Math.max(1, state.strokeWidth * 0.7) // Fountain pen has variable pressure
+                        : state.strokeWidth
+                    }
+                    strokeColor={effectiveStrokeColor}
+                    eraserWidth={
+                      state.tool === "eraser" ? state.strokeWidth : 0
+                    }
+                    canvasColor={
+                      document.documentElement.classList.contains("dark")
+                        ? "#111111"
+                        : "#FAFAFA"
+                    }
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      pointerEvents: isDrawingTool ? "auto" : "none",
+                    }}
+                    svgStyle={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                    onChange={handleSaveDrawing}
+                    allowOnlyPointerType="all"
+                    preserveBackgroundImageAspectRatio="none"
+                  />
+                );
+              })()}
 
               {/* Eraser size preview */}
               {state.tool === "eraser" && eraserPreview.visible && (
@@ -1526,6 +1527,29 @@ export default function Canvas({
           />
         </CanvasContainer>
       </div>
+
+      {/* While using the lasso tool, add a capture layer above overlays to prevent text selection */}
+      {state.tool === "lasso" && (
+        <div
+          className="absolute inset-0"
+          style={{
+            zIndex: 1000,
+            pointerEvents:
+              isLassoing || isTransformingSelection ? "auto" : "none",
+          }}
+          onMouseMove={(e) =>
+            handleLassoMouseMove(
+              e as unknown as React.MouseEvent<HTMLDivElement>
+            )
+          }
+          onMouseDown={(e) =>
+            handleLassoMouseDown(
+              e as unknown as React.MouseEvent<HTMLDivElement>
+            )
+          }
+          onMouseUp={(e) => handleLassoMouseUp()}
+        />
+      )}
 
       <GraphDialog
         open={graphDialogOpen}
