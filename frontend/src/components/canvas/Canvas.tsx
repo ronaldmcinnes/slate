@@ -186,12 +186,18 @@ export default function Canvas({
   // Canvas operations
   const handleUndo = async () => {
     const used = await tryCustomUndo();
-    if (!used) refs.canvasRef.current?.undo();
+    if (!used) {
+      refs.canvasRef.current?.undo?.();
+      await refreshSelectionBBoxFromCanvas();
+    }
   };
 
   const handleRedo = async () => {
     const used = await tryCustomRedo();
-    if (!used) refs.canvasRef.current?.redo();
+    if (!used) {
+      refs.canvasRef.current?.redo?.();
+      await refreshSelectionBBoxFromCanvas();
+    }
   };
 
   const handleClearCanvas = async () => {
@@ -209,6 +215,14 @@ export default function Canvas({
   const handleSaveDrawing = async () => {
     if (!refs.canvasRef.current || isReadOnly) return;
     actions.markAsChanged();
+    // Keep selection bbox in sync with content updates (including undo/redo)
+    if (lassoSelection.length > 0) {
+      await new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(r))
+      );
+      await recomputeSelectionBBox(lassoSelection);
+      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
+    }
   };
 
   // --- Custom history to track programmatic edits (rotate/scale/recolor/delete) ---
@@ -216,6 +230,42 @@ export default function Canvas({
   const customHistoryIndexRef = useRef<number>(-1);
   const transformSessionActiveRef = useRef<boolean>(false);
   const transformSnapshotPendingRef = useRef<boolean>(false);
+  const refreshSelectionBBoxSoon = async () => {
+    if (lassoSelection.length === 0) return;
+    // Try a few frames in case canvas updates settle late
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(r))
+      );
+      await recomputeSelectionBBox(lassoSelection);
+      // Nudge selection to force re-render if values unchanged
+      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
+    }
+  };
+  const refreshSelectionBBoxFromCanvas = async () => {
+    if (lassoSelection.length === 0) return;
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(r))
+      );
+      const exported: any = (await instance.exportPaths?.()) || [];
+      const paths: any[] = Array.isArray(exported)
+        ? exported
+        : exported.paths || [];
+      if (paths.length === 0) continue;
+      const valid = lassoSelection.filter((i) => i >= 0 && i < paths.length);
+      if (valid.length === 0) {
+        setLassoSelection([]);
+        setLassoBBox(null);
+        return;
+      }
+      await recomputeSelectionBBox(valid);
+      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
+      return;
+    }
+  };
   const clearForwardHistory = () => {
     const idx = customHistoryIndexRef.current;
     if (idx < customHistoryRef.current.length - 1) {
@@ -267,14 +317,7 @@ export default function Canvas({
     if (!instance) return false;
     await instance.clearCanvas?.();
     await instance.loadPaths?.(snapshot);
-    // Wait two frames to ensure render is settled before bbox compute
-    await new Promise((r) =>
-      requestAnimationFrame(() => requestAnimationFrame(r))
-    );
-    if (lassoSelection.length > 0) {
-      await recomputeSelectionBBox(lassoSelection);
-      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
-    }
+    await refreshSelectionBBoxFromCanvas();
     return true;
   };
   const tryCustomRedo = async (): Promise<boolean> => {
@@ -286,13 +329,7 @@ export default function Canvas({
     if (!instance) return false;
     await instance.clearCanvas?.();
     await instance.loadPaths?.(snapshot);
-    await new Promise((r) =>
-      requestAnimationFrame(() => requestAnimationFrame(r))
-    );
-    if (lassoSelection.length > 0) {
-      await recomputeSelectionBBox(lassoSelection);
-      setLassoSelection((sel) => (sel.length ? [...sel] : sel));
-    }
+    await refreshSelectionBBoxFromCanvas();
     return true;
   };
 
@@ -341,14 +378,14 @@ export default function Canvas({
             };
             return;
           }
-          // Fallback to canvas undo
-          refs.canvasRef.current?.undo?.();
+          // Fallback to canvas undo with bbox refresh
+          void handleUndo();
         });
       }
       // Ctrl+Y - Redo
       else if (e.ctrlKey && e.key === "y") {
         e.preventDefault();
-        handleRedo();
+        void handleRedo();
       }
       // Ctrl+S - Save
       else if (e.ctrlKey && e.key === "s") {
@@ -527,7 +564,7 @@ export default function Canvas({
   }>({ mode: null });
 
   const handleLassoMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isReadOnly || state.tool !== "lasso") return;
+    if (isReadOnly || state.tool !== "lasso" || isTransformingSelection) return;
     const container = refs.canvasContainerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -563,10 +600,12 @@ export default function Canvas({
       return;
     }
     setIsLassoing(true);
+    // Prevent text selection while lassoing
+    document.body.style.userSelect = "none";
     setLassoPoints([{ x, y }]);
   };
   const handleLassoMouseMove = async (e: React.MouseEvent<HTMLDivElement>) => {
-    if (state.tool !== "lasso") return;
+    if (state.tool !== "lasso" || isTransformingSelection) return;
     const container = refs.canvasContainerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -594,10 +633,12 @@ export default function Canvas({
     if (isTransformingSelection) return; // handled by transform listeners
     if (isDraggingSelection) {
       setIsDraggingSelection(false);
+      document.body.style.userSelect = "";
       return;
     }
     if (!isLassoing) return;
     setIsLassoing(false);
+    document.body.style.userSelect = "";
     // Close polygon by snapping to start
     const poly = lassoPoints.length > 2 ? [...lassoPoints, lassoPoints[0]] : [];
     if (poly.length < 4) {
@@ -650,6 +691,19 @@ export default function Canvas({
       setLassoPoints([]);
     } catch {}
   };
+
+  // While lassoing or transforming, prevent text selection globally
+  useEffect(() => {
+    if ((isLassoing || isTransformingSelection) && state.tool === "lasso") {
+      const prevent = (e: Event) => e.preventDefault();
+      document.addEventListener("selectstart", prevent);
+      document.body.style.userSelect = "none";
+      return () => {
+        document.removeEventListener("selectstart", prevent);
+        document.body.style.userSelect = "";
+      };
+    }
+  }, [isLassoing, isTransformingSelection, state.tool]);
 
   const pointInPolygon = (
     x: number,
@@ -1101,6 +1155,11 @@ export default function Canvas({
               style={{
                 minWidth: `${state.canvasSize.width}%`,
                 minHeight: `${state.canvasSize.height}%`,
+                userSelect:
+                  state.tool === "lasso" &&
+                  (isLassoing || isTransformingSelection)
+                    ? "none"
+                    : "auto",
               }}
               onMouseMove={(e) => {
                 handleCanvasMouseMove(e);
@@ -1124,11 +1183,17 @@ export default function Canvas({
                     ? Math.max(1, state.strokeWidth * 0.7) // Fountain pen has variable pressure
                     : state.strokeWidth
                 }
-                strokeColor={
-                  state.tool === "highlighter"
-                    ? state.strokeColor + "80" // Add 50% opacity for highlighter
-                    : state.strokeColor
-                }
+                strokeColor={(function () {
+                  const isDark =
+                    document.documentElement.classList.contains("dark");
+                  if (state.tool === "highlighter")
+                    return state.strokeColor + "80";
+                  if (isDark && state.strokeColor === "#000000")
+                    return "#FFFFFF";
+                  if (!isDark && state.strokeColor === "#FFFFFF")
+                    return "#000000";
+                  return state.strokeColor;
+                })()}
                 eraserWidth={state.tool === "eraser" ? state.strokeWidth : 0}
                 canvasColor={
                   document.documentElement.classList.contains("dark")
