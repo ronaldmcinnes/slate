@@ -5,13 +5,22 @@ import type React from "react"
 interface FeatureCardProps {
   title: string
   description: string
+  image?: string
   className?: string
   dataAnimate?: boolean
   dataDelay?: string
   style?: React.CSSProperties
 }
 
-export function FeatureCard({ title, description, className = "", dataAnimate, dataDelay, style }: FeatureCardProps) {
+export function FeatureCard({
+  title,
+  description,
+  image,
+  className = "",
+  dataAnimate,
+  dataDelay,
+  style,
+}: FeatureCardProps) {
   return (
     <div
       className={`absolute ${className} opacity-0 transition-all duration-700 ease-out group`}
@@ -19,8 +28,13 @@ export function FeatureCard({ title, description, className = "", dataAnimate, d
       data-delay={dataDelay}
       style={style}
     >
-      {/* Default state - gray square */}
-      <div className="w-full h-full bg-gray-400/80 transition-all duration-300" />
+      <div className="w-full h-full rounded-lg transition-all duration-300 overflow-hidden">
+        {image ? (
+          <img src={image || "/placeholder.svg"} alt={title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gray-400/80" />
+        )}
+      </div>
 
       {/* Hover state - expanded black card with glow */}
       <div
