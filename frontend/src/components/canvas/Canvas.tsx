@@ -15,8 +15,6 @@ import { useCanvasSave } from "@/hooks/useCanvasSave";
 import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
-import { useGraphOptimization } from "@/hooks/useGraphOptimization";
-import { useGraphPerformance } from "@/hooks/useGraphPerformance";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 
@@ -46,12 +44,6 @@ export default function Canvas({
     setVisibleTools,
   } = useCanvasState();
 
-  // Graph optimization
-  const {
-    optimizeGraphsForViewport,
-    preloadAdjacentGraphs,
-    shouldRenderGraph,
-  } = useGraphOptimization();
 
   // Main canvas hook with persistent state
   const { state, actions, refs, setters } = useCanvas(page, onUpdatePage, {
@@ -338,7 +330,7 @@ export default function Canvas({
   }, [state.isEditingTitle]);
 
   // Determine if canvas should be interactive for drawing
-  const isDrawingTool = state.tool !== "select" && state.tool !== "text";
+  const isDrawingTool = state.tool !== "pan" && state.tool !== "text";
 
   // Get cursor style based on tool
   const getCursorStyle = () => {
@@ -346,9 +338,27 @@ export default function Canvas({
     if (isReadOnly) return "grab";
 
     if (state.tool === "text") return "text";
-    if (state.tool === "select") return "default";
+    if (state.tool === "pan") return "grab";
     if (state.tool === "eraser") return "default";
     return "crosshair";
+  };
+
+  // Eraser cursor preview
+  const [eraserPreview, setEraserPreview] = useState({ x: 0, y: 0, visible: false });
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isReadOnly || state.tool !== "eraser") {
+      if (eraserPreview.visible) setEraserPreview((p) => ({ ...p, visible: false }));
+      return;
+    }
+    const container = refs.canvasContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+    setEraserPreview({ x, y, visible: true });
+  };
+  const handleCanvasMouseLeave = () => {
+    if (eraserPreview.visible) setEraserPreview((p) => ({ ...p, visible: false }));
   };
 
   // Early return for no page selected
@@ -366,6 +376,7 @@ export default function Canvas({
           cursorStyle={getCursorStyle()}
           canvasContainerRef={refs.canvasContainerRef}
           isReadOnly={isReadOnly}
+          isPanActive={state.tool === "pan"}
         >
           {/* Floating Toolbar - Only show for edit mode */}
           {!isReadOnly && (
@@ -453,6 +464,8 @@ export default function Canvas({
                 minWidth: `${state.canvasSize.width}%`,
                 minHeight: `${state.canvasSize.height}%`,
               }}
+              onMouseMove={handleCanvasMouseMove}
+              onMouseLeave={handleCanvasMouseLeave}
             >
               <ReactSketchCanvas
                 key={`canvas-${page?.id || "no-page"}`}
@@ -490,6 +503,22 @@ export default function Canvas({
                 allowOnlyPointerType="all"
                 preserveBackgroundImageAspectRatio="none"
               />
+
+              {/* Eraser size preview */}
+              {state.tool === "eraser" && eraserPreview.visible && (
+                <div
+                  className="pointer-events-none absolute border border-dashed rounded-full"
+                  style={{
+                    left: eraserPreview.x,
+                    top: eraserPreview.y,
+                    width: `${Math.max(2, state.strokeWidth)}px`,
+                    height: `${Math.max(2, state.strokeWidth)}px`,
+                    transform: "translate(-50%, -50%)",
+                    borderColor: "var(--border)",
+                    boxShadow: "0 0 0 1px rgba(0,0,0,0.05)",
+                  }}
+                />)
+              }
             </div>
           )}
 

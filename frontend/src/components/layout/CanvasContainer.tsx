@@ -9,6 +9,7 @@ interface CanvasContainerProps {
   className?: string;
   canvasContainerRef?: React.RefObject<HTMLDivElement | null>;
   isReadOnly?: boolean;
+  isPanActive?: boolean;
 }
 
 export default function CanvasContainer({
@@ -19,6 +20,7 @@ export default function CanvasContainer({
   className = "flex-1 relative bg-background overflow-auto scrollbar-hide",
   canvasContainerRef: externalRef,
   isReadOnly = false,
+  isPanActive = false,
 }: CanvasContainerProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = externalRef || internalRef;
@@ -70,10 +72,10 @@ export default function CanvasContainer({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [canvasSize, onCanvasSizeChange]);
 
-  // Panning functionality for view-only mode
+  // Panning functionality for view-only mode or when pan tool is active
   useEffect(() => {
     const container = canvasContainerRef.current;
-    if (!container || !isReadOnly) return;
+    if (!container || (!isReadOnly && !isPanActive)) return;
 
     const handleMouseDown = (e: MouseEvent) => {
       // Only start panning on left mouse button
@@ -126,15 +128,16 @@ export default function CanvasContainer({
       document.removeEventListener("mouseup", handleMouseUp);
       container.removeEventListener("mouseleave", handleMouseLeave);
     };
-  }, [isPanning, panStart, isReadOnly]);
+  }, [isPanning, panStart, isReadOnly, isPanActive]);
 
   return (
     <div
       ref={canvasContainerRef}
       className={className}
+      data-canvas-container
       style={{
         cursor: isPanning ? "grabbing" : cursorStyle,
-        userSelect: isReadOnly ? "none" : "auto",
+        userSelect: isReadOnly || isPanActive ? "none" : "auto",
         // Ensure the container has scrollable content for view-only mode
         minWidth: isReadOnly ? `${canvasSize.width}%` : undefined,
         minHeight: isReadOnly ? `${canvasSize.height}%` : undefined,

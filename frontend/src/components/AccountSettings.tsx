@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, User, LogOut, Sun, Moon, Check, Monitor } from "lucide-react";
 import { resolveTheme, applyTheme, type Theme } from "@/lib/themeUtils";
+import { useCanvasState } from "@/hooks/useCanvasState";
 
 interface AccountSettingsProps {
   onClose: () => void;
@@ -77,6 +78,17 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
     { value: "light" as const, label: "Light", icon: Sun },
     { value: "dark" as const, label: "Dark", icon: Moon },
   ];
+
+  // Customize Toolbar (moved from toolbar)
+  const { state: canvasPrefs, setVisibleTools } = useCanvasState();
+  const allTools = [
+    { id: "eraser", label: "Eraser" },
+    { id: "markers", label: "Markers" },
+    { id: "highlighter", label: "Highlighter" },
+    { id: "fountainPen", label: "Fountain Pen" },
+    { id: "text", label: "Text Tool" },
+    { id: "graph", label: "Add Graph" },
+  ] as const;
 
   return (
     <div className="fixed inset-0 bg-background/50 z-50 flex items-center justify-center p-4">
@@ -207,6 +219,34 @@ export default function AccountSettings({ onClose }: AccountSettingsProps) {
                 ? new Date(user.createdAt).toLocaleDateString()
                 : "N/A"}
             </p>
+          </div>
+        </div>
+
+        {/* Customize Toolbar */}
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-foreground">
+            Customize Toolbar
+          </label>
+          <div className="space-y-1">
+            {allTools.map((tool) => (
+              <label
+                key={tool.id}
+                className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={canvasPrefs.visibleTools[tool.id] !== false}
+                  onChange={() =>
+                    setVisibleTools({
+                      ...canvasPrefs.visibleTools,
+                      [tool.id]: canvasPrefs.visibleTools[tool.id] === false,
+                    })
+                  }
+                  className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                />
+                <span className="text-sm">{tool.label}</span>
+              </label>
+            ))}
           </div>
         </div>
       </div>

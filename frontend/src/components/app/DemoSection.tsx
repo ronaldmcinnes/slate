@@ -70,7 +70,7 @@ export function DemoSection() {
               <div className="w-[60rem] h-[400px]">
                 <VideoEmbed
                   src=""
-                  poster="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
+                  poster=""
                   className="w-full h-full shadow-2xl"
                   autoplay={false}
                   muted={true}

@@ -6,7 +6,6 @@ import type {
   StatisticalGraphSpec,
 } from "@/types";
 import ThreeJSGraph from "./ThreeJSGraph";
-import OptimizedThreeJSGraph from "./OptimizedThreeJSGraph";
 import ChartGraph from "./ChartGraph";
 import StatisticalGraph from "./StatisticalGraph";
 

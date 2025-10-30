@@ -75,13 +75,18 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // Check for Delete key
+      // Check for Delete key (only when Pages list is hovered/focused)
       if (event.key === "Delete" && selectedPage) {
-        event.preventDefault();
-        if (onDeletePage) {
-          onDeletePage(selectedPage);
+        const pagesListHovered = !!document.querySelector('[data-pages-list]:hover');
+        const activeEl = document.activeElement as HTMLElement | null;
+        const pagesListFocused = !!activeEl?.closest?.('[data-pages-list]');
+        if (pagesListHovered || pagesListFocused) {
+          event.preventDefault();
+          if (onDeletePage) {
+            onDeletePage(selectedPage);
+          }
+          return;
         }
-        return;
       }
     };
 

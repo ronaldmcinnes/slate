@@ -39,7 +39,7 @@ backend/
 │   └── index.ts         # Main Express app
 ├── api/
 │   └── index.ts         # Vercel serverless entry point
-└── vercel.json          # Vercel deployment config
+└── vercel.jso  n          # Vercel deployment config
 ```
 
 ## MongoDB Schema
