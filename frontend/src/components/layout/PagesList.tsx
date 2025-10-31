@@ -7,6 +7,8 @@ import {
   Scissors,
   Copy,
   ClipboardPaste,
+  Check,
+  CircleDot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,10 @@ interface PagesListProps {
   notebookSelected: boolean;
   notebookId?: string;
   isLoading?: boolean;
+  pageSaveState?: Record<
+    string,
+    { isSaving: boolean; saveSuccess: boolean; hasUnsavedChanges: boolean }
+  >;
 }
 
 export default function PagesList({
@@ -44,6 +50,7 @@ export default function PagesList({
   notebookSelected,
   notebookId,
   isLoading = false,
+  pageSaveState = {},
 }: PagesListProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { addToast } = useToast();
@@ -61,8 +68,8 @@ export default function PagesList({
   const handleCopyPage = (page: Page) => {
     copyPage(page);
     addToast({
-      title: "Page Copied",
-      description: `"${page.title}" has been copied to clipboard`,
+      message: `"${page.title}" has been copied to clipboard`,
+      itemName: page.title,
       type: "success",
     });
   };
@@ -70,8 +77,8 @@ export default function PagesList({
   const handleCutPage = (page: Page) => {
     cutPageAction(page);
     addToast({
-      title: "Page Cut",
-      description: `"${page.title}" has been cut and ready to paste`,
+      message: `"${page.title}" has been cut and ready to paste`,
+      itemName: page.title,
       type: "success",
     });
   };
@@ -79,8 +86,8 @@ export default function PagesList({
   const handlePastePage = async () => {
     if (!notebookId) {
       addToast({
-        title: "Cannot Paste",
-        description: "No notebook selected",
+        message: "No notebook selected",
+        itemName: "",
         type: "error",
       });
       return;
@@ -91,21 +98,30 @@ export default function PagesList({
       if (newPage && onPageAdded) {
         onPageAdded(newPage);
         addToast({
-          title: "Page Pasted",
-          description: `"${newPage.title}" has been pasted`,
+          message: `"${newPage.title}" has been pasted`,
+          itemName: newPage.title,
           type: "success",
         });
       }
     } catch (error) {
       addToast({
-        title: "Paste Failed",
-        description: "Failed to paste page",
+        message: "Failed to paste page",
+        itemName: "",
         type: "error",
       });
     }
   };
 
-  const getPageMenuItems = (page: Page) => [
+  const getPageMenuItems = (
+    page: Page
+  ): Array<{
+    icon?: typeof Edit3;
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    separator?: boolean;
+    variant?: "default" | "destructive";
+  }> => [
     {
       icon: Edit3,
       label: "Rename",
@@ -115,7 +131,7 @@ export default function PagesList({
       icon: Trash2,
       label: "Delete",
       onClick: () => onDeletePage(page),
-      variant: "destructive",
+      variant: "destructive" as const,
       separator: true,
     },
     {
@@ -138,7 +154,10 @@ export default function PagesList({
 
   return (
     <>
-      <div data-pages-list className="w-full bg-muted/20 border-r border-border flex flex-col h-screen overflow-hidden">
+      <div
+        data-pages-list
+        className="w-full bg-muted/20 border-r border-border flex flex-col h-screen overflow-hidden"
+      >
         {/* Header */}
         <div className="p-3 border-b border-border bg-card">
           <div className="flex items-center justify-between">
@@ -198,15 +217,45 @@ export default function PagesList({
                       className="mt-0.5 flex-shrink-0 text-muted-foreground"
                     />
                     <div className="flex-1 min-w-0">
-                      <div
-                        className={cn(
-                          "text-sm truncate",
-                          selectedPage?.id === page.id
-                            ? "font-medium text-foreground"
-                            : "text-foreground/80"
-                        )}
-                      >
-                        {page.title}
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={cn(
+                            "text-sm truncate",
+                            selectedPage?.id === page.id
+                              ? "font-medium text-foreground"
+                              : "text-foreground/80"
+                          )}
+                        >
+                          {page.title}
+                        </div>
+                        {(() => {
+                          const saveState = pageSaveState[page.id];
+                          if (!saveState) return null;
+
+                          if (saveState.isSaving) {
+                            return (
+                              <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                            );
+                          } else if (
+                            saveState.saveSuccess &&
+                            !saveState.hasUnsavedChanges
+                          ) {
+                            return (
+                              <Check
+                                size={12}
+                                className="text-green-600 dark:text-green-400 flex-shrink-0"
+                              />
+                            );
+                          } else if (saveState.hasUnsavedChanges) {
+                            return (
+                              <CircleDot
+                                size={8}
+                                className="text-orange-500 dark:text-orange-400 flex-shrink-0"
+                              />
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {new Date(page.lastModified).toLocaleDateString()}

@@ -17,20 +17,28 @@ export default function SaveStatus({
     <>
       {/* Saving Status */}
       {isSaving && (
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
+        <button
+          type="button"
+          disabled
+          className="text-gray-700 px-3 py-1.5 flex items-center gap-2 pointer-events-auto border border-gray-300 rounded-md bg-white/80 backdrop-blur-sm hover:bg-gray-50 transition-colors"
+        >
           <LoadingSpinner
             size="sm"
             text=""
             showText={false}
-            className="text-white"
+            className="text-gray-700"
           />
           <span className="text-sm font-medium">Saving...</span>
-        </div>
+        </button>
       )}
 
       {/* Save Success */}
       {saveSuccess && (
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
+        <button
+          type="button"
+          disabled
+          className="text-gray-700 px-3 py-1.5 flex items-center gap-2 pointer-events-auto border border-gray-300 rounded-md bg-white/80 backdrop-blur-sm hover:bg-gray-50 transition-colors"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="16"
@@ -45,7 +53,7 @@ export default function SaveStatus({
             <path d="M20 6L9 17l-5-5" />
           </svg>
           <span className="text-sm font-medium">Saved!</span>
-        </div>
+        </button>
       )}
 
       {/* Error Display */}

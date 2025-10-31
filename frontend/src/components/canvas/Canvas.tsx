@@ -7,7 +7,6 @@ import CanvasOverlays from "./CanvasOverlays";
 import CanvasContainer from "@/components/layout/CanvasContainer";
 import NoPageSelected from "@/components/common/NoPageSelected";
 import SaveButton from "@/components/features/save/SaveButton";
-import SaveStatus from "@/components/features/save/SaveStatus";
 import AudioRecordingButton from "@/components/features/audio/AudioRecordingButton";
 import AudioStatus from "@/components/features/audio/AudioStatus";
 import { useCanvas } from "@/hooks/useCanvas";
@@ -18,6 +17,7 @@ import { useCanvasState } from "@/hooks/useCanvasState";
 import { useEraser } from "@/hooks/useEraser";
 import { useLassoSelection } from "@/hooks/useLassoSelection";
 import { useCanvasHistory } from "@/hooks/useCanvasHistory";
+import { useCanvasShortcuts } from "@/hooks/useCanvasShortcuts";
 import { useSelectionTransform } from "@/hooks/useSelectionTransform";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
@@ -27,12 +27,18 @@ interface CanvasProps {
   page: Page | null;
   onUpdatePage: (updates: Partial<Page>) => void;
   permission?: "view" | "edit";
+  onSaveStateChange?: (state: {
+    isSaving: boolean;
+    saveSuccess: boolean;
+    hasUnsavedChanges: boolean;
+  }) => void;
 }
 
 export default function Canvas({
   page,
   onUpdatePage,
   permission = "edit",
+  onSaveStateChange,
 }: CanvasProps) {
   const isReadOnly = permission === "view";
   const [graphDialogOpen, setGraphDialogOpen] = useState(false);
@@ -334,80 +340,27 @@ export default function Canvas({
     markAsChanged: actions.markAsChanged,
   });
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable all shortcuts in view-only mode
-      if (isReadOnly) return;
+  // Track last deselection for Ctrl+Z reselect (used by shortcuts hook)
+  const lastDeselectionRef = useRef<{
+    indices: number[];
+    bbox: { x: number; y: number; w: number; h: number } | null;
+    wasDeselected: boolean;
+  }>({ indices: [], bbox: null, wasDeselected: false });
 
-      // Ignore if user is typing in an input/textarea
-      if (
-        (e.target && (e.target as HTMLElement).tagName === "INPUT") ||
-        (e.target as HTMLElement).tagName === "TEXTAREA"
-      ) {
-        return;
-      }
-
-      // Delete selection with Delete/Backspace
-      if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        lassoSelection.length > 0
-      ) {
-        e.preventDefault();
-        void deleteSelectedStrokes(lassoSelection);
-        setLassoSelection([]);
-        setLassoBBox(null);
-        return;
-      }
-
-      // Ctrl+Z - Prefer content undo, then fallback to reselection
-      if (e.ctrlKey && e.key === "z") {
-        e.preventDefault();
-        // Try custom or native undo first
-        tryCustomUndo().then((used) => {
-          if (used) return;
-          if (
-            lastDeselectionRef.current?.wasDeselected &&
-            lastDeselectionRef.current.indices.length > 0
-          ) {
-            setLassoSelection(lastDeselectionRef.current.indices);
-            setLassoBBox(lastDeselectionRef.current.bbox);
-            lastDeselectionRef.current = {
-              indices: [],
-              bbox: null,
-              wasDeselected: false,
-            };
-            return;
-          }
-          // Fallback to canvas undo with bbox refresh
-          void handleUndo();
-        });
-      }
-      // Ctrl+Shift+Z - Redo
-      else if (e.ctrlKey && e.shiftKey && (e.key === "Z" || e.key === "z")) {
-        e.preventDefault();
-        void handleRedo();
-      }
-      // Ctrl+S - Save
-      else if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-        savePageState();
-      }
-      // T - Text tool
-      else if (
-        (e.key === "t" || e.key === "T") &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !e.metaKey
-      ) {
-        e.preventDefault();
-        handleToolChange("text", "#000000", 0);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [savePageState, handleToolChange, isReadOnly]);
+  // Keyboard shortcuts: delete, undo/redo with reselection fallback
+  useCanvasShortcuts({
+    isReadOnly,
+    tool: state.tool,
+    lassoSelection,
+    setLassoSelection,
+    setLassoBBox,
+    deleteSelectedStrokes,
+    handleUndo,
+    handleRedo,
+    savePageState,
+    tryCustomUndo,
+    lastDeselectionRef,
+  });
 
   // Handle canvas click for text tool
   useEffect(() => {
@@ -668,13 +621,6 @@ export default function Canvas({
 
   // Transform functions now managed by useSelectionTransform hook
 
-  // Track last deselection for Ctrl+Z reselect
-  const lastDeselectionRef = useRef<{
-    indices: number[];
-    bbox: { x: number; y: number; w: number; h: number } | null;
-    wasDeselected: boolean;
-  }>({ indices: [], bbox: null, wasDeselected: false });
-
   // Keyboard shortcuts for transforms now managed by useSelectionTransform hook
 
   // Flip black/white stroke colors based on theme for readability
@@ -793,6 +739,39 @@ export default function Canvas({
     void flipStrokeColorsForTheme();
     return () => obs.disconnect();
   }, []);
+
+  // Notify parent of save state changes
+  const prevSaveStateRef = useRef<{
+    isSaving: boolean;
+    saveSuccess: boolean;
+    hasUnsavedChanges: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (onSaveStateChange) {
+      const currentState = {
+        isSaving: state.isSaving,
+        saveSuccess: state.saveSuccess,
+        hasUnsavedChanges: state.hasUnsavedChanges,
+      };
+
+      // Only call if state actually changed
+      if (
+        !prevSaveStateRef.current ||
+        prevSaveStateRef.current.isSaving !== currentState.isSaving ||
+        prevSaveStateRef.current.saveSuccess !== currentState.saveSuccess ||
+        prevSaveStateRef.current.hasUnsavedChanges !==
+          currentState.hasUnsavedChanges
+      ) {
+        prevSaveStateRef.current = currentState;
+        onSaveStateChange(currentState);
+      }
+    }
+  }, [
+    state.isSaving,
+    state.saveSuccess,
+    state.hasUnsavedChanges,
+    onSaveStateChange,
+  ]);
 
   // Early return for no page selected
   if (!page) {
@@ -1141,14 +1120,6 @@ export default function Canvas({
               height: state.canvasSize.height,
               zoom: 1,
             }}
-          />
-
-          {/* Status Indicators */}
-          <SaveStatus
-            isSaving={state.isSaving}
-            saveSuccess={state.saveSuccess}
-            error={state.error}
-            onClearError={actions.clearError}
           />
 
           <AudioStatus

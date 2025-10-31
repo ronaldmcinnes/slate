@@ -50,6 +50,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const [pages, setPages] = useState<Page[]>([]);
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [pageSaveState, setPageSaveState] = useState<Record<string, { isSaving: boolean; saveSuccess: boolean; hasUnsavedChanges: boolean }>>({});
 
   // Track if an update is in progress to prevent stutter
   const updateInProgressRef = useRef<Set<string>>(new Set());
@@ -681,6 +682,7 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
             notebookSelected={!!selectedNotebook}
             notebookId={selectedNotebook?.id}
             isLoading={loadingStates.pages}
+            pageSaveState={pageSaveState}
           />
         </ResizablePanel>
 
@@ -688,6 +690,14 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
           page={selectedPage}
           onUpdatePage={handleUpdatePage}
           permission={selectedNotebook?.permission}
+          onSaveStateChange={useCallback((state) => {
+            if (selectedPage) {
+              setPageSaveState(prev => ({
+                ...prev,
+                [selectedPage.id]: state,
+              }));
+            }
+          }, [selectedPage])}
         />
       </div>
 

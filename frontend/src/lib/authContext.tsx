@@ -91,6 +91,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               ...user.canvasState?.expandedPanels,
               ...updates.expandedPanels,
             },
+            columnWidths: {
+              ...(user.canvasState?.columnWidths || {}),
+              ...(updates.columnWidths || {}),
+            },
             canvasViewport: {
               ...user.canvasState?.canvasViewport,
               ...updates.canvasViewport,

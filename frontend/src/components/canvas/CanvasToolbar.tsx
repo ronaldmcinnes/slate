@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button";
 import ToolbarDrawingTools from "./ToolbarDrawingTools";
 import ToolbarActions from "./ToolbarActions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Hand, Lasso, ChevronDown } from "lucide-react";
 
 interface CanvasToolbarProps {
@@ -307,7 +311,9 @@ export default function CanvasToolbar({
         <Button
           variant="ghost"
           size="icon"
-          className={`h-9 w-7 flex-shrink-0 ${canScrollLeft ? "hover:bg-muted" : "opacity-50 cursor-not-allowed"}`}
+          className={`h-9 w-7 flex-shrink-0 ${
+            canScrollLeft ? "hover:bg-muted" : "opacity-50 cursor-not-allowed"
+          }`}
           onClick={canScrollLeft ? onScrollLeft : undefined}
           title="Scroll Left"
         >
@@ -362,7 +368,9 @@ export default function CanvasToolbar({
         <Button
           variant="ghost"
           size="icon"
-          className={`h-9 w-7 flex-shrink-0 ${canScrollRight ? "hover:bg-muted" : "opacity-50 cursor-not-allowed"}`}
+          className={`h-9 w-7 flex-shrink-0 ${
+            canScrollRight ? "hover:bg-muted" : "opacity-50 cursor-not-allowed"
+          }`}
           onClick={canScrollRight ? onScrollRight : undefined}
           title="Scroll Right"
         >
