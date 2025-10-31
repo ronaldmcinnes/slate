@@ -16,6 +16,7 @@ import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
 import { useEraser } from "@/hooks/useEraser";
+import { useLassoSelection } from "@/hooks/useLassoSelection";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 import { recognizeMathFromImage } from "@/lib/visionService";
@@ -175,6 +176,26 @@ export default function Canvas({
     tool: state.tool,
     strokeWidth: state.strokeWidth,
     markAsChanged: actions.markAsChanged,
+  });
+
+  // Lasso selection functionality
+  const {
+    lassoPoints,
+    isLassoing,
+    lassoSelection,
+    lassoBBox,
+    setLassoSelection,
+    setLassoBBox,
+    setIsLassoing,
+    handleLassoMouseDown,
+    handleLassoMouseMove,
+    handleLassoMouseUp,
+  } = useLassoSelection({
+    canvasRef: refs.canvasRef,
+    canvasContainerRef:
+      refs.canvasContainerRef as React.RefObject<HTMLDivElement | null>,
+    isReadOnly,
+    tool: state.tool,
   });
 
   // Canvas operations
@@ -501,20 +522,6 @@ export default function Canvas({
     return "crosshair";
   };
 
-  // Lasso state
-  const [lassoPoints, setLassoPoints] = useState<{ x: number; y: number }[]>(
-    []
-  );
-  const [isLassoing, setIsLassoing] = useState(false);
-  const [lassoSelection, setLassoSelection] = useState<number[]>([]);
-
-  // Lasso interactions (fully contained)
-  const [lassoBBox, setLassoBBox] = useState<{
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  } | null>(null);
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
   const selectionDragRef = useRef({ startX: 0, startY: 0 });
   const [isTransformingSelection, setIsTransformingSelection] = useState(false);
@@ -526,14 +533,13 @@ export default function Canvas({
     cy?: number;
   }>({ mode: null });
 
-  const handleLassoMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleLassoMouseDownWrapped = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isReadOnly || state.tool !== "lasso" || isTransformingSelection) return;
     const container = refs.canvasContainerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left + container.scrollLeft;
     const y = e.clientY - rect.top + container.scrollTop;
-    // Deselect when clicking outside selection bbox
     if (lassoSelection.length > 0 && lassoBBox) {
       const inside =
         x >= lassoBBox.x &&
@@ -562,12 +568,11 @@ export default function Canvas({
       selectionDragRef.current = { startX: x, startY: y };
       return;
     }
-    setIsLassoing(true);
-    // Prevent text selection while lassoing
-    document.body.style.userSelect = "none";
-    setLassoPoints([{ x, y }]);
+    handleLassoMouseDown(e);
   };
-  const handleLassoMouseMove = async (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleLassoMouseMoveWrapped = async (
+    e: React.MouseEvent<HTMLDivElement>
+  ) => {
     if (state.tool !== "lasso" || isTransformingSelection) return;
     const container = refs.canvasContainerRef.current;
     if (!container) return;
@@ -588,10 +593,9 @@ export default function Canvas({
         });
       return;
     }
-    if (!isLassoing) return;
-    setLassoPoints((pts) => [...pts, { x, y }]);
+    handleLassoMouseMove(e);
   };
-  const handleLassoMouseUp = async () => {
+  const handleLassoMouseUpWrapped = async () => {
     if (state.tool !== "lasso") return;
     if (isTransformingSelection) return; // handled by transform listeners
     if (isDraggingSelection) {
@@ -599,60 +603,7 @@ export default function Canvas({
       document.body.style.userSelect = "";
       return;
     }
-    if (!isLassoing) return;
-    setIsLassoing(false);
-    document.body.style.userSelect = "";
-    // Close polygon by snapping to start
-    const poly = lassoPoints.length > 2 ? [...lassoPoints, lassoPoints[0]] : [];
-    if (poly.length < 4) {
-      setLassoPoints([]);
-      return;
-    }
-    try {
-      const instance: any = refs.canvasRef.current;
-      const exported: any = (await instance.exportPaths?.()) || [];
-      const paths: any[] = Array.isArray(exported)
-        ? exported
-        : exported.paths || [];
-      const selected: number[] = [];
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (let i = 0; i < paths.length; i++) {
-        const pts =
-          paths[i]?.paths ||
-          paths[i]?.points ||
-          paths[i]?.stroke?.points ||
-          paths[i]?.path ||
-          [];
-        if (!Array.isArray(pts) || pts.length === 0) continue;
-        let allInside = true;
-        for (const p of pts) {
-          const px = p.x ?? p[0];
-          const py = p.y ?? p[1];
-          if (!pointInPolygon(px, py, poly)) {
-            allInside = false;
-            break;
-          }
-        }
-        if (allInside) {
-          selected.push(i);
-          for (const p of pts) {
-            const px = p.x ?? p[0];
-            const py = p.y ?? p[1];
-            if (px < minX) minX = px;
-            if (py < minY) minY = py;
-            if (px > maxX) maxX = px;
-            if (py > maxY) maxY = py;
-          }
-        }
-      }
-      setLassoSelection(selected);
-      if (selected.length > 0 && isFinite(minX))
-        setLassoBBox({ x: minX, y: minY, w: maxX - minX, h: maxY - minY });
-      setLassoPoints([]);
-    } catch {}
+    await handleLassoMouseUp();
   };
 
   // Export current lasso selection to an image (for OCR)
@@ -750,24 +701,7 @@ export default function Canvas({
     }
   }, [isLassoing, isTransformingSelection, state.tool]);
 
-  const pointInPolygon = (
-    x: number,
-    y: number,
-    poly: { x: number; y: number }[]
-  ) => {
-    let inside = false;
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      const xi = poly[i].x,
-        yi = poly[i].y;
-      const xj = poly[j].x,
-        yj = poly[j].y;
-      const intersect =
-        yi > y !== yj > y &&
-        x < ((xj - xi) * (y - yi)) / (yj - yi + 0.00001) + xi;
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  };
+  // pointInPolygon moved to canvasUtils and used by useLassoSelection
 
   // Translate selected strokes helper
   const translateSelectedStrokes = async (
@@ -1225,16 +1159,16 @@ export default function Canvas({
               }}
               onMouseMove={(e) => {
                 handleEraserMouseMove(e);
-                handleLassoMouseMove(e);
+                handleLassoMouseMoveWrapped(e);
               }}
               onMouseLeave={handleEraserMouseLeave}
               onMouseDown={(e) => {
                 handleEraserMouseDown(e);
-                handleLassoMouseDown(e);
+                handleLassoMouseDownWrapped(e);
               }}
               onMouseUp={(e) => {
                 handleEraserMouseUp();
-                handleLassoMouseUp();
+                handleLassoMouseUpWrapped();
               }}
             >
               {(() => {
