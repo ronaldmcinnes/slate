@@ -246,7 +246,9 @@ export default function PagesList({
                         })()}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(page.lastModified).toLocaleDateString()}
+                        {page.createdAt
+                          ? new Date(page.createdAt).toLocaleDateString()
+                          : ""}
                       </div>
                     </div>
                   </button>
