@@ -137,7 +137,18 @@ export function useEraser({
       const rebuilt: any[] = [];
       for (const p of paths) {
         const pts = getPathPoints(p);
-        if (pts.length < 2) {
+        if (pts.length === 0) {
+          // Invalid path with no points, skip it
+          continue;
+        }
+        if (pts.length === 1) {
+          // Single point paths (dots) - delete if inside circle
+          const pt = pts[0];
+          if (!outside(pt.x, pt.y)) {
+            // Point is inside eraser circle, skip it
+            continue;
+          }
+          // Point is outside, keep it
           rebuilt.push(p);
           continue;
         }
@@ -282,29 +293,58 @@ export function useEraser({
     };
   }, [isErasing, eraserKind, tool, strokeWidth]);
 
-  // Area erase on mousemove
+  // Area erase on mousemove with throttling for performance
   useEffect(() => {
     if (!isErasing || tool !== "eraser" || eraserKind !== "area") return;
-    const onMove = async (e: MouseEvent) => {
-      if (!canvasContainerRef.current) return;
-      const rect = canvasContainerRef.current.getBoundingClientRect();
-      const x =
-        e.clientX - rect.left + canvasContainerRef.current.scrollLeft;
-      const y = e.clientY - rect.top + canvasContainerRef.current.scrollTop;
+    
+    let rafId: number | null = null;
+    let lastX = 0;
+    let lastY = 0;
+    let pending = false;
+
+    const performErase = async (x: number, y: number) => {
+      pending = false;
       await erasePartialPathsNear(
         x,
         y,
         Math.max(1, Math.floor(strokeWidth / 2))
       );
     };
+
+    const onMove = (e: MouseEvent) => {
+      if (!canvasContainerRef.current) return;
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      const x =
+        e.clientX - rect.left + canvasContainerRef.current.scrollLeft;
+      const y = e.clientY - rect.top + canvasContainerRef.current.scrollTop;
+
+      // Update last known position
+      lastX = x;
+      lastY = y;
+
+      // Throttle using requestAnimationFrame
+      if (!pending) {
+        pending = true;
+        rafId = requestAnimationFrame(() => {
+          performErase(lastX, lastY);
+        });
+      }
+    };
+
     document.addEventListener("mousemove", onMove);
     const onUp = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       setIsErasing(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
     document.addEventListener("mouseup", onUp);
     return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
