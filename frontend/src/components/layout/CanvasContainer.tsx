@@ -10,6 +10,7 @@ interface CanvasContainerProps {
   canvasContainerRef?: React.RefObject<HTMLDivElement | null>;
   isReadOnly?: boolean;
   isPanActive?: boolean;
+  zoom?: number;
 }
 
 export default function CanvasContainer({
@@ -21,6 +22,7 @@ export default function CanvasContainer({
   canvasContainerRef: externalRef,
   isReadOnly = false,
   isPanActive = false,
+  zoom = 1,
 }: CanvasContainerProps) {
   const internalRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = externalRef || internalRef;
@@ -138,6 +140,98 @@ export default function CanvasContainer({
       container.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, [isPanning, panStart, isReadOnly, isPanActive]);
+
+  // Zoom functionality: Ctrl+scroll and two-finger pinch (touch)
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container || !isPanActive) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Ctrl+scroll or Cmd+scroll for zoom
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+        // Zoom is managed by parent via zoom prop, so we dispatch a custom event
+        const newZoom = Math.max(0.1, Math.min(5, zoom * zoomDelta));
+        window.dispatchEvent(
+          new CustomEvent("slate-canvas-zoom", { detail: { zoom: newZoom } })
+        );
+      }
+    };
+
+    // Two-finger pinch zoom for touch devices
+    let initialDistance = 0;
+    let initialZoom = zoom;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        initialDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        initialZoom = zoom;
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+
+        if (initialDistance > 0) {
+          const scale = currentDistance / initialDistance;
+          const newZoom = Math.max(
+            0.1,
+            Math.min(5, initialZoom * scale)
+          );
+          window.dispatchEvent(
+            new CustomEvent("slate-canvas-zoom", { detail: { zoom: newZoom } })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      initialDistance = 0;
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
+    });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isPanActive, zoom]);
+
+  // Apply zoom transform
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    // Find the canvas element inside
+    const canvasElement = container.querySelector(
+      "[data-react-sketch-canvas]"
+    ) as HTMLElement;
+    if (canvasElement) {
+      canvasElement.style.transform = `scale(${zoom})`;
+      canvasElement.style.transformOrigin = "top left";
+    }
+  }, [zoom]);
 
   return (
     <div

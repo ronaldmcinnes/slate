@@ -1,5 +1,6 @@
 import {
   Eraser,
+  Square,
   Pencil,
   Highlighter,
   Type,
@@ -314,7 +315,11 @@ export default function ToolbarDrawingTools({
           onClick={() => handleToolSelect("eraser", "#FAFAFA", eraserWidth)}
           title="Eraser"
         >
-          <Eraser size={18} />
+          {eraserType === "stroke" ? (
+            <Eraser size={18} />
+          ) : (
+            <Square size={18} />
+          )}
         </Button>
         {isActive && (
           <Popover

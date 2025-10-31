@@ -19,9 +19,9 @@ import { useLassoSelection } from "@/hooks/useLassoSelection";
 import { useCanvasHistory } from "@/hooks/useCanvasHistory";
 import { useCanvasShortcuts } from "@/hooks/useCanvasShortcuts";
 import { useSelectionTransform } from "@/hooks/useSelectionTransform";
+import { useSelectionVision } from "@/hooks/useSelectionVision";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
-import { recognizeMathFromImage } from "@/lib/visionService";
 
 interface CanvasProps {
   page: Page | null;
@@ -352,6 +352,25 @@ export default function Canvas({
     wasDeselected: boolean;
   }>({ indices: [], bbox: null, wasDeselected: false });
 
+  // Zoom state for pan mode
+  const [zoom, setZoom] = useState(1);
+
+  // Listen for zoom events from CanvasContainer (Ctrl+scroll, pinch)
+  useEffect(() => {
+    const handleZoom = (e: Event) => {
+      const customEvent = e as CustomEvent<{ zoom: number }>;
+      if (customEvent.detail) {
+        setZoom(customEvent.detail.zoom);
+      }
+    };
+    window.addEventListener("slate-canvas-zoom", handleZoom as EventListener);
+    return () =>
+      window.removeEventListener(
+        "slate-canvas-zoom",
+        handleZoom as EventListener
+      );
+  }, []);
+
   // Keyboard shortcuts: delete, undo/redo with reselection fallback
   useCanvasShortcuts({
     isReadOnly,
@@ -365,6 +384,13 @@ export default function Canvas({
     savePageState,
     tryCustomUndo,
     lastDeselectionRef,
+    setTool: actions.setTool,
+    setStrokeWidth: actions.setStrokeWidth,
+    strokeWidth: state.strokeWidth,
+    zoom,
+    setZoom,
+    onStartRecording: handleStartRecording,
+    onStopRecording: handleStopRecording,
   });
 
   // Handle canvas click for text tool
@@ -809,6 +835,7 @@ export default function Canvas({
           canvasContainerRef={refs.canvasContainerRef}
           isReadOnly={isReadOnly}
           isPanActive={state.tool === "pan"}
+          zoom={zoom}
         >
           {/* Floating Toolbar - Only show for edit mode */}
           {!isReadOnly && (
