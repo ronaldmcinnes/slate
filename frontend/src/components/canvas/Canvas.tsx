@@ -352,8 +352,8 @@ export default function Canvas({
           void handleUndo();
         });
       }
-      // Ctrl+Y - Redo
-      else if (e.ctrlKey && e.key === "y") {
+      // Ctrl+Shift+Z - Redo
+      else if (e.ctrlKey && e.shiftKey && (e.key === "Z" || e.key === "z")) {
         e.preventDefault();
         void handleRedo();
       }
