@@ -176,11 +176,17 @@ export default function DraggableGraph({
         initialX: position.x,
         initialY: position.y,
         startScrollLeft:
-          (document.querySelector('[data-canvas-container]') as HTMLDivElement
-            | null)?.scrollLeft || 0,
+          (
+            document.querySelector(
+              "[data-canvas-container]"
+            ) as HTMLDivElement | null
+          )?.scrollLeft || 0,
         startScrollTop:
-          (document.querySelector('[data-canvas-container]') as HTMLDivElement
-            | null)?.scrollTop || 0,
+          (
+            document.querySelector(
+              "[data-canvas-container]"
+            ) as HTMLDivElement | null
+          )?.scrollTop || 0,
       };
       document.body.style.userSelect = "none";
       document.body.style.cursor = "grabbing";
@@ -229,7 +235,10 @@ export default function DraggableGraph({
       setIsDragging(false);
       onPositionChange(graph.id, position.x, position.y);
       if (globalHandlersRef.current.move) {
-        document.removeEventListener("mousemove", globalHandlersRef.current.move);
+        document.removeEventListener(
+          "mousemove",
+          globalHandlersRef.current.move
+        );
       }
       if (globalHandlersRef.current.up) {
         document.removeEventListener("mouseup", globalHandlersRef.current.up);
@@ -255,7 +264,7 @@ export default function DraggableGraph({
       if (isDragging) {
         // Auto-scroll container near edges while dragging
         const container = document.querySelector(
-          '[data-canvas-container]'
+          "[data-canvas-container]"
         ) as HTMLDivElement | null;
         if (container) {
           const rect = container.getBoundingClientRect();
@@ -265,10 +274,12 @@ export default function DraggableGraph({
           if (e.clientX < rect.left + edge) container.scrollLeft -= speed;
           if (e.clientY > rect.bottom - edge) container.scrollTop += speed;
           if (e.clientY < rect.top + edge) container.scrollTop -= speed;
-          const scrollDeltaX = container.scrollLeft - dragRef.current.startScrollLeft;
-          const scrollDeltaY = container.scrollTop - dragRef.current.startScrollTop;
-          const deltaX = (e.clientX - dragRef.current.startX) + scrollDeltaX;
-          const deltaY = (e.clientY - dragRef.current.startY) + scrollDeltaY;
+          const scrollDeltaX =
+            container.scrollLeft - dragRef.current.startScrollLeft;
+          const scrollDeltaY =
+            container.scrollTop - dragRef.current.startScrollTop;
+          const deltaX = e.clientX - dragRef.current.startX + scrollDeltaX;
+          const deltaY = e.clientY - dragRef.current.startY + scrollDeltaY;
           setPosition({
             x: Math.max(0, dragRef.current.initialX + deltaX),
             y: Math.max(0, dragRef.current.initialY + deltaY),
@@ -288,10 +299,18 @@ export default function DraggableGraph({
         let newHeight = resizeRef.current.initialHeight;
         let newX = resizeRef.current.initialX;
         let newY = resizeRef.current.initialY;
-        if (resizeDirection.includes("right")) newWidth = Math.max(200, resizeRef.current.initialWidth + deltaX);
-        if (resizeDirection.includes("left")) { newWidth = Math.max(200, resizeRef.current.initialWidth - deltaX); newX = resizeRef.current.initialX + deltaX; }
-        if (resizeDirection.includes("bottom")) newHeight = Math.max(200, resizeRef.current.initialHeight + deltaY);
-        if (resizeDirection.includes("top")) { newHeight = Math.max(200, resizeRef.current.initialHeight - deltaY); newY = resizeRef.current.initialY + deltaY; }
+        if (resizeDirection.includes("right"))
+          newWidth = Math.max(200, resizeRef.current.initialWidth + deltaX);
+        if (resizeDirection.includes("left")) {
+          newWidth = Math.max(200, resizeRef.current.initialWidth - deltaX);
+          newX = resizeRef.current.initialX + deltaX;
+        }
+        if (resizeDirection.includes("bottom"))
+          newHeight = Math.max(200, resizeRef.current.initialHeight + deltaY);
+        if (resizeDirection.includes("top")) {
+          newHeight = Math.max(200, resizeRef.current.initialHeight - deltaY);
+          newY = resizeRef.current.initialY + deltaY;
+        }
         setSize({ width: newWidth, height: newHeight });
         setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
       }
@@ -319,7 +338,18 @@ export default function DraggableGraph({
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
-  }, [isDragging, isResizing, resizeDirection, onPositionChange, onSizeChange, graph.id, position.x, position.y, size.width, size.height]);
+  }, [
+    isDragging,
+    isResizing,
+    resizeDirection,
+    onPositionChange,
+    onSizeChange,
+    graph.id,
+    position.x,
+    position.y,
+    size.width,
+    size.height,
+  ]);
 
   const handleRegenerateGraph = async () => {
     if (!functionInput.trim() || !onUpdateGraph) return;
@@ -352,6 +382,7 @@ export default function DraggableGraph({
   return (
     <div
       className="absolute pointer-events-auto"
+      data-interactive
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,

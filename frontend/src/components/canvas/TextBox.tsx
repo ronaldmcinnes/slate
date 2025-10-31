@@ -171,6 +171,7 @@ export default function TextBox({
   return (
     <div
       className="absolute pointer-events-auto group"
+      data-interactive
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,

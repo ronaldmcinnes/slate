@@ -81,6 +81,15 @@ export default function CanvasContainer({
       // Only start panning on left mouse button
       if (e.button !== 0) return;
 
+      // If pan tool is active (not read-only), but the user clicked inside an interactive overlay (graphs/text), skip panning
+      if (!isReadOnly && isPanActive) {
+        const target = e.target as HTMLElement | null;
+        const interactive = target?.closest?.('[data-interactive]');
+        if (interactive) {
+          return; // let the interactive element handle drag
+        }
+      }
+
       // In view-only mode, always start panning regardless of what element was clicked
       setIsPanning(true);
       setPanStart({
