@@ -88,3 +88,5 @@ Slate is a modern, collaborative notebook application with real-time canvas draw
 - MongoDB Atlas for database
 
 Only change files that are related to the prompt, not files you thought should be changed.
+
+Always update related files when dealing with changes in features or fixes, to ensure consitency.

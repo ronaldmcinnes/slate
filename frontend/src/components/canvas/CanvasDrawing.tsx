@@ -49,11 +49,7 @@ export default function CanvasDrawing({
             : strokeWidth
         }
         strokeColor={
-          tool === "eraser"
-            ? document.documentElement.classList.contains("dark")
-              ? "#111111"
-              : "#FAFAFA"
-            : tool === "highlighter"
+          tool === "highlighter"
             ? strokeColor + "80" // Add 50% opacity for highlighter
             : strokeColor
         }
