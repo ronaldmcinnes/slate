@@ -15,6 +15,7 @@ import { useCanvasSave } from "@/hooks/useCanvasSave";
 import { useCanvasTools } from "@/hooks/useCanvasTools";
 import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
+import { useEraser } from "@/hooks/useEraser";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 import { recognizeMathFromImage } from "@/lib/visionService";
@@ -159,30 +160,22 @@ export default function Canvas({
     }
   }, [state.visibleTools, canvasState.visibleTools, setVisibleTools]);
 
-  // Track eraser type (area vs stroke) via toolbar broadcast
-  const [eraserKind, setEraserKind] = useState<"area" | "stroke">("area");
-  useEffect(() => {
-    const handler = (e: any) => {
-      if (
-        e?.detail?.eraserType === "stroke" ||
-        e?.detail?.eraserType === "area"
-      ) {
-        setEraserKind(e.detail.eraserType);
-      }
-    };
-    window.addEventListener("slate-eraser-type", handler as EventListener);
-    return () =>
-      window.removeEventListener("slate-eraser-type", handler as EventListener);
-  }, []);
-
-  // Disable library erase mode; we implement deletion-based area erase ourselves
-  useEffect(() => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || typeof instance.eraseMode !== "function") return;
-    try {
-      instance.eraseMode(false);
-    } catch {}
-  }, [state.tool, refs.canvasRef, eraserKind]);
+  // Eraser functionality
+  const {
+    eraserPreview,
+    handleEraserMouseDown,
+    handleEraserMouseUp,
+    handleCanvasMouseMove: handleEraserMouseMove,
+    handleCanvasMouseLeave: handleEraserMouseLeave,
+  } = useEraser({
+    canvasRef: refs.canvasRef,
+    canvasContainerRef:
+      refs.canvasContainerRef as React.RefObject<HTMLDivElement | null>,
+    isReadOnly,
+    tool: state.tool,
+    strokeWidth: state.strokeWidth,
+    markAsChanged: actions.markAsChanged,
+  });
 
   // Canvas operations
   const handleUndo = async () => {
@@ -508,73 +501,12 @@ export default function Canvas({
     return "crosshair";
   };
 
-  // Eraser cursor preview
-  const [eraserPreview, setEraserPreview] = useState({
-    x: 0,
-    y: 0,
-    visible: false,
-  });
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isReadOnly || state.tool !== "eraser") {
-      if (eraserPreview.visible)
-        setEraserPreview((p) => ({ ...p, visible: false }));
-      return;
-    }
-    const container = refs.canvasContainerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left + container.scrollLeft;
-    const y = e.clientY - rect.top + container.scrollTop;
-    setEraserPreview({ x, y, visible: true });
-  };
-  const handleCanvasMouseLeave = () => {
-    if (eraserPreview.visible)
-      setEraserPreview((p) => ({ ...p, visible: false }));
-  };
-
-  // Prevent text selection while erasing
-  const [isErasing, setIsErasing] = useState(false);
+  // Lasso state
   const [lassoPoints, setLassoPoints] = useState<{ x: number; y: number }[]>(
     []
   );
   const [isLassoing, setIsLassoing] = useState(false);
   const [lassoSelection, setLassoSelection] = useState<number[]>([]);
-  const [hasStrokeErasedThisDrag, setHasStrokeErasedThisDrag] = useState(false);
-  const handleEraserMouseDown = async (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isReadOnly || state.tool !== "eraser") return;
-    e.preventDefault();
-    setIsErasing(true);
-    setHasStrokeErasedThisDrag(false);
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "crosshair";
-    if (eraserKind === "stroke") {
-      const container = refs.canvasContainerRef.current;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const x = e.clientX - rect.left + container.scrollLeft;
-        const y = e.clientY - rect.top + container.scrollTop;
-        await erasePathsNear(x, y, Math.max(3, Math.floor(state.strokeWidth)));
-      }
-    } else if (eraserKind === "area") {
-      const container = refs.canvasContainerRef.current;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const x = e.clientX - rect.left + container.scrollLeft;
-        const y = e.clientY - rect.top + container.scrollTop;
-        await erasePartialPathsNear(
-          x,
-          y,
-          Math.max(1, Math.floor(state.strokeWidth / 2))
-        );
-      }
-    }
-  };
-  const handleEraserMouseUp = () => {
-    if (!isErasing) return;
-    setIsErasing(false);
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
-  };
 
   // Lasso interactions (fully contained)
   const [lassoBBox, setLassoBBox] = useState<{
@@ -1065,344 +997,6 @@ export default function Canvas({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lassoSelection, lassoBBox]);
-  useEffect(() => {
-    if (!isErasing || state.tool !== "eraser" || eraserKind !== "stroke")
-      return;
-    const onMove = async (e: MouseEvent) => {
-      const container = refs.canvasContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left + container.scrollLeft;
-      const y = e.clientY - rect.top + container.scrollTop;
-      await erasePathsNear(x, y, Math.max(3, Math.floor(state.strokeWidth)));
-    };
-    document.addEventListener("mousemove", onMove);
-    const onUp = () => {
-      setIsErasing(false);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [isErasing, eraserKind, state.tool, state.strokeWidth]);
-
-  // Area erase: delete only the intersected portions of strokes along the drag path
-  useEffect(() => {
-    if (!isErasing || state.tool !== "eraser" || eraserKind !== "area") return;
-    const onMove = async (e: MouseEvent) => {
-      const container = refs.canvasContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left + container.scrollLeft;
-      const y = e.clientY - rect.top + container.scrollTop;
-      await erasePartialPathsNear(
-        x,
-        y,
-        Math.max(1, Math.floor(state.strokeWidth / 2))
-      );
-    };
-    document.addEventListener("mousemove", onMove);
-    const onUp = () => {
-      setIsErasing(false);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [isErasing, eraserKind, state.tool, state.strokeWidth]);
-
-  // Remove the nearest stroke to the given point
-  const eraseStrokeAt = async (x: number, y: number): Promise<boolean> => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return false;
-    try {
-      const exported: any = (await instance.exportPaths?.()) || [];
-      const paths: any[] = Array.isArray(exported)
-        ? exported
-        : exported.paths || [];
-      const idx = findHitPathIndex(
-        paths,
-        x,
-        y,
-        Math.max(3, Math.floor(state.strokeWidth * 0.6) + 2)
-      );
-      if (idx < 0) return false;
-      const remaining = paths.slice(0, idx).concat(paths.slice(idx + 1));
-      if (remaining.length !== paths.length - 1) {
-        return false;
-      }
-      await instance.clearCanvas?.();
-      await instance.loadPaths?.(remaining);
-      actions.markAsChanged();
-      return true;
-    } catch (e) {
-      console.error("eraseStrokeAt failed", e);
-      return false;
-    }
-  };
-
-  const findHitPathIndex = (
-    paths: any[],
-    px: number,
-    py: number,
-    threshold: number
-  ): number => {
-    const sq = (n: number) => n * n;
-    const distPointToSeg = (
-      ax: number,
-      ay: number,
-      bx: number,
-      by: number,
-      cx: number,
-      cy: number
-    ) => {
-      const abx = bx - ax,
-        aby = by - ay;
-      const denom = abx * abx + aby * aby || 1;
-      const t = Math.max(
-        0,
-        Math.min(1, ((cx - ax) * abx + (cy - ay) * aby) / denom)
-      );
-      const dx = ax + t * abx - cx;
-      const dy = ay + t * aby - cy;
-      return Math.sqrt(sq(dx) + sq(dy));
-    };
-    for (let i = paths.length - 1; i >= 0; i--) {
-      const p = paths[i];
-      const pts = p?.paths || p?.points || p?.stroke?.points || p?.path || [];
-      if (!Array.isArray(pts) || pts.length < 2) continue;
-      for (let j = 0; j < pts.length - 1; j++) {
-        const a = pts[j];
-        const b = pts[j + 1];
-        const ax = a.x ?? a[0];
-        const ay = a.y ?? a[1];
-        const bx = b.x ?? b[0];
-        const by = b.y ?? b[1];
-        if (ax == null || ay == null || bx == null || by == null) continue;
-        if (distPointToSeg(ax, ay, bx, by, px, py) <= threshold) return i;
-      }
-    }
-    return -1;
-  };
-
-  // Delete any paths that intersect a circular brush centered at (px, py)
-  const erasePathsNear = async (
-    px: number,
-    py: number,
-    threshold: number
-  ): Promise<boolean> => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return false;
-    try {
-      const exported: any = (await instance.exportPaths?.()) || [];
-      const paths: any[] = Array.isArray(exported)
-        ? exported
-        : exported.paths || [];
-      if (!paths.length) return false;
-
-      const hits: boolean[] = new Array(paths.length).fill(false);
-      const sq = (n: number) => n * n;
-      const distPointToSegSq = (
-        ax: number,
-        ay: number,
-        bx: number,
-        by: number,
-        cx: number,
-        cy: number
-      ) => {
-        const abx = bx - ax,
-          aby = by - ay;
-        const denom = abx * abx + aby * aby || 1;
-        const t = Math.max(
-          0,
-          Math.min(1, ((cx - ax) * abx + (cy - ay) * aby) / denom)
-        );
-        const dx = ax + t * abx - cx;
-        const dy = ay + t * aby - cy;
-        return sq(dx) + sq(dy);
-      };
-
-      const threshSq = sq(threshold);
-      for (let i = paths.length - 1; i >= 0; i--) {
-        const p = paths[i];
-        const pts = p?.paths || p?.points || p?.stroke?.points || p?.path || [];
-        if (!Array.isArray(pts) || pts.length < 2) continue;
-        let hit = false;
-        for (let j = 0; j < pts.length - 1 && !hit; j++) {
-          const a = pts[j];
-          const b = pts[j + 1];
-          const ax = a.x ?? a[0];
-          const ay = a.y ?? a[1];
-          const bx = b.x ?? b[0];
-          const by = b.y ?? b[1];
-          if (ax == null || ay == null || bx == null || by == null) continue;
-          if (distPointToSegSq(ax, ay, bx, by, px, py) <= threshSq) hit = true;
-        }
-        hits[i] = hit;
-      }
-
-      if (!hits.some(Boolean)) return false;
-      const remaining = paths.filter((_, i) => !hits[i]);
-      await instance.clearCanvas?.();
-      await instance.loadPaths?.(remaining);
-      actions.markAsChanged();
-      return true;
-    } catch (e) {
-      console.error("erasePathsNear failed", e);
-      return false;
-    }
-  };
-
-  // Partially erase paths by clipping polylines against a circle at (px, py) with radius
-  const erasePartialPathsNear = async (
-    px: number,
-    py: number,
-    radius: number
-  ): Promise<boolean> => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return false;
-    try {
-      const exported: any = (await instance.exportPaths?.()) || [];
-      const paths: any[] = Array.isArray(exported)
-        ? exported
-        : exported.paths || [];
-      if (!paths.length) return false;
-      const rSq = radius * radius;
-
-      const lineCircleIntersections = (
-        ax: number,
-        ay: number,
-        bx: number,
-        by: number,
-        cx: number,
-        cy: number,
-        r: number
-      ): number[] => {
-        const dx = bx - ax;
-        const dy = by - ay;
-        const fx = ax - cx;
-        const fy = ay - cy;
-        const a = dx * dx + dy * dy;
-        const b = 2 * (fx * dx + fy * dy);
-        const c = fx * fx + fy * fy - r * r;
-        const disc = b * b - 4 * a * c;
-        if (disc < 0 || a === 0) return [];
-        const s = Math.sqrt(disc);
-        const t1 = (-b - s) / (2 * a);
-        const t2 = (-b + s) / (2 * a);
-        const ts: number[] = [];
-        if (t1 >= 0 && t1 <= 1) ts.push(t1);
-        if (t2 >= 0 && t2 <= 1 && Math.abs(t2 - t1) > 1e-6) ts.push(t2);
-        return ts.sort();
-      };
-
-      const outside = (x: number, y: number) => {
-        const dx = x - px;
-        const dy = y - py;
-        return dx * dx + dy * dy > rSq;
-      };
-
-      const pushSubpath = (
-        template: any,
-        segment: { x: number; y: number }[],
-        out: any[]
-      ) => {
-        if (segment.length < 2) return;
-        const newPath: any = {
-          ...template,
-          strokeWidth: template.strokeWidth ?? template.width ?? template.size,
-          strokeColor:
-            template.strokeColor ?? template.color ?? template.stroke,
-        };
-        if (Array.isArray(template.paths)) newPath.paths = segment;
-        else if (Array.isArray(template.points)) newPath.points = segment;
-        else if (template?.stroke?.points)
-          newPath.stroke = { ...template.stroke, points: segment };
-        else newPath.path = segment;
-        out.push(newPath);
-      };
-
-      const rebuilt: any[] = [];
-      for (const p of paths) {
-        const ptsRaw =
-          p?.paths || p?.points || p?.stroke?.points || p?.path || [];
-        const pts: { x: number; y: number }[] = Array.isArray(ptsRaw)
-          ? ptsRaw
-              .map((pt: any) => ({ x: pt.x ?? pt[0], y: pt.y ?? pt[1] }))
-              .filter((pt) => pt.x != null && pt.y != null)
-          : [];
-        if (pts.length < 2) {
-          rebuilt.push(p);
-          continue;
-        }
-
-        let current: { x: number; y: number }[] = [];
-        if (outside(pts[0].x, pts[0].y)) current.push(pts[0]);
-
-        for (let j = 0; j < pts.length - 1; j++) {
-          const a = pts[j];
-          const b = pts[j + 1];
-          const ts = lineCircleIntersections(
-            a.x,
-            a.y,
-            b.x,
-            b.y,
-            px,
-            py,
-            radius
-          );
-
-          if (ts.length === 0) {
-            if (outside(a.x, a.y) && outside(b.x, b.y)) {
-              if (current.length === 0) current.push(a);
-              current.push(b);
-            } else {
-              if (current.length >= 2) pushSubpath(p, current, rebuilt);
-              current = [];
-            }
-            continue;
-          }
-
-          const tVals = [0, ...ts, 1];
-          for (let k = 0; k < tVals.length - 1; k++) {
-            const t0 = tVals[k];
-            const t1 = tVals[k + 1];
-            const p0 = { x: a.x + (b.x - a.x) * t0, y: a.y + (b.y - a.y) * t0 };
-            const p1 = { x: a.x + (b.x - a.x) * t1, y: a.y + (b.y - a.y) * t1 };
-            const midT = (t0 + t1) / 2;
-            const mid = {
-              x: a.x + (b.x - a.x) * midT,
-              y: a.y + (b.y - a.y) * midT,
-            };
-            const midOut = outside(mid.x, mid.y);
-            if (midOut) {
-              if (current.length === 0) current.push(p0);
-              current.push(p1);
-            } else {
-              if (current.length >= 2) pushSubpath(p, current, rebuilt);
-              current = [];
-            }
-          }
-        }
-
-        if (current.length >= 2) pushSubpath(p, current, rebuilt);
-      }
-
-      await instance.clearCanvas?.();
-      await instance.loadPaths?.(rebuilt);
-      actions.markAsChanged();
-      return true;
-    } catch (e) {
-      console.error("erasePartialPathsNear failed", e);
-      return false;
-    }
-  };
 
   // Flip black/white stroke colors based on theme for readability
   const mapColorForTheme = (c: any, isDark: boolean): any => {
@@ -1630,10 +1224,10 @@ export default function Canvas({
                     : "auto",
               }}
               onMouseMove={(e) => {
-                handleCanvasMouseMove(e);
+                handleEraserMouseMove(e);
                 handleLassoMouseMove(e);
               }}
-              onMouseLeave={handleCanvasMouseLeave}
+              onMouseLeave={handleEraserMouseLeave}
               onMouseDown={(e) => {
                 handleEraserMouseDown(e);
                 handleLassoMouseDown(e);
