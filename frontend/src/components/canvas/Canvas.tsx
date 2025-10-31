@@ -18,6 +18,7 @@ import { useCanvasState } from "@/hooks/useCanvasState";
 import { useEraser } from "@/hooks/useEraser";
 import { useLassoSelection } from "@/hooks/useLassoSelection";
 import { useCanvasHistory } from "@/hooks/useCanvasHistory";
+import { useSelectionTransform } from "@/hooks/useSelectionTransform";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 import { recognizeMathFromImage } from "@/lib/visionService";
@@ -303,6 +304,36 @@ export default function Canvas({
     transformSnapshotPendingRef = h.transformSnapshotPendingRef as any;
   }
 
+  // Selection transform functionality
+  const {
+    isDraggingSelection,
+    isTransformingSelection,
+    translateSelectedStrokes,
+    scaleSelectedStrokes,
+    rotateSelectedStrokes,
+    recolorSelectedStrokes,
+    restyleWidthSelectedStrokes,
+    deleteSelectedStrokes,
+    recomputeBBox: recomputeSelectionBBox,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
+    handleResizeStart,
+    handleRotateStart,
+  } = useSelectionTransform({
+    canvasRef: refs.canvasRef,
+    canvasContainerRef:
+      refs.canvasContainerRef as React.RefObject<HTMLDivElement | null>,
+    lassoSelection,
+    lassoBBox,
+    setLassoBBox,
+    snapshotPaths,
+    transformSnapshotPendingRef,
+    beginTransformSession,
+    endTransformSession,
+    markAsChanged: actions.markAsChanged,
+  });
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -477,16 +508,7 @@ export default function Canvas({
     return "crosshair";
   };
 
-  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
-  const selectionDragRef = useRef({ startX: 0, startY: 0 });
-  const [isTransformingSelection, setIsTransformingSelection] = useState(false);
-  const transformRef = useRef<{
-    mode: "resize" | "rotate" | null;
-    prevAngle?: number;
-    prevDist?: number;
-    cx?: number;
-    cy?: number;
-  }>({ mode: null });
+  // Transform state now managed by useSelectionTransform hook
 
   const handleLassoMouseDownWrapped = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isReadOnly || state.tool !== "lasso" || isTransformingSelection) return;
@@ -519,8 +541,7 @@ export default function Canvas({
       x <= lassoBBox.x + lassoBBox.w &&
       y <= lassoBBox.y + lassoBBox.h
     ) {
-      setIsDraggingSelection(true);
-      selectionDragRef.current = { startX: x, startY: y };
+      handleDragStart(x, y);
       return;
     }
     handleLassoMouseDown(e);
@@ -535,17 +556,7 @@ export default function Canvas({
     const x = e.clientX - rect.left + container.scrollLeft;
     const y = e.clientY - rect.top + container.scrollTop;
     if (isDraggingSelection && lassoSelection.length > 0) {
-      const dx = x - selectionDragRef.current.startX;
-      const dy = y - selectionDragRef.current.startY;
-      selectionDragRef.current = { startX: x, startY: y };
-      await translateSelectedStrokes(lassoSelection, dx, dy);
-      if (lassoBBox)
-        setLassoBBox({
-          x: lassoBBox.x + dx,
-          y: lassoBBox.y + dy,
-          w: lassoBBox.w,
-          h: lassoBBox.h,
-        });
+      await handleDragMove(x, y);
       return;
     }
     handleLassoMouseMove(e);
@@ -554,8 +565,7 @@ export default function Canvas({
     if (state.tool !== "lasso") return;
     if (isTransformingSelection) return; // handled by transform listeners
     if (isDraggingSelection) {
-      setIsDraggingSelection(false);
-      document.body.style.userSelect = "";
+      handleDragEnd();
       return;
     }
     await handleLassoMouseUp();
@@ -656,198 +666,7 @@ export default function Canvas({
     }
   }, [isLassoing, isTransformingSelection, state.tool]);
 
-  // pointInPolygon moved to canvasUtils and used by useLassoSelection
-
-  // Translate selected strokes helper
-  const translateSelectedStrokes = async (
-    indices: number[],
-    dx: number,
-    dy: number
-  ) => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || indices.length === 0) return;
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    const updated = paths.map((p: any, i: number) => {
-      if (!indices.includes(i)) return p;
-      const pts = p?.paths || p?.points || p?.stroke?.points || p?.path;
-      if (!Array.isArray(pts)) return p;
-      const shift = (pt: any) => {
-        const px = pt.x ?? pt[0];
-        const py = pt.y ?? pt[1];
-        if (pt.x != null && pt.y != null)
-          return { ...pt, x: px + dx, y: py + dy };
-        return [px + dx, py + dy];
-      };
-      if (p.paths) return { ...p, paths: pts.map(shift) };
-      if (p.points) return { ...p, points: pts.map(shift) };
-      if (p.stroke?.points)
-        return { ...p, stroke: { ...p.stroke, points: pts.map(shift) } };
-      if (p.path) return { ...p, path: pts.map(shift) };
-      return p;
-    });
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(updated);
-  };
-
-  // Scale around bbox center
-  const scaleSelectedStrokes = async (indices: number[], factor: number) => {
-    if (!lassoBBox) return;
-    const cx = lassoBBox.x + lassoBBox.w / 2;
-    const cy = lassoBBox.y + lassoBBox.h / 2;
-    await transformSelectedStrokes(indices, (px, py) => {
-      return [cx + (px - cx) * factor, cy + (py - cy) * factor];
-    });
-    await recomputeSelectionBBox(indices);
-  };
-
-  // Rotate around bbox center
-  const rotateSelectedStrokes = async (indices: number[], degrees: number) => {
-    if (!lassoBBox) return;
-    const rad = (degrees * Math.PI) / 180;
-    const sin = Math.sin(rad);
-    const cos = Math.cos(rad);
-    const cx = lassoBBox.x + lassoBBox.w / 2;
-    const cy = lassoBBox.y + lassoBBox.h / 2;
-    await transformSelectedStrokes(indices, (px, py) => {
-      const dx = px - cx;
-      const dy = py - cy;
-      return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
-    });
-    await recomputeSelectionBBox(indices);
-  };
-
-  // Recolor selected
-  const recolorSelectedStrokes = async (indices: number[], color: string) => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || indices.length === 0) return;
-    await snapshotPaths();
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    const updated = paths.map((p: any, i: number) => {
-      if (!indices.includes(i)) return p;
-      if (p.strokeColor) return { ...p, strokeColor: color };
-      if (p.stroke?.color) return { ...p, stroke: { ...p.stroke, color } };
-      if (p.color) return { ...p, color };
-      return { ...p, strokeColor: color };
-    });
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(updated);
-  };
-
-  // Change stroke width of selected
-  const restyleWidthSelectedStrokes = async (
-    indices: number[],
-    width: number
-  ) => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || indices.length === 0) return;
-    await snapshotPaths();
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    const updated = paths.map((p: any, i: number) => {
-      if (!indices.includes(i)) return p;
-      if (p.strokeWidth != null) return { ...p, strokeWidth: width };
-      if (p.stroke?.width != null)
-        return { ...p, stroke: { ...p.stroke, width } };
-      if (p.width != null) return { ...p, width };
-      return { ...p, strokeWidth: width };
-    });
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(updated);
-    await recomputeSelectionBBox(indices);
-  };
-
-  // Generic transform for selected paths
-  const transformSelectedStrokes = async (
-    indices: number[],
-    mapFn: (x: number, y: number) => [number, number]
-  ) => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || indices.length === 0) return;
-    if (!(transformSnapshotPendingRef as any)?.current) {
-      await snapshotPaths();
-    }
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    const updated = paths.map((p: any, i: number) => {
-      if (!indices.includes(i)) return p;
-      const pts = p?.paths || p?.points || p?.stroke?.points || p?.path;
-      if (!Array.isArray(pts)) return p;
-      const mapPoint = (pt: any) => {
-        const px = pt.x ?? pt[0];
-        const py = pt.y ?? pt[1];
-        const [nx, ny] = mapFn(px, py);
-        if (pt.x != null && pt.y != null) return { ...pt, x: nx, y: ny };
-        return [nx, ny];
-      };
-      if (p.paths) return { ...p, paths: pts.map(mapPoint) };
-      if (p.points) return { ...p, points: pts.map(mapPoint) };
-      if (p.stroke?.points)
-        return { ...p, stroke: { ...p.stroke, points: pts.map(mapPoint) } };
-      if (p.path) return { ...p, path: pts.map(mapPoint) };
-      return p;
-    });
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(updated);
-  };
-
-  const recomputeSelectionBBox = async (indices: number[]) => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || indices.length === 0) return;
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    for (let i = 0; i < paths.length; i++) {
-      if (!indices.includes(i)) continue;
-      const pts =
-        paths[i]?.paths ||
-        paths[i]?.points ||
-        paths[i]?.stroke?.points ||
-        paths[i]?.path ||
-        [];
-      if (!Array.isArray(pts)) continue;
-      for (const p of pts) {
-        const px = p.x ?? p[0];
-        const py = p.y ?? p[1];
-        if (px < minX) minX = px;
-        if (py < minY) minY = py;
-        if (px > maxX) maxX = px;
-        if (py > maxY) maxY = py;
-      }
-    }
-    if (isFinite(minX))
-      setLassoBBox({ x: minX, y: minY, w: maxX - minX, h: maxY - minY });
-  };
-
-  // Delete selected stroke indices
-  const deleteSelectedStrokes = async (indices: number[]) => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance || indices.length === 0) return;
-    await snapshotPaths();
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    const keepSet = new Set(indices);
-    const remaining = paths.filter((_: any, i: number) => !keepSet.has(i));
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(remaining);
-    actions.markAsChanged();
-  };
+  // Transform functions now managed by useSelectionTransform hook
 
   // Track last deselection for Ctrl+Z reselect
   const lastDeselectionRef = useRef<{
@@ -856,36 +675,7 @@ export default function Canvas({
     wasDeselected: boolean;
   }>({ indices: [], bbox: null, wasDeselected: false });
 
-  // Keyboard shortcuts for selection transforms
-  useEffect(() => {
-    const onKey = async (e: KeyboardEvent) => {
-      if (lassoSelection.length === 0) return;
-      if (e.ctrlKey && !e.altKey) {
-        if (e.key === "ArrowLeft") {
-          e.preventDefault();
-          await rotateSelectedStrokes(lassoSelection, -5);
-          return;
-        }
-        if (e.key === "ArrowRight") {
-          e.preventDefault();
-          await rotateSelectedStrokes(lassoSelection, 5);
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          await scaleSelectedStrokes(lassoSelection, 1.1);
-          return;
-        }
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          await scaleSelectedStrokes(lassoSelection, 0.9);
-          return;
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lassoSelection, lassoBBox]);
+  // Keyboard shortcuts for transforms now managed by useSelectionTransform hook
 
   // Flip black/white stroke colors based on theme for readability
   const mapColorForTheme = (c: any, isDark: boolean): any => {
@@ -1284,7 +1074,7 @@ export default function Canvas({
                 lassoSelection.length > 0 &&
                 lassoBBox && (
                   <>
-                    {["nw", "ne", "se", "sw"].map((corner) => {
+                    {(["nw", "ne", "se", "sw"] as const).map((corner) => {
                       const pos: any = {
                         nw: { left: lassoBBox.x - 6, top: lassoBBox.y - 6 },
                         ne: {
@@ -1307,74 +1097,7 @@ export default function Canvas({
                           style={{ ...pos }}
                           onMouseDown={(e) => {
                             e.stopPropagation();
-                            if (!lassoBBox) return;
-                            setIsTransformingSelection(true);
-                            const cx = lassoBBox.x + lassoBBox.w / 2;
-                            const cy = lassoBBox.y + lassoBBox.h / 2;
-                            const rect = (
-                              refs.canvasContainerRef.current as HTMLDivElement
-                            ).getBoundingClientRect();
-                            const sx =
-                              e.clientX -
-                              rect.left +
-                              (
-                                refs.canvasContainerRef
-                                  .current as HTMLDivElement
-                              ).scrollLeft;
-                            const sy =
-                              e.clientY -
-                              rect.top +
-                              (
-                                refs.canvasContainerRef
-                                  .current as HTMLDivElement
-                              ).scrollTop;
-                            const dist = Math.hypot(sx - cx, sy - cy);
-                            transformRef.current = {
-                              mode: "resize",
-                              prevDist: Math.max(1, dist),
-                              cx,
-                              cy,
-                            };
-                            beginTransformSession();
-                            const onMove = async (ev: MouseEvent) => {
-                              if (transformSnapshotPendingRef.current) return;
-                              const rx =
-                                ev.clientX -
-                                rect.left +
-                                (
-                                  refs.canvasContainerRef
-                                    .current as HTMLDivElement
-                                ).scrollLeft;
-                              const ry =
-                                ev.clientY -
-                                rect.top +
-                                (
-                                  refs.canvasContainerRef
-                                    .current as HTMLDivElement
-                                ).scrollTop;
-                              const newDist = Math.hypot(rx - cx, ry - cy);
-                              const factor = Math.max(
-                                0.2,
-                                Math.min(
-                                  5,
-                                  newDist /
-                                    (transformRef.current.prevDist || newDist)
-                                )
-                              );
-                              transformRef.current.prevDist = newDist;
-                              await scaleSelectedStrokes(
-                                lassoSelection,
-                                factor
-                              );
-                            };
-                            const onUp = () => {
-                              setIsTransformingSelection(false);
-                              document.removeEventListener("mousemove", onMove);
-                              document.removeEventListener("mouseup", onUp);
-                              endTransformSession();
-                            };
-                            document.addEventListener("mousemove", onMove);
-                            document.addEventListener("mouseup", onUp);
+                            handleResizeStart(e, corner);
                           }}
                         />
                       );
@@ -1388,59 +1111,7 @@ export default function Canvas({
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
-                        if (!lassoBBox) return;
-                        setIsTransformingSelection(true);
-                        const rect = (
-                          refs.canvasContainerRef.current as HTMLDivElement
-                        ).getBoundingClientRect();
-                        const cx = lassoBBox.x + lassoBBox.w / 2;
-                        const cy = lassoBBox.y + lassoBBox.h / 2;
-                        const sx =
-                          e.clientX -
-                          rect.left +
-                          (refs.canvasContainerRef.current as HTMLDivElement)
-                            .scrollLeft;
-                        const sy =
-                          e.clientY -
-                          rect.top +
-                          (refs.canvasContainerRef.current as HTMLDivElement)
-                            .scrollTop;
-                        transformRef.current = {
-                          mode: "rotate",
-                          prevAngle: Math.atan2(sy - cy, sx - cx),
-                          cx,
-                          cy,
-                        };
-                        beginTransformSession();
-                        const onMove = async (ev: MouseEvent) => {
-                          if (transformSnapshotPendingRef.current) return;
-                          const rx =
-                            ev.clientX -
-                            rect.left +
-                            (refs.canvasContainerRef.current as HTMLDivElement)
-                              .scrollLeft;
-                          const ry =
-                            ev.clientY -
-                            rect.top +
-                            (refs.canvasContainerRef.current as HTMLDivElement)
-                              .scrollTop;
-                          const ang = Math.atan2(
-                            ry - (transformRef.current.cy || 0),
-                            rx - (transformRef.current.cx || 0)
-                          );
-                          const prev = transformRef.current.prevAngle || ang;
-                          const deltaDeg = ((ang - prev) * 180) / Math.PI;
-                          transformRef.current.prevAngle = ang;
-                          await rotateSelectedStrokes(lassoSelection, deltaDeg);
-                        };
-                        const onUp = () => {
-                          setIsTransformingSelection(false);
-                          document.removeEventListener("mousemove", onMove);
-                          document.removeEventListener("mouseup", onUp);
-                          endTransformSession();
-                        };
-                        document.addEventListener("mousemove", onMove);
-                        document.addEventListener("mouseup", onUp);
+                        handleRotateStart(e);
                       }}
                       title="Rotate"
                     />
