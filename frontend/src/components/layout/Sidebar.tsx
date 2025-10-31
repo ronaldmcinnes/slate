@@ -78,7 +78,7 @@ export default function Sidebar({
               <img
                 src={slateHandwrittenLogo}
                 alt="Slate Handwritten"
-                className="h-12"
+                className="h-12 invert dark:invert-0"
               />
             </div>
             {onNavigateHome && (
