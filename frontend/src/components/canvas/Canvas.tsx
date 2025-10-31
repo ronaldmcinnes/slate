@@ -1152,6 +1152,123 @@ export default function Canvas({
     return -1;
   };
 
+  // Flip black/white stroke colors based on theme for readability
+  const mapColorForTheme = (c: any, isDark: boolean): any => {
+    if (!c) return c;
+    const toHex = (s: string) => s.trim().toLowerCase();
+    const isBlack = (s: string) => {
+      const v = toHex(s);
+      return (
+        v === "#000" ||
+        v === "#000000" ||
+        v === "black" ||
+        /^rgba?\(\s*0\s*,\s*0\s*,\s*0(\s*,\s*(0|0?\.\d+|1(\.0+)?)\s*)?\)$/.test(
+          v
+        )
+      );
+    };
+    const isWhite = (s: string) => {
+      const v = toHex(s);
+      return (
+        v === "#fff" ||
+        v === "#ffffff" ||
+        v === "white" ||
+        /^rgba?\(\s*255\s*,\s*255\s*,\s*255(\s*,\s*(0|0?\.\d+|1(\.0+)?)\s*)?\)$/.test(
+          v
+        )
+      );
+    };
+    const toWhite = (alpha?: number) =>
+      alpha != null ? `rgba(255,255,255,${alpha})` : "#FFFFFF";
+    const toBlack = (alpha?: number) =>
+      alpha != null ? `rgba(0,0,0,${alpha})` : "#000000";
+
+    if (typeof c === "string") {
+      if (isDark && isBlack(c)) return "#FFFFFF";
+      if (!isDark && isWhite(c)) return "#000000";
+      return c;
+    }
+    // Object forms possibly { color, width } etc.
+    const next: any = { ...c };
+    if (typeof next === "object") {
+      const base = next.color ?? next.strokeColor ?? next.fillColor;
+      if (typeof base === "string") {
+        let alpha: number | undefined;
+        const m = base.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)\)$/i);
+        if (m) alpha = parseFloat(m[1]);
+        if (isDark && isBlack(base))
+          next.color = next.strokeColor = toWhite(alpha);
+        if (!isDark && isWhite(base))
+          next.color = next.strokeColor = toBlack(alpha);
+      }
+    }
+    return next;
+  };
+
+  // Keep an immutable snapshot of original paths to avoid cumulative loss on flips
+  const originalPathsRef = useRef<any[] | null>(null);
+
+  useEffect(() => {
+    // After loading page drawings, cache originals
+    (async () => {
+      const instance: any = refs.canvasRef.current;
+      if (!instance) return;
+      try {
+        const exported: any = (await instance.exportPaths?.()) || [];
+        const paths: any[] = Array.isArray(exported)
+          ? exported
+          : exported.paths || [];
+        if (Array.isArray(paths) && paths.length > 0) {
+          originalPathsRef.current = JSON.parse(JSON.stringify(paths));
+        }
+      } catch {}
+    })();
+  }, [page?.id]);
+
+  const flipStrokeColorsForTheme = async () => {
+    const instance: any = refs.canvasRef.current;
+    if (!instance) return;
+    try {
+      // Use cached originals if available to avoid repeated resampling
+      let basePaths: any[] | null = originalPathsRef.current;
+      if (!basePaths) {
+        const exported: any = (await instance.exportPaths?.()) || [];
+        basePaths = Array.isArray(exported) ? exported : exported.paths || [];
+      }
+      const paths: any[] = Array.isArray(basePaths) ? basePaths : [];
+      if (!paths.length) return;
+      const isDark = document.documentElement.classList.contains("dark");
+      const mapped = paths.map((p: any) => {
+        const q = { ...p } as any;
+        if (q.strokeColor)
+          q.strokeColor = mapColorForTheme(q.strokeColor, isDark);
+        if (q.color) q.color = mapColorForTheme(q.color, isDark);
+        if (q.stroke && typeof q.stroke === "object") {
+          q.stroke = { ...q.stroke };
+          if (q.stroke.color)
+            q.stroke.color = mapColorForTheme(q.stroke.color, isDark);
+        }
+        return q;
+      });
+      await instance.clearCanvas?.();
+      await instance.loadPaths?.(mapped);
+    } catch {}
+  };
+
+  // Observe theme toggles to flip black/white strokes
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      void flipStrokeColorsForTheme();
+    });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    // Apply once on mount
+    void flipStrokeColorsForTheme();
+    return () => obs.disconnect();
+  }, []);
+
   // Early return for no page selected
   if (!page) {
     return <NoPageSelected />;
