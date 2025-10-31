@@ -52,6 +52,21 @@ export default function NotebookApp({ onNavigateHome }: NotebookAppProps) {
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [pageSaveState, setPageSaveState] = useState<Record<string, { isSaving: boolean; saveSuccess: boolean; hasUnsavedChanges: boolean }>>({});
 
+  // Reset save state when page changes to ensure fresh state
+  useEffect(() => {
+    if (selectedPage) {
+      // Clear save state for this page so it starts fresh
+      setPageSaveState(prev => ({
+        ...prev,
+        [selectedPage.id]: {
+          isSaving: false,
+          saveSuccess: false,
+          hasUnsavedChanges: false,
+        },
+      }));
+    }
+  }, [selectedPage?.id]);
+
   // Track if an update is in progress to prevent stutter
   const updateInProgressRef = useRef<Set<string>>(new Set());
 

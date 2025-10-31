@@ -13,6 +13,8 @@ interface CanvasTitleProps {
   onCancelEditing: () => void;
   hasUnsavedChanges: boolean;
   isReadOnly: boolean;
+  isSaving?: boolean;
+  saveSuccess?: boolean;
 }
 
 export default function CanvasTitle({
@@ -25,6 +27,8 @@ export default function CanvasTitle({
   onCancelEditing,
   hasUnsavedChanges,
   isReadOnly,
+  isSaving = false,
+  saveSuccess = false,
 }: CanvasTitleProps) {
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,10 +96,16 @@ export default function CanvasTitle({
                 day: "numeric",
               })}
             </p>
-            {hasUnsavedChanges && !isReadOnly && (
-              <span className="text-xs text-orange-500 font-medium">
-                • Unsaved changes
-              </span>
+            {!isReadOnly && (
+              <>
+                {isSaving ? (
+                  <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                ) : !hasUnsavedChanges ? (
+                  <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400 flex-shrink-0" />
+                ) : (
+                  <div className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400 flex-shrink-0" />
+                )}
+              </>
             )}
           </div>
         )}

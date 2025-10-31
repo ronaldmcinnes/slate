@@ -7,8 +7,6 @@ import {
   Scissors,
   Copy,
   ClipboardPaste,
-  Check,
-  CircleDot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -236,25 +234,15 @@ export default function PagesList({
                             return (
                               <div className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin flex-shrink-0" />
                             );
-                          } else if (
-                            saveState.saveSuccess &&
-                            !saveState.hasUnsavedChanges
-                          ) {
+                          } else if (!saveState.hasUnsavedChanges) {
                             return (
-                              <Check
-                                size={12}
-                                className="text-green-600 dark:text-green-400 flex-shrink-0"
-                              />
+                              <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400 flex-shrink-0" />
                             );
-                          } else if (saveState.hasUnsavedChanges) {
+                          } else {
                             return (
-                              <CircleDot
-                                size={8}
-                                className="text-orange-500 dark:text-orange-400 flex-shrink-0"
-                              />
+                              <div className="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400 flex-shrink-0" />
                             );
                           }
-                          return null;
                         })()}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">

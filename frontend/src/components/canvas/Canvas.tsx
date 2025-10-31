@@ -244,9 +244,14 @@ export default function Canvas({
     }
   };
 
+  const isLoadingContentRef = useRef(false);
+
   const handleSaveDrawing = async () => {
     if (!refs.canvasRef.current || isReadOnly) return;
-    actions.markAsChanged();
+    // Don't mark as changed if we're loading content (not a user change)
+    if (!isLoadingContentRef.current) {
+      actions.markAsChanged();
+    }
     // Keep selection bbox in sync with content updates (including undo/redo)
     if (lassoSelection.length > 0) {
       await new Promise((r) =>
@@ -401,6 +406,9 @@ export default function Canvas({
         console.log("Page textBoxes:", page.textBoxes);
         console.log("Page graphs:", page.graphs);
 
+        // Set flag to prevent marking as changed during content loading
+        isLoadingContentRef.current = true;
+
         // Wait a bit to ensure the canvas is fully mounted and ready
         await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -423,6 +431,11 @@ export default function Canvas({
         }
       } catch (error) {
         console.error("Failed to load page content:", error);
+      } finally {
+        // Reset flag after a short delay to allow any onChange events from loading to complete
+        setTimeout(() => {
+          isLoadingContentRef.current = false;
+        }, 200);
       }
     };
 
@@ -746,6 +759,12 @@ export default function Canvas({
     saveSuccess: boolean;
     hasUnsavedChanges: boolean;
   } | null>(null);
+
+  // Reset save state tracking when page changes
+  useEffect(() => {
+    prevSaveStateRef.current = null;
+  }, [page?.id]);
+
   useEffect(() => {
     if (onSaveStateChange) {
       const currentState = {
@@ -771,6 +790,7 @@ export default function Canvas({
     state.saveSuccess,
     state.hasUnsavedChanges,
     onSaveStateChange,
+    page?.id,
   ]);
 
   // Early return for no page selected
@@ -866,6 +886,8 @@ export default function Canvas({
             onCancelEditing={() => actions.setIsEditingTitle(false)}
             hasUnsavedChanges={state.hasUnsavedChanges}
             isReadOnly={isReadOnly}
+            isSaving={state.isSaving}
+            saveSuccess={state.saveSuccess}
           />
 
           {/* Drawing Canvas - Only show for edit mode */}

@@ -172,7 +172,12 @@ export function useCanvasSave({
         );
         console.log(`Total save time: ${totalTime.toFixed(2)}ms`);
 
-        setHasUnsavedChanges(false);
+        // Set hasUnsavedChanges to false after a delay to ensure any content reload
+        // triggered by the page update doesn't mark it as changed again
+        setTimeout(() => {
+          setHasUnsavedChanges(false);
+        }, 300);
+        
         setSaveSuccess(true);
         console.log("Page saved successfully to database");
 
