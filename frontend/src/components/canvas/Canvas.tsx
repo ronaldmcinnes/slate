@@ -17,6 +17,7 @@ import { useCanvasAudio } from "@/hooks/useCanvasAudio";
 import { useCanvasState } from "@/hooks/useCanvasState";
 import { useEraser } from "@/hooks/useEraser";
 import { useLassoSelection } from "@/hooks/useLassoSelection";
+import { useCanvasHistory } from "@/hooks/useCanvasHistory";
 import { decompressDrawingData } from "@/lib/compression";
 import type { Page } from "@/types";
 import { recognizeMathFromImage } from "@/lib/visionService";
@@ -198,6 +199,15 @@ export default function Canvas({
     tool: state.tool,
   });
 
+  // Define after helper is declared further down to satisfy TS ordering
+  let snapshotPaths: () => Promise<void>;
+  let pushCurrentSnapshot: () => Promise<void>;
+  let beginTransformSession: () => void;
+  let endTransformSession: () => void;
+  let tryCustomUndo: () => Promise<boolean>;
+  let tryCustomRedo: () => Promise<boolean>;
+  let transformSnapshotPendingRef: React.MutableRefObject<boolean>;
+
   // Canvas operations
   const handleUndo = async () => {
     const used = await tryCustomUndo();
@@ -241,10 +251,6 @@ export default function Canvas({
   };
 
   // --- Custom history to track programmatic edits (rotate/scale/recolor/delete) ---
-  const customHistoryRef = useRef<any[][]>([]); // array of paths snapshots
-  const customHistoryIndexRef = useRef<number>(-1);
-  const transformSessionActiveRef = useRef<boolean>(false);
-  const transformSnapshotPendingRef = useRef<boolean>(false);
   const refreshSelectionBBoxSoon = async () => {
     if (lassoSelection.length === 0) return;
     // Try a few frames in case canvas updates settle late
@@ -281,72 +287,21 @@ export default function Canvas({
       return;
     }
   };
-  const clearForwardHistory = () => {
-    const idx = customHistoryIndexRef.current;
-    if (idx < customHistoryRef.current.length - 1) {
-      customHistoryRef.current = customHistoryRef.current.slice(0, idx + 1);
-    }
-  };
-  const snapshotPaths = async () => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return;
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    clearForwardHistory();
-    customHistoryRef.current.push(JSON.parse(JSON.stringify(paths)));
-    customHistoryIndexRef.current = customHistoryRef.current.length - 1;
-  };
-  const pushCurrentSnapshot = async () => {
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return;
-    const exported: any = (await instance.exportPaths?.()) || [];
-    const paths: any[] = Array.isArray(exported)
-      ? exported
-      : exported.paths || [];
-    clearForwardHistory();
-    customHistoryRef.current.push(JSON.parse(JSON.stringify(paths)));
-    customHistoryIndexRef.current = customHistoryRef.current.length - 1;
-  };
-  const beginTransformSession = () => {
-    if (transformSessionActiveRef.current) return;
-    transformSnapshotPendingRef.current = true;
-    void (async () => {
-      await snapshotPaths(); // ensure pre-transform captured before first delta
-      transformSnapshotPendingRef.current = false;
-    })();
-    transformSessionActiveRef.current = true;
-  };
-  const endTransformSession = () => {
-    if (!transformSessionActiveRef.current) return;
-    transformSessionActiveRef.current = false;
-    void pushCurrentSnapshot(); // capture post-transform
-  };
-  const tryCustomUndo = async (): Promise<boolean> => {
-    const idx = customHistoryIndexRef.current;
-    if (idx <= 0) return false;
-    customHistoryIndexRef.current = idx - 1;
-    const snapshot = customHistoryRef.current[customHistoryIndexRef.current];
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return false;
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(snapshot);
-    await refreshSelectionBBoxFromCanvas();
-    return true;
-  };
-  const tryCustomRedo = async (): Promise<boolean> => {
-    const idx = customHistoryIndexRef.current;
-    if (idx >= customHistoryRef.current.length - 1) return false;
-    customHistoryIndexRef.current = idx + 1;
-    const snapshot = customHistoryRef.current[customHistoryIndexRef.current];
-    const instance: any = refs.canvasRef.current;
-    if (!instance) return false;
-    await instance.clearCanvas?.();
-    await instance.loadPaths?.(snapshot);
-    await refreshSelectionBBoxFromCanvas();
-    return true;
-  };
+
+  // Initialize history hook now that refreshSelectionBBoxFromCanvas exists
+  {
+    const h = useCanvasHistory({
+      canvasRef: refs.canvasRef,
+      recomputeSelectionBBoxFromCanvas: refreshSelectionBBoxFromCanvas,
+    });
+    snapshotPaths = h.snapshotPaths;
+    pushCurrentSnapshot = h.pushCurrentSnapshot;
+    beginTransformSession = h.beginTransformSession;
+    endTransformSession = h.endTransformSession;
+    tryCustomUndo = h.tryCustomUndo;
+    tryCustomRedo = h.tryCustomRedo;
+    transformSnapshotPendingRef = h.transformSnapshotPendingRef as any;
+  }
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -816,7 +771,7 @@ export default function Canvas({
   ) => {
     const instance: any = refs.canvasRef.current;
     if (!instance || indices.length === 0) return;
-    if (!transformSessionActiveRef.current) {
+    if (!(transformSnapshotPendingRef as any)?.current) {
       await snapshotPaths();
     }
     const exported: any = (await instance.exportPaths?.()) || [];
